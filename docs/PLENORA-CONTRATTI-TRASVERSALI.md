@@ -27,8 +27,9 @@
 > | §4 | CRS a tre stati, axis order non canonicalizzato | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ⚠ (emendamenti §7 revisione: formato definizione, precedenza, R4.5 pushdown) |
 > | §9 | Categorie e fasi d'errore | **contestata** | 27 lug | 2.0-draft | db ✘ (causa ed effetto sullo stesso asse; `retryable: bool` insufficiente) |
 > | §11.5 | `CancellationToken` concreto e clonabile | **contestata** | 27 lug | 2.0-draft | db ✘ (manca attesa asincrona e deadline) |
-> | §15a | Crate `plenora-contracts`: nome, repository proprio, distribuzione | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
-> | §15b | Contenuto e API del crate | **contestata** | 27 lug | 2.0-draft | db ✘ (mancano `LossReport`, budget, capability, esito di scrittura, versione, lineage) |
+> | §15.1 | Repository autonomo `plenora-contracts` come fonte autorevole, e suo nome | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
+> | §15.2 | Distribuzione: tag, revisione, immutabilità del riferimento | **contestata** | 27 lug | 2.0-draft | db ✘ (un tag è spostabile: serve tag firmato più revisione esatta) |
+> | §15.3 | Contenuto e API del crate | **contestata** | 27 lug | 2.0-draft | db ✘ (mancano `LossReport`, budget, capability, esito di scrittura, versione del contratto, lineage) |
 >
 > **Effetto pratico degli stati.** Una sezione `contestata` non fonda nuovo
 > lavoro: chi ha già iniziato non disfa, chi non ha iniziato attende la 2.0. Una
@@ -815,10 +816,17 @@ creazione del crate `plenora-contracts` (§15 passo 2).
 
 ## §17 Definizione di componente conforme
 
-Un componente è **conforme** quando soddisfa, verificabile in CI, tutte le regole
-che il registro di ratifica indica come `ratificata` al momento della verifica.
-Alla data odierna sono §3.1, §4 e §15a; l'elenco che segue è il traguardo
-completo, non il criterio corrente:
+La conformità si misura su **tre grandezze distinte**, che non vanno confuse:
+
+| Grandezza | Definizione | Vincolante |
+|---|---|---|
+| **Conformità corrente** | Rispetto delle sole sezioni `ratificata` nel registro al momento della verifica: oggi §3.1, §4, §15.1 | sì |
+| **Gap verso il traguardo** | Distanza dall'elenco completo qui sotto, che include sezioni `contestata` e `proposta` | no |
+| **Deroghe attive** | Scostamenti dichiarati secondo §16, con motivo e condizione di rientro | registrate |
+
+L'elenco che segue è il **traguardo completo**, non il criterio corrente, e la
+sua versione definitiva dipende dagli emendamenti 2.0. Le voci che riguardano
+sezioni non ratificate sono fotografia, non obbligo:
 
 1. Arrow pinnato alla versione di baseline (R1).
 2. Emette e accetta le chiavi canoniche §2, e propaga invariate quelle che non
@@ -837,7 +845,9 @@ completo, non il criterio corrente:
 13. Toolchain fissata, `--locked` in CI, dipendenze pinnate (R13).
 14. Output atomico, no-clobber, durabilità dichiarata onestamente (R14).
 
-**Nessuno dei tre componenti è oggi conforme all'elenco completo.** Il più vicino è
+**Rispetto al traguardo completo, nessuno dei tre componenti è oggi conforme.**
+Sulla conformità corrente — §3.1, §4, §15.1 — la verifica non è ancora stata
+eseguita da nessun team. Il più vicino è
 IO-tools (R1, R3.3, R6, R14 su Linux/Windows); il più distante è database-tools,
 che non ha CI e quindi non può dimostrare alcuna regola in modo automatico.
 
