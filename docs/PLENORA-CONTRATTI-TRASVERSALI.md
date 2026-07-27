@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 1.1.3-draft · 27 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-draft · 27 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -17,35 +17,46 @@
 > bloccante accolto: **non** vincolante finché l'emendamento non la sostituisce)
 > · `superata` (rimpiazzata da una versione ratificata successiva).
 >
+> Al 27 luglio nessuna sezione è `sospesa`: la 2.0 ha emendato tutte quelle che
+> lo erano, riportandole a `proposta` in attesa di ratifica.
+>
 > **Clausola di chiusura.** Ogni regola o sezione non elencata in questa tabella
 > ha stato `proposta`. La tabella è esaustiva per costruzione: se una regola
 > compare nel corpo ma non qui, non è vincolante.
 >
+> **Effetto della 2.0.** Gli emendamenti chiudono i rilievi che avevano portato
+> alla sospensione, ma **entrano come `proposta`**: una sezione emendata non
+> torna vincolante da sé. La ratifica degli emendamenti è l'atto che manca.
+> Le undici sezioni ratificate il 27 luglio restano tali sul testo che coprivano;
+> le clausole aggiunte dalla 2.0 dentro quelle sezioni sono elencate a parte.
+>
 > | Sezione | Oggetto | Stato | Dal | Emendamento previsto | Posizioni dei team |
 > |---|---|---|---|---|---|
 > | §1 R1 | Versione Arrow unica e pinnata | **ratificata** | 27 lug | — | conforme in tutti e tre |
-> | §2 | Chiavi metadata canoniche, una per proprietà | **sospesa** | 27 lug | 2.0-draft | IO ✔ · data ✔ · db ✘ (manca versione protocollo, vieta chiavi Arrow standard) |
+> | §2 | Chiavi metadata canoniche, versione del protocollo (R2.5), deroga Arrow/GeoArrow (R2.6), lineage (R2.4) | proposta *(emendata 2.0)* | — | — | rilievi db chiusi; da ratificare |
 > | §3.1 | Sedici tipi geometrici, forma `linestring` | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
 > | §3.2 | Rifiuto esplicito dei tipi non supportati | **ratificata** | 27 lug | — | data ✔ |
 > | §3.3 | Cinque dimensioni rappresentabili e propagabili | **ratificata** | 27 lug | — | ambito: rappresentare e propagare, **non** elaborare (vedi clausola) |
-> | §3.4 | `unknown` non degradabile a `xy` | proposta | — | 2.0-draft | db ✘ (non distingue *mixed* da *non risolto*) |
+> | §3.4 | `unknown` non degradabile; tre stati di dichiarazione dei tipi (R3.4.1) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 > | §3.5 | Encoding come enumerazione chiusa | **ratificata** | 27 lug | — | db: `String` da convertire |
 > | §4.1–§4.4 | CRS a tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ⚠ (emendamenti su formato della definizione e precedenza) |
-> | §4.5 | Riproiezione riservata al centro | **sospesa** | 27 lug | 2.0-draft | db ✘ (vieta il pushdown `ST_Transform` deciso dal planner) |
+> | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown capability-gated | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 > | §5 R5 | Perdita di informazione mai silenziosa | **ratificata** | 27 lug | — | data ✔ (R5.3 implementata) |
 > | §6 R6 | Nessun panic nei crate `lib` | **ratificata** | 27 lug | — | IO ✔ (gate attivo) · data: in corso |
-> | §7 R7 | Limiti applicati prima dell'allocazione | proposta | — | 2.0-draft | db ✘ (budget da cedere lungo la catena, non replicare) |
+> | §7 R7 | Limiti pre-allocazione; budget che attraversa la catena con lease (R7.5–R7.7) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 > | §8 R8 | Identità di crate e colonne | **ratificata** | 27 lug | — | R8.1 e R8.4 violate da IO e data (`plenora-core`, `PlenoraError`) |
-> | §9 | Categorie e fasi d'errore | **sospesa** | 27 lug | 2.0-draft | db ✘ (causa ed effetto sullo stesso asse; `retryable: bool` insufficiente) |
-> | §10 R10 | Capability dichiarative interrogabili | proposta | — | 2.0-draft | data: forma da definire |
-> | §11.1–§11.4 | Cancellazione cooperativa, categoria propria, nessun residuo | proposta | — | 2.0-draft | db ✘ (R11.3 è garanzia assoluta non dimostrabile) |
-> | §11.5 | `CancellationToken` concreto e clonabile | **sospesa** | 27 lug | 2.0-draft | db ✘ (manca attesa asincrona e deadline) |
-> | §12 R12 | Determinismo e riproducibilità | proposta | — | 2.0-draft | db ✘ (troppo assoluta per sorgenti remote) · data ✔ (R12.4) |
+> | §9 | Errore a quattro assi: causa, fase, effetto remoto (R9.6), disposizione di ritentativo (R9.7) | proposta *(emendata 2.0)* | — | — | rilievi db chiusi; da ratificare |
+> | §10 R10 | Capability dichiarative interrogabili | proposta | — | — | forma definita in §15.3; da ratificare |
+> | §11.1–§11.4 | Cancellazione cooperativa; garanzia sui residui condizionata alla piattaforma (R11.3) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
+> | §11.5 | `CancellationToken` con attesa asincrona, deadline, motivo e token figli (R11.6–R11.8) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
+> | §12 R12 | Determinismo su quattro livelli; sorgenti remote e collation esclusi (R12.5–R12.6) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; data ✔ (R12.4) |
 > | §13 R13 | Toolchain e baseline | **ratificata** | 27 lug | — | data ✔ (`a1f4130`) · IO: toolchain da fissare |
-> | §14 R14 | Esiti di scrittura e pubblicazione | proposta | — | 2.0-draft | db ✘ (R14.4 è garanzia assoluta non dimostrabile) |
+> | §14 R14 | Esiti di scrittura; ripristino dichiarabile solo se verificato (R14.4) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 > | §15.1 | Repository autonomo `plenora-contracts` come fonte autorevole, e suo nome | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
-> | §15.2 | Distribuzione: tag, revisione, immutabilità del riferimento | **sospesa** | 27 lug | 2.0-draft | db ✘ (un tag è spostabile: serve tag firmato più revisione esatta) |
-> | §15.3 | Contenuto e API del crate | **sospesa** | 27 lug | 2.0-draft | db ✘ (mancano `LossReport`, budget, capability, esito di scrittura, versione del contratto, lineage) |
+| §4.3.1–§4.3.3 | *(nuove 2.0, dentro una sezione ratificata)* formato della definizione CRS, precedenza fra rappresentazioni, coerenza con l'SRID EWKB, ordini d'asse estesi | proposta | — | — | rilievo db chiuso; da ratificare |
+| §6 R6.6–R6.7 | *(nuove 2.0, dentro una sezione ratificata)* il gate Clippy è minimo e non dimostra R6.1: servono fuzzing, boundary test, overflow-checks e audit delle API panicking | proposta | — | — | rilievo db chiuso; da ratificare |
+> | §15.2 | Distribuzione: tag firmato **e** revisione nel lockfile, citati entrambi nelle CIA | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
+> | §15.3 | Contenuto e API del crate, ora completo su sei aree | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 >
 > La colonna **Emendamento previsto** indica dove il rilievo sarà risolto: non
 > significa che la regola sia già stata sostituita. Una sezione diventa `superata`
@@ -63,8 +74,9 @@
 >
 > **Cronologia.** §9 e §11 recepiscono i rilievi del team IO-tools; §5, §9 e §12
 > la fotografia del team data-tools; l'Appendice A §R13.3 corregge un dato errato
-> della 1.0. Gli stati `sospesa` recepiscono i cinque rilievi bloccanti della
-> revisione database-tools, accolti integralmente.
+> della 1.0. La 2.0 emenda le sei sezioni che erano `sospesa` e le sei `proposta`
+> con rilievi aperti: nessuna sezione risulta più sospesa, tutte attendono
+> ratifica.
 
 Governa i confini fra i tre componenti Plenora sviluppati separatamente. Le regole
 qui contenute prevalgono sulla documentazione locale dei singoli repository.
@@ -167,8 +179,34 @@ metadati di campo (`Field::metadata`) dello schema Arrow.
 > un sotto-namespace proprio (`plenora.filegdb.*`, `plenora.postgres.*`) e non
 > possono duplicare una nozione canonica.
 >
-> **R2.4** Un componente che riceve una chiave canonica che non sa interpretare
-> **DEVE** propagarla invariata all'uscita. **NON DEVE** eliminarla.
+> **R2.4** *(emendata 2.0)* La propagazione di una chiave non interpretata segue
+> la **lineage** del campo, non una regola unica:
+>
+> | Trasformazione | Regola |
+> |---|---|
+> | Identity-preserving (proiezione, rinomina, filtro di righe) | copia invariata |
+> | Type-preserving (cast compatibile, riordino) | copia selettiva: cadono le chiavi la cui validità dipende dal tipo mutato |
+> | Campo derivato (nuova geometria, aggregazione, union, join che fonde sorgenti) | ricostruzione dalle proprietà effettive del risultato; **NON** si eredita |
+> | Conflitto fra più sorgenti con valori diversi | errore, oppure `LossReport` esplicito se il componente sa scegliere |
+>
+> Propagare invariata una chiave dopo un `aggregate` o la costruzione di una nuova
+> geometria è una violazione di R5.1: descriverebbe il risultato con le proprietà
+> dell'ingresso.
+>
+> **R2.5** *(nuova 2.0)* Ogni schema che porta chiavi canoniche **DEVE** dichiarare
+> `plenora.contract.version`. La versione corrente del protocollo dei metadati è
+> **`1`**. Un consumatore che riceve una versione maggiore di quella che conosce
+> **DEVE** fallire in modo esplicito, mai interpretare parzialmente.
+>
+> **R2.6** *(nuova 2.0)* Le chiavi definite da standard esterni — segnatamente
+> `ARROW:extension:name` e `ARROW:extension:metadata` per GeoArrow — sono
+> **ammesse ed esenti** da R2.1. Quando coesistono con le chiavi canoniche, le due
+> descrizioni **DEVONO** essere coerenti; in caso di divergenza il componente
+> **DEVE** fallire, non scegliere.
+>
+> **R2.7** *(nuova 2.0)* Durante la doppia lettura, la precedenza è: chiave
+> canonica, poi chiave legacy, poi standard esterno. La precedenza **DEVE** essere
+> decidibile senza ispezionare i dati.
 
 ### Chiavi canoniche
 
@@ -182,9 +220,12 @@ metadati di campo (`Field::metadata`) dello schema Arrow.
 | `plenora.geometry.crs_resolution` | `resolved` \| `declared_unresolved` \| `missing` | sì |
 | `plenora.geometry.crs_definition` | WKT o PROJJSON, testuale | no |
 | `plenora.geometry.axis_order` | `lon_lat` \| `lat_lon` \| `easting_northing` \| `unknown` | sì se `crs_id` presente |
-| `plenora.geometry.spatial_semantics` | `geometry` \| `geography` \| `feature_service` | no |
+| `plenora.geometry.spatial_semantics` | `geometry` \| `geography` | no |
 | `plenora.geometry.precision` | `float64` \| `float32` \| `native` | no |
 | `plenora.field_id` | intero decimale senza segno | no |
+| `plenora.contract.version` | intero decimale; oggi `1` | sì se sono presenti chiavi canoniche |
+| `plenora.geometry.crs_definition_format` | `wkt` \| `wkt2` \| `projjson` | sì se `crs_definition` è presente |
+| `plenora.geometry.types_declaration` | `exact` \| `mixed` \| `unresolved` | sì se `types` è presente |
 
 **Perché R2.2.** Un blob unico è opaco: un componente che non sa deserializzarlo
 perde tutte le proprietà insieme, e la perdita è silenziosa (H-01).
@@ -228,6 +269,19 @@ la tabella; test di round-trip dei metadati attraverso il componente centrale.
 > **R3.4** `unknown` significa «byte preservati, dimensionalità non risolta». Un
 > componente **NON DEVE** convertire `unknown` in `xy` per convenienza: è una
 > reinterpretazione silenziosa dei dati (H-01).
+>
+> **R3.4.1** *(emendata 2.0)* Sul **tipo** geometrico vanno distinti tre stati, che
+> la 1.x confondeva in `unknown`:
+>
+> | Stato | Chiave `types_declaration` | Significato |
+> |---|---|---|
+> | Dichiarazione esatta | `exact` | l'insieme dei tipi presenti è noto ed è quello elencato |
+> | Dichiarazione eterogenea | `mixed` | la colonna ammette tipi diversi **per dichiarazione**: è informazione, non ignoranza (una colonna PostGIS `geometry` senza vincolo) |
+> | Non risolto | `unresolved` | i byte non sono stati ispezionati e nessuna dichiarazione è disponibile |
+>
+> L'assenza della chiave `plenora.geometry.types` significa «proprietà non
+> dichiarata» ed è diversa da tutti e tre. Un componente **NON DEVE** convertire
+> `mixed` in `unresolved` né viceversa.
 >
 > **R3.5** L'encoding canonico è `wkb` o `ewkb`, come enumerazione chiusa. **NON
 > DEVE** essere modellato come stringa libera.
@@ -309,16 +363,37 @@ dovuta per PLN-ASR-007 e H-01 nel profilo di assurance di IO-tools.
 > **NON DEVONO** essere trattati come equivalenti.
 >
 > **R4.3** La definizione sorgente (WKT o PROJJSON) **DEVE** essere preservata
-> quando disponibile, anche se il componente sa già risolvere l'identificatore.
+> quando disponibile, anche se il componente sa già risolvere l'identificatore. Il
+> formato **DEVE** essere dichiarato in `plenora.geometry.crs_definition_format`:
+> una definizione senza discriminatore non è interpretabile senza indovinare.
+>
+> **R4.3.1** *(nuova 2.0)* La precedenza fra le rappresentazioni del CRS è:
+> **definizione** (`crs_definition` con il suo formato), poi **identificatore**
+> (`crs_id`), poi **SRID** numerico. Quando due rappresentazioni sono presenti e
+> discordano, il componente **DEVE** fallire con categoria `Crs`: non deve
+> scegliere silenziosamente la più conveniente.
+>
+> **R4.3.2** *(nuova 2.0)* Se il payload è EWKB e porta un SRID incorporato,
+> questo **DEVE** coincidere con `plenora.geometry.srid`. La divergenza è un
+> errore, non una precedenza da risolvere.
+>
+> **R4.3.3** *(emendata 2.0)* `plenora.geometry.axis_order` ammette:
+> `lon_lat`, `lat_lon`, `easting_northing`, `northing_easting`, `other`,
+> `unknown`. È obbligatorio quando è presente `crs_id` **oppure**
+> `crs_definition`: una definizione priva di identificatore non esime
+> dal dichiarare l'ordine.
 >
 > **R4.4** Nessun componente **DEVE** assumere un CRS di default. In particolare,
 > l'assenza di CRS **NON DEVE** essere interpretata come WGS84.
 >
-> **R4.5** *(`sospesa` — vedi registro; emendamento previsto in 2.0-draft: il
-> centro resta l'unico a **decidere** la riproiezione, ma il bordo può
-> **eseguirla** come pushdown capability-gated senza alterarne parametri o
-> semantica.)*
-> La riproiezione è responsabilità esclusiva del componente centrale. I
+> **R4.5** *(emendata 2.0)* Il componente centrale è l'unico autorizzato a
+> **decidere** una riproiezione. Un bordo **PUÒ eseguirla** come pushdown, a tre
+> condizioni: che il centro l'abbia richiesta esplicitamente, che il bordo la
+> dichiari fra le proprie capability (§10), e che non ne alteri parametri né
+> semantica — CRS di partenza, CRS di arrivo e ordine degli assi restano quelli
+> decisi dal centro. Un bordo **NON DEVE** riproiettare di propria iniziativa.
+>
+> **R4.5.1** *(storica 1.x, superata)* La riproiezione è responsabilità esclusiva del componente centrale. I
 > bordi **NON DEVONO** riproiettare: preservano il CRS sorgente e lo dichiarano.
 
 **Perché.** L'inversione lat/lon è il fallimento geospaziale più costoso e più
@@ -389,6 +464,17 @@ database-tools non ha un report di perdita uniforme.
 > default silenzioso. `expect("X")` diventa `ok_or_else(|| errore("X"))?`, non
 > `unwrap_or(valore)`: altrimenti si scambia un H-04 rumoroso con un H-01 muto,
 > che è peggio.
+>
+> **R6.6** *(nuova 2.0)* Il gate Clippy è un **gate minimo** e non dimostra R6.1.
+> Intercetta le primitive esplicite, non: indicizzazione fuori limite, overflow
+> aritmetico, panic dentro le dipendenze, API di terze parti che panicano —
+> incluse diverse di Arrow — esaurimento dello stack, o panic generati da macro.
+> Un componente **NON DEVE** dichiarare R6.1 soddisfatta sulla sola base del gate.
+>
+> **R6.7** *(nuova 2.0)* R6.1 richiede evidenza complementare: fuzzing sugli
+> input esterni, test sui valori limite dei tipi in ingresso, `overflow-checks`
+> attivi anche in release per i crate di libreria, e un audit documentato delle
+> API di terze parti che possono panicare.
 
 **Verifica** — identica per i tre componenti, da aggiungere alla CI:
 
@@ -417,6 +503,23 @@ crate libreria, nessun gate. database-tools **26**, nessuna CI.
 > piani) **DEVONO** avere un limite di profondità applicato **prima** della
 > ricorsione, e la validazione stessa **DOVREBBE** essere iterativa, per non
 > esaurire lo stack nel verificarlo.
+>
+> **R7.5** *(nuova 2.0)* Il budget di risorse **DEVE attraversare** la pipeline,
+> non ripartire da capo in ogni componente. Tre limiti indipendenti da 512 MiB
+> non valgono 512 MiB: ne valgono 1,5 GiB, e il consumo reale sfugge al
+> chiamante.
+>
+> **R7.6** *(nuova 2.0)* Il budget condiviso **DEVE** offrire assegnazione per
+> **lease**: un componente ottiene una quota, la consuma, la restituisce. Ogni
+> aritmetica sul budget **DEVE** usare operazioni controllate (`checked_*`):
+> un overflow che azzera il residuo è un limite disattivato in silenzio.
+>
+> **R7.7** *(nuova 2.0)* I limiti **DEVONO** coprire almeno: byte di memoria,
+> righe, colonne, componenti geometrici, profondità di annidamento, **grado di
+> concorrenza**, **fattore di espansione dell'output** rispetto all'ingresso,
+> **tempo di CPU o durata**, **byte di spill su disco**, **dimensione della
+> singola cella** e **rapporto di decompressione** per i formati compressi.
+> L'assenza di quest'ultimo espone a decompression bomb (H-03).
 >
 > **R7.4** I limiti **DEVONO** essere espressi nelle stesse unità nei tre
 > componenti: byte per la memoria, righe per il conteggio, millisecondi per il
@@ -453,15 +556,55 @@ Il crate condiviso previsto da R8.3 non esiste.
 
 ## §9 R9 — Modello di errore attraverso i confini
 
-> **R9.1** Un errore che attraversa un confine **DEVE** portare almeno:
-> categoria, fase in cui si è verificato, indicazione di ritentabilità, messaggio.
+> **R9.1** *(emendata 2.0)* Un errore che attraversa un confine **DEVE** portare
+> **quattro assi indipendenti**, più il messaggio:
+>
+> ```
+> categoria   — che cosa è andato storto        (causa)
+> fase        — dove, nel ciclo dell'operazione
+> effetto     — che cosa resta sul sistema remoto o sul supporto
+> ritentativo — che cosa può fare il chiamante
+> ```
+>
+> Comprimere causa ed effetto su un solo asse **perde la causa**: un timeout dopo
+> l'invio del commit ha causa `Timeout` ed effetto `Unknown`, e un modello a un
+> asse costringe a scegliere quale delle due informazioni buttare.
 >
 > **R9.2** La ritentabilità **DEVE** essere esplicita e non dedotta dal messaggio.
 > Un chiamante non deve interpretare del testo per decidere se riprovare.
 >
-> **R9.3** L'esito ignoto **DEVE** essere una categoria di prima classe, distinta
-> dal fallimento. Un'operazione che non sa se è andata a buon fine **NON DEVE**
-> essere riportata come fallita né come riuscita.
+> **R9.3** *(emendata 2.0)* L'esito ignoto **NON** è una categoria d'errore: è un
+> valore dell'asse **effetto**. Un'operazione che non sa se è andata a buon fine
+> **NON DEVE** essere riportata come fallita né come riuscita.
+>
+> **R9.6** *(nuova 2.0)* L'asse **effetto remoto** ammette:
+>
+> | Valore | Significato |
+> |---|---|
+> | `none` | l'operazione non ha prodotto alcun effetto osservabile |
+> | `rolled_back` | l'effetto è stato annullato, con conferma |
+> | `partial` | una parte dell'effetto è visibile e una no |
+> | `committed` | l'effetto è definitivo, benché l'operazione riporti un errore |
+> | `unknown` | l'effetto non è determinabile con i mezzi disponibili |
+>
+> **R9.7** *(nuova 2.0)* L'asse **ritentativo** sostituisce il booleano
+> `retryable`, che è insufficiente e pericoloso: un timeout in lettura è
+> ritentabile, lo stesso timeout dopo l'invio di un commit non lo è.
+>
+> | Valore | Significato |
+> |---|---|
+> | `never` | ritentare è sempre errato |
+> | `safe` | l'operazione è idempotente o priva di effetti: si può ritentare |
+> | `requires_idempotency_key` | ritentabile solo con una chiave che deduplichi l'effetto |
+> | `requires_recovery` | prima di ritentare occorre accertare lo stato reale |
+> | `after(durata)` | ritentabile non prima della durata indicata |
+>
+> La disposizione **DEVE** essere calcolata da fase, effetto e idempotenza
+> dell'operazione, mai dalla sola categoria.
+>
+> **R9.8** *(nuova 2.0)* Il tipo condiviso che trasporta i quattro assi **NON
+> DEVE** chiamarsi `PlenoraError`: quel nome designa già due tipi divergenti in
+> IO-tools e data-tools, e un terzo omonimo aggraverebbe R8.4.
 >
 > **R9.4** I messaggi d'errore **NON DEVONO** contenere credenziali, stringhe di
 > connessione, percorsi assoluti dell'ambiente o contenuto dei dati. Il
@@ -497,19 +640,20 @@ usa il sottoinsieme che gli compete (R9.5); nessuno ne aggiunge.
 | `Conflict` | Destinazione già esistente o conflitto di scrittura | no |
 | `Authentication` | Credenziali assenti o rifiutate | no |
 | `Authorization` | Permessi insufficienti | no |
-| `Timeout` | Scadenza superata | sì |
+| `Timeout` | Scadenza superata | dipende da fase ed effetto (R9.7) |
 | `Cancelled` | Annullato dal chiamante | no |
 | `ResourceLimit` | Limite di byte, righe, profondità o quota superato | no |
 | `Io` | Errore del filesystem o del dispositivo | dipende |
 | `Protocol` | Violazione del protocollo di trasporto o di rete | dipende |
 | `Transient` | Condizione temporanea, ritentabile per natura | sì |
 | `Execution` | Fallimento di un nodo durante la trasformazione | no |
-| `OutcomeUnknown` | Esito non determinabile: né riuscito né fallito | mai automaticamente |
+| ~~`OutcomeUnknown`~~ | *rimossa in 2.0: è un valore dell'asse effetto, non una causa (R9.6)* | — |
 | `Internal` | Invariante interna violata | no |
 
-La colonna «ritentabile» è il valore di default suggerito: il campo di R9.1 resta
-esplicito per ogni errore, perché la stessa categoria può essere ritentabile o no
-a seconda del contesto.
+La colonna «ritentabile» è **indicativa e non normativa**: la disposizione
+effettiva si calcola secondo R9.7 da fase, effetto e idempotenza. Nessun default
+per categoria è sicuro — in particolare `Timeout`, che la 1.x dava come
+ritentabile e che dopo l'invio di un commit non lo è.
 
 ### Enumerazione canonica delle fasi
 
@@ -588,8 +732,13 @@ geometriche è in grado di propagare, per rendere verificabile R3.3.
 > **R11.2** La cancellazione **DEVE** essere cooperativa e osservata a intervalli
 > limitati: fra un batch e il successivo come minimo.
 >
-> **R11.3** Un'operazione cancellata **NON DEVE** lasciare output parziale
-> visibile, né stato intermedio non ripulito.
+> **R11.3** *(emendata 2.0)* Un'operazione cancellata **NON DEVE** lasciare output
+> parziale visibile **quando la piattaforma consente di garantirlo**. Dove la
+> garanzia non è ottenibile — perdita di connessione, crash del processo,
+> destinazione non atomica — il componente **DEVE**: riportare l'effetto secondo
+> R9.6 (`partial` o `unknown`), rendere disponibile una procedura di recovery, e
+> **non** dichiarare uno stato che non ha verificato. La formulazione assoluta
+> della 1.x prometteva ciò che nessun sistema può dimostrare dopo un crash.
 >
 > **R11.4** La cancellazione **DEVE** essere riportata come categoria d'errore
 > propria, mai confusa con un fallimento o con un successo parziale.
@@ -599,9 +748,30 @@ geometriche è in grado di propagare, per rendere verificabile R3.3.
 > `Sync` e `Clone`; l'osservazione **DEVE** costare quanto una lettura atomica,
 > perché va controllata fra un batch e il successivo.
 >
-> **R11.6** Il token **DEVE** poter essere segnalato da un altro thread, così che
-> un chiamante con un proprio meccanismo — Ctrl-C, runtime asincrono, timeout
-> dell'host — lo possa collegare senza polling.
+> **R11.6** *(emendata 2.0)* Il token **DEVE** poter essere segnalato da un altro
+> thread e **atteso** senza polling. L'osservazione a intervalli fra batch non
+> basta: un'operazione bloccata su socket o su una query remota non raggiunge mai
+> il punto di controllo successivo.
+>
+> **R11.7** *(nuova 2.0)* L'interfaccia minima del token è:
+>
+> ```
+> is_cancelled() -> bool          osservazione non bloccante, costo di una lettura atomica
+> cancel()                        segnalazione, idempotente
+> cancelled() -> Future           attesa asincrona, si risolve alla cancellazione
+> deadline() -> Option<Instant>   scadenza oltre la quale il token si considera cancellato
+> reason() -> Option<Reason>      motivo: richiesta esplicita, scadenza, propagazione dal padre
+> child_token() -> Token          token figlio: cancellabile da solo, cancellato dal padre
+> ```
+>
+> **R11.8** *(nuova 2.0)* La scadenza è parte del token, non un parametro separato:
+> un'operazione che riceve token e timeout da due canali diversi non può garantire
+> che il primo scada prima del secondo.
+>
+> **Dipendenze.** `cancelled()` richiede un `Future` e quindi un meccanismo di
+> risveglio. Il crate condiviso **PUÒ** dipendere da `futures-core` — che è privo
+> di runtime — ma **NON DEVE** dipendere da un runtime specifico: la scelta fra
+> `tokio`, `async-std` o altro resta del chiamante.
 
 **Perché un token concreto e non un trait (R11.5).** Un trait per componente è
 esattamente la situazione attuale: data-tools e database-tools ne hanno uno
@@ -623,13 +793,37 @@ driver non è oggi interrompibile.
 
 ## §12 R12 — Determinismo e riproducibilità dei risultati
 
-> **R12.1** A parità di input, opzioni e versione, un componente **DEVE**
-> produrre lo stesso output. Nessun risultato può dipendere dall'ordine di
-> schedulazione dei thread, dall'iterazione di una mappa non ordinata o
-> dall'orologio.
+> **R12.1** *(emendata 2.0)* Il determinismo si dichiara su **quattro livelli
+> distinti**, e ogni operazione **DEVE** dichiarare quale garantisce:
 >
-> **R12.2** Un ordinamento **DEVE** essere totale e stabile: a parità di chiave,
-> l'ordine è deciso da un criterio esplicito, non dall'algoritmo.
+> | Livello | Garanzia |
+> |---|---|
+> | **Semantico** | stesso insieme di righe e stessi valori, a prescindere dall'ordine |
+> | **Dell'ordine** | stessa sequenza di righe |
+> | **Byte-for-byte** | stessa rappresentazione serializzata, bit per bit |
+> | **Non ordinato** | dichiarazione esplicita che l'ordine **non** è garantito |
+>
+> A parità di input, opzioni e versione, il determinismo **semantico** è sempre
+> dovuto. Nessun risultato può dipendere dalla schedulazione dei thread,
+> dall'iterazione di una mappa non ordinata o dall'orologio.
+>
+> **R12.5** *(nuova 2.0)* Una sorgente remota non offre determinismo per sola
+> lettura: una query senza `ORDER BY` non garantisce l'ordine, e i dati possono
+> cambiare fra due esecuzioni. Quando il determinismo dell'ordine è richiesto su
+> una sorgente remota, il componente **DEVE** imporre un ordinamento esplicito
+> oppure dichiarare il risultato `non ordinato`. Dove la sorgente espone uno
+> snapshot o una versione, questa **DEVE** essere registrata nel risultato.
+>
+> **R12.6** *(nuova 2.0)* Restano fuori dalla garanzia byte-for-byte, salvo
+> dichiarazione esplicita: l'ordinamento di stringhe soggetto a collation, la
+> rappresentazione dei valori in virgola mobile, la posizione dei `NaN`, le
+> conversioni dipendenti dal fuso orario e le funzioni che leggono l'ora corrente.
+>
+> **R12.2** *(emendata 2.0)* Un ordinamento **DEVE** essere totale e stabile
+> **oppure** dichiarare il risultato `non ordinato`. La totalità richiede un
+> criterio di spareggio esplicito — una chiave univoca o l'indice di origine —
+> che non sempre esiste: dove non esiste, la dichiarazione sostituisce la
+> garanzia. Un ordine deciso dall'algoritmo di sort non è un ordine.
 >
 > **R12.3** L'esecuzione parallela e quella sequenziale **DEVONO** produrre lo
 > stesso risultato. La soglia di parallelizzazione è un dettaglio prestazionale,
@@ -716,8 +910,14 @@ variazione di dipendenza, e un caret la rende impossibile.
 > piattaforma non la conferma. L'esito **DEVE** distinguere «pubblicato e durevole»
 > da «pubblicato, durabilità non confermata».
 >
-> **R14.4** Un fallimento **DEVE** lasciare la destinazione nello stato
-> precedente e ripulire lo staging.
+> **R14.4** *(emendata 2.0)* Un fallimento **DEVE** lasciare la destinazione nello
+> stato precedente **e dichiararlo** solo quando il componente lo ha verificato.
+> Dove l'atomicità è supportata, il rollback è confermato e l'effetto è
+> `rolled_back` (R9.6). Dove non lo è — crash, perdita di connessione, provider
+> non transazionale — l'effetto è `partial` o `unknown`, **DEVE** esistere una
+> procedura di recovery, e il componente **NON DEVE** affermare di aver
+> ripristinato ciò che non ha potuto osservare. Lo staging va ripulito in ogni
+> caso in cui sia raggiungibile.
 >
 > **R14.5** Quando l'atomicità non è tecnicamente ottenibile, il componente
 > **DEVE** dichiararlo nel proprio contratto anziché simularla.
@@ -764,11 +964,15 @@ anche la sede del documento sbilancerebbe la governance.
 > **R15.2.1** La dipendenza dal crate **DEVE** essere risolta per revisione
 > esatta, registrata nel `Cargo.lock`, e la CI **DEVE** usare `--locked`.
 >
-> **R15.2.2** Il riferimento umano a una versione del contratto **DEVE** essere
-> un tag annotato e firmato. Un tag non firmato è spostabile e non costituisce
-> evidenza sufficiente per una change impact analysis.
+> **R15.2.2** *(emendata 2.0)* Il riferimento umano a una versione del contratto
+> **DEVE** essere un tag annotato e firmato. Un tag è spostabile: la firma lega il
+> nome al contenuto, e la revisione registrata nel `Cargo.lock` lega la build a un
+> commit preciso. Le due protezioni sono complementari e servono entrambe.
 >
-> **R15.2.3** La distribuzione per `path` locale è **vietata**: riprodurrebbe il
+> **R15.2.3** *(rinumerata)* Ogni change impact analysis **DEVE** citare il tag
+> **e** la revisione, non il solo tag.
+>
+> **R15.2.4** La distribuzione per `path` locale è **vietata**: riprodurrebbe il
 > problema che il crate deve risolvere, dando a ogni team una copia non
 > verificabile — un terzo modello anziché un contratto comune.
 
@@ -786,13 +990,16 @@ anche la sede del documento sbilancerebbe la governance.
 |---|---|
 | Nome del pacchetto | `plenora-contracts` |
 | Versione iniziale | `0.1.0`, `publish = false` |
-| Contenuto minimo | `FieldId`, `CoordinateDimensions`, `GeometryType`, `GeometryEncoding`, `SpatialSemantics`, `CrsResolution`, `ResolvedCrs`, `AxisOrder`, costanti delle chiavi §2 |
-| Contenuto da definire in 2.0 | `CancellationToken` con attesa asincrona e deadline, envelope d'errore con causa/effetto/disposizione di ritentativo, `LossReport` e relativa policy, `ResourceBudget`, capability, esito di scrittura e recovery, versione del protocollo, lineage dei campi |
-| Vincoli di dipendenza | da fissare in 2.0: l'attesa asincrona di R11.5 può richiedere più di `serde` e `arrow-schema` |
+| Contenuto — geometria e CRS | `FieldId`, `CoordinateDimensions`, `GeometryType`, `TypesDeclaration` (R3.4.1), `GeometryEncoding`, `SpatialSemantics`, `CrsResolution`, `ResolvedCrs`, `CrsDefinitionFormat`, `AxisOrder` |
+| Contenuto — protocollo | costanti delle chiavi §2, `ContractVersion` (R2.5), policy di lineage (R2.4) |
+| Contenuto — esiti e errori | envelope a quattro assi (R9.1) con `ErrorCategory`, `ErrorPhase`, `RemoteEffect` (R9.6), `RetryDisposition` (R9.7); `WriteOutcome` e handle di recovery (R14.4). Il tipo **non** si chiama `PlenoraError` (R9.8) |
+| Contenuto — risorse e controllo | `ResourceBudget` con lease e aritmetica controllata (R7.6), `CancellationToken` completo (R11.7) |
+| Contenuto — fedeltà | `LossReport` e la policy che stabilisce quando è obbligatorio (R5.1) |
+| Contenuto — capability | descrizione dichiarativa interrogabile prima dell'esecuzione (§10), inclusa la capability di pushdown della riproiezione (R4.5) |
+| Vincoli di dipendenza | `serde`, `arrow-schema` e `futures-core` per `cancelled()`. **Nessun runtime asincrono.** Nessun `unsafe`, nessuna primitiva di panic |
 
-**Stato.** Questa sottosezione è `sospesa`: la revisione database-tools ha
-rilevato che l'elenco del contenuto era incompleto. Il crate **non va creato**
-finché la 2.0 non lo definisce per intero.
+**Stato.** L'elenco è ora completo: la 2.0 recepisce il rilievo che aveva portato
+alla sospensione. Il crate può essere creato quando §15.3 torna `ratificata`.
 
 ### §15.4 — Piano di migrazione
 
@@ -802,8 +1009,8 @@ verificabile e non richiede il successivo per essere utile.
 **Passo 1 — Chiavi metadata (§2).** Non dipende da nessun refactoring: sono
 costanti stringa. Ogni componente allinea i propri nomi alla tabella §2, con un
 periodo di doppia lettura (accettare vecchio e nuovo, emettere solo il vecchio)
-se serve compatibilità all'indietro. Vedi Appendice C. Finché §2 è `sospesa`,
-è consentita la sola doppia lettura, non l'emissione canonica.
+se serve compatibilità all'indietro. Vedi Appendice C. Finché l'emendamento di §2
+non è ratificato, è consentita la sola doppia lettura, non l'emissione canonica.
 
 **Passo 2 — Estrazione a semantica zero.** Nasce il crate condiviso, come pura
 estrazione dei tipi di confine oggi in `plenora-IO-tools/crates/plenora-core`.
@@ -872,9 +1079,10 @@ proprie regole interne, oggi in vigore.
 | Gate anti-panic `--lib` su data-tools e database-tools | Replica di un gate già in produzione, nessuna decisione di contratto |
 | Doppia **lettura** delle chiavi metadata (accettare canoniche e legacy, emettere solo legacy) | Retrocompatibile e reversibile; dimezza il lavoro del passo 1 senza anticiparne le scelte |
 
-**Subordinato al registro:** rinomina delle chiavi in emissione (§2, `sospesa`), estensione delle dimensioni propagabili (§3.3, `proposta`),
-enumerazioni d'errore condivise (§9, `sospesa`), token di cancellazione comune
-(§11.5, `sospesa`), contenuto del crate (§15.3, `sospesa`).
+**Subordinato al registro:** rinomina delle chiavi in emissione (§2), enumerazioni
+d'errore condivise (§9), token di cancellazione comune (§11.5), contenuto del
+crate (§15.3), budget condiviso (§7), determinismo dichiarato (§12), esiti di
+scrittura (§14). Tutte emendate dalla 2.0 e in attesa di ratifica.
 
 La forma dei valori dei tipi geometrici (§3.1) e il modello CRS (§4.1–§4.4) sono
 invece **ratificati**: si possono adottare subito. Anche l'istituzione del
@@ -890,7 +1098,7 @@ La conformità si misura su **tre grandezze distinte**, che non vanno confuse:
 | Grandezza | Definizione | Vincolante |
 |---|---|---|
 | **Conformità corrente** | Rispetto delle sole sezioni `ratificata` nel registro al momento della verifica: oggi §1, §3.1, §3.2, §3.3, §3.5, §4.1–§4.4, §5, §6, §8, §13, §15.1 | sì |
-| **Gap verso il traguardo** | Distanza dall'elenco completo qui sotto, che include sezioni `sospesa` e `proposta` | no |
+| **Gap verso il traguardo** | Distanza dall'elenco completo qui sotto, che include sezioni `proposta` | no |
 | **Deroghe attive** | Scostamenti dichiarati secondo §16, con motivo e condizione di rientro | registrate |
 
 L'elenco che segue è il **traguardo completo**, non il criterio corrente, e la
