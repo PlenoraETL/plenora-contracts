@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 1.1.2-draft · 27 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 1.1.3-draft · 27 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -13,9 +13,9 @@
 > divergono, prevale la tabella.
 >
 > Stati: `proposta` (mai ratificata) · `ratificata` (vincolante) ·
-> `contestata` (ratificata, ma con rilievo bloccante accolto: **non** vincolante
-> per nuovo lavoro, in attesa di decisione dell'owner) · `superata` (sostituita
-> da una versione ratificata successiva).
+> `sospesa` (ratificata, poi sospesa dall'owner a seguito di un rilievo
+> bloccante accolto: **non** vincolante finché l'emendamento non la sostituisce)
+> · `superata` (rimpiazzata da una versione ratificata successiva).
 >
 > **Clausola di chiusura.** Ogni regola o sezione non elencata in questa tabella
 > ha stato `proposta`. La tabella è esaustiva per costruzione: se una regola
@@ -23,35 +23,35 @@
 >
 > | Sezione | Oggetto | Stato | Dal | Emendamento previsto | Posizioni dei team |
 > |---|---|---|---|---|---|
-> | §1 R1 | Versione Arrow unica e pinnata | proposta | — | — | conforme di fatto in tutti e tre |
-> | §2 | Chiavi metadata canoniche, una per proprietà | **contestata** | 27 lug | 2.0-draft | IO ✔ · data ✔ · db ✘ (manca versione protocollo, vieta chiavi Arrow standard) |
+> | §1 R1 | Versione Arrow unica e pinnata | **ratificata** | 27 lug | — | conforme in tutti e tre |
+> | §2 | Chiavi metadata canoniche, una per proprietà | **sospesa** | 27 lug | 2.0-draft | IO ✔ · data ✔ · db ✘ (manca versione protocollo, vieta chiavi Arrow standard) |
 > | §3.1 | Sedici tipi geometrici, forma `linestring` | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
-> | §3.2 | Rifiuto esplicito dei tipi non supportati | proposta | — | — | data ✔ |
-> | §3.3 | Cinque dimensioni rappresentabili e propagabili | proposta | — | — | data: richiede decisione dell'owner |
+> | §3.2 | Rifiuto esplicito dei tipi non supportati | **ratificata** | 27 lug | — | data ✔ |
+> | §3.3 | Cinque dimensioni rappresentabili e propagabili | **ratificata** | 27 lug | — | ambito: rappresentare e propagare, **non** elaborare (vedi clausola) |
 > | §3.4 | `unknown` non degradabile a `xy` | proposta | — | 2.0-draft | db ✘ (non distingue *mixed* da *non risolto*) |
-> | §3.5 | Encoding come enumerazione chiusa | proposta | — | — | — |
+> | §3.5 | Encoding come enumerazione chiusa | **ratificata** | 27 lug | — | db: `String` da convertire |
 > | §4.1–§4.4 | CRS a tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ⚠ (emendamenti su formato della definizione e precedenza) |
-> | §4.5 | Riproiezione riservata al centro | **contestata** | 27 lug | 2.0-draft | db ✘ (vieta il pushdown `ST_Transform` deciso dal planner) |
-> | §5 R5 | Perdita di informazione mai silenziosa | proposta | — | — | data ✔ (R5.3 implementata) |
-> | §6 R6 | Nessun panic nei crate `lib` | proposta | — | — | IO ✔ (gate attivo) · data: in corso |
+> | §4.5 | Riproiezione riservata al centro | **sospesa** | 27 lug | 2.0-draft | db ✘ (vieta il pushdown `ST_Transform` deciso dal planner) |
+> | §5 R5 | Perdita di informazione mai silenziosa | **ratificata** | 27 lug | — | data ✔ (R5.3 implementata) |
+> | §6 R6 | Nessun panic nei crate `lib` | **ratificata** | 27 lug | — | IO ✔ (gate attivo) · data: in corso |
 > | §7 R7 | Limiti applicati prima dell'allocazione | proposta | — | 2.0-draft | db ✘ (budget da cedere lungo la catena, non replicare) |
-> | §8 R8 | Identità di crate e colonne | proposta | — | — | — |
-> | §9 | Categorie e fasi d'errore | **contestata** | 27 lug | 2.0-draft | db ✘ (causa ed effetto sullo stesso asse; `retryable: bool` insufficiente) |
+> | §8 R8 | Identità di crate e colonne | **ratificata** | 27 lug | — | R8.1 e R8.4 violate da IO e data (`plenora-core`, `PlenoraError`) |
+> | §9 | Categorie e fasi d'errore | **sospesa** | 27 lug | 2.0-draft | db ✘ (causa ed effetto sullo stesso asse; `retryable: bool` insufficiente) |
 > | §10 R10 | Capability dichiarative interrogabili | proposta | — | 2.0-draft | data: forma da definire |
 > | §11.1–§11.4 | Cancellazione cooperativa, categoria propria, nessun residuo | proposta | — | 2.0-draft | db ✘ (R11.3 è garanzia assoluta non dimostrabile) |
-> | §11.5 | `CancellationToken` concreto e clonabile | **contestata** | 27 lug | 2.0-draft | db ✘ (manca attesa asincrona e deadline) |
+> | §11.5 | `CancellationToken` concreto e clonabile | **sospesa** | 27 lug | 2.0-draft | db ✘ (manca attesa asincrona e deadline) |
 > | §12 R12 | Determinismo e riproducibilità | proposta | — | 2.0-draft | db ✘ (troppo assoluta per sorgenti remote) · data ✔ (R12.4) |
-> | §13 R13 | Toolchain e baseline | proposta | — | — | data ✔ (`a1f4130`) |
+> | §13 R13 | Toolchain e baseline | **ratificata** | 27 lug | — | data ✔ (`a1f4130`) · IO: toolchain da fissare |
 > | §14 R14 | Esiti di scrittura e pubblicazione | proposta | — | 2.0-draft | db ✘ (R14.4 è garanzia assoluta non dimostrabile) |
 > | §15.1 | Repository autonomo `plenora-contracts` come fonte autorevole, e suo nome | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
-> | §15.2 | Distribuzione: tag, revisione, immutabilità del riferimento | **contestata** | 27 lug | 2.0-draft | db ✘ (un tag è spostabile: serve tag firmato più revisione esatta) |
-> | §15.3 | Contenuto e API del crate | **contestata** | 27 lug | 2.0-draft | db ✘ (mancano `LossReport`, budget, capability, esito di scrittura, versione del contratto, lineage) |
+> | §15.2 | Distribuzione: tag, revisione, immutabilità del riferimento | **sospesa** | 27 lug | 2.0-draft | db ✘ (un tag è spostabile: serve tag firmato più revisione esatta) |
+> | §15.3 | Contenuto e API del crate | **sospesa** | 27 lug | 2.0-draft | db ✘ (mancano `LossReport`, budget, capability, esito di scrittura, versione del contratto, lineage) |
 >
 > La colonna **Emendamento previsto** indica dove il rilievo sarà risolto: non
 > significa che la regola sia già stata sostituita. Una sezione diventa `superata`
 > soltanto quando la versione che la sostituisce è a sua volta ratificata.
 >
-> **Effetto pratico degli stati.** Una sezione `contestata` non fonda nuovo
+> **Effetto pratico degli stati.** Una sezione `sospesa` non fonda nuovo
 > lavoro: chi ha già iniziato non disfa, chi non ha iniziato attende la 2.0. Una
 > sezione `proposta` non è vincolante per nessuno — il che non impedisce a un
 > componente di applicarla per propria scelta o per una regola interna.
@@ -63,7 +63,7 @@
 >
 > **Cronologia.** §9 e §11 recepiscono i rilievi del team IO-tools; §5, §9 e §12
 > la fotografia del team data-tools; l'Appendice A §R13.3 corregge un dato errato
-> della 1.0. Gli stati `contestata` recepiscono i cinque rilievi bloccanti della
+> della 1.0. Gli stati `sospesa` recepiscono i cinque rilievi bloccanti della
 > revisione database-tools, accolti integralmente.
 
 Governa i confini fra i tre componenti Plenora sviluppati separatamente. Le regole
@@ -218,6 +218,13 @@ la tabella; test di round-trip dei metadati attraverso il componente centrale.
 > Ogni componente **DEVE** essere in grado di *rappresentare e propagare* tutte e
 > cinque, anche quando non sa *elaborare* Z o M.
 >
+> **R3.3.1** *(ambito della ratifica del 27 luglio)* L'obbligo copre la
+> rappresentazione nel contratto e la propagazione attraverso le operazioni che
+> non ricostruiscono la geometria. **Non** impone di eseguire calcoli in tre
+> dimensioni. Un componente che non sa elaborare Z o M **DEVE** rifiutare
+> esplicitamente l'operazione (R3.2), mai eseguirla scartando le ordinate né
+> dichiarare `xy` un dato che ne porta altre.
+>
 > **R3.4** `unknown` significa «byte preservati, dimensionalità non risolta». Un
 > componente **NON DEVE** convertire `unknown` in `xy` per convenienza: è una
 > reinterpretazione silenziosa dei dati (H-01).
@@ -307,7 +314,7 @@ dovuta per PLN-ASR-007 e H-01 nel profilo di assurance di IO-tools.
 > **R4.4** Nessun componente **DEVE** assumere un CRS di default. In particolare,
 > l'assenza di CRS **NON DEVE** essere interpretata come WGS84.
 >
-> **R4.5** *(`contestata` — vedi registro; emendamento previsto in 2.0-draft: il
+> **R4.5** *(`sospesa` — vedi registro; emendamento previsto in 2.0-draft: il
 > centro resta l'unico a **decidere** la riproiezione, ma il bordo può
 > **eseguirla** come pushdown capability-gated senza alterarne parametri o
 > semantica.)*
@@ -783,7 +790,7 @@ anche la sede del documento sbilancerebbe la governance.
 | Contenuto da definire in 2.0 | `CancellationToken` con attesa asincrona e deadline, envelope d'errore con causa/effetto/disposizione di ritentativo, `LossReport` e relativa policy, `ResourceBudget`, capability, esito di scrittura e recovery, versione del protocollo, lineage dei campi |
 | Vincoli di dipendenza | da fissare in 2.0: l'attesa asincrona di R11.5 può richiedere più di `serde` e `arrow-schema` |
 
-**Stato.** Questa sottosezione è `contestata`: la revisione database-tools ha
+**Stato.** Questa sottosezione è `sospesa`: la revisione database-tools ha
 rilevato che l'elenco del contenuto era incompleto. Il crate **non va creato**
 finché la 2.0 non lo definisce per intero.
 
@@ -795,7 +802,7 @@ verificabile e non richiede il successivo per essere utile.
 **Passo 1 — Chiavi metadata (§2).** Non dipende da nessun refactoring: sono
 costanti stringa. Ogni componente allinea i propri nomi alla tabella §2, con un
 periodo di doppia lettura (accettare vecchio e nuovo, emettere solo il vecchio)
-se serve compatibilità all'indietro. Vedi Appendice C. Finché §2 è `contestata`,
+se serve compatibilità all'indietro. Vedi Appendice C. Finché §2 è `sospesa`,
 è consentita la sola doppia lettura, non l'emissione canonica.
 
 **Passo 2 — Estrazione a semantica zero.** Nasce il crate condiviso, come pura
@@ -865,14 +872,13 @@ proprie regole interne, oggi in vigore.
 | Gate anti-panic `--lib` su data-tools e database-tools | Replica di un gate già in produzione, nessuna decisione di contratto |
 | Doppia **lettura** delle chiavi metadata (accettare canoniche e legacy, emettere solo legacy) | Retrocompatibile e reversibile; dimezza il lavoro del passo 1 senza anticiparne le scelte |
 
-**Subordinato al registro:** rinomina delle chiavi in emissione (§2,
-`contestata`), estensione delle dimensioni propagabili (§3.3, `proposta`),
-enumerazioni d'errore condivise (§9, `contestata`), token di cancellazione comune
-(§11.5, `contestata`), contenuto del crate (§15.3, `contestata`).
+**Subordinato al registro:** rinomina delle chiavi in emissione (§2, `sospesa`), estensione delle dimensioni propagabili (§3.3, `proposta`),
+enumerazioni d'errore condivise (§9, `sospesa`), token di cancellazione comune
+(§11.5, `sospesa`), contenuto del crate (§15.3, `sospesa`).
 
 La forma dei valori dei tipi geometrici (§3.1) e il modello CRS (§4.1–§4.4) sono
 invece **ratificati**: si possono adottare subito. Anche l'istituzione del
-repository `plenora-contracts` (§15.1) è ratificata; resta contestata la sola
+repository `plenora-contracts` (§15.1) è ratificata; restano sospese la sola
 distribuzione (§15.2) e il contenuto (§15.3).
 
 ---
@@ -883,8 +889,8 @@ La conformità si misura su **tre grandezze distinte**, che non vanno confuse:
 
 | Grandezza | Definizione | Vincolante |
 |---|---|---|
-| **Conformità corrente** | Rispetto delle sole sezioni `ratificata` nel registro al momento della verifica: oggi §3.1, §4, §15.1 | sì |
-| **Gap verso il traguardo** | Distanza dall'elenco completo qui sotto, che include sezioni `contestata` e `proposta` | no |
+| **Conformità corrente** | Rispetto delle sole sezioni `ratificata` nel registro al momento della verifica: oggi §1, §3.1, §3.2, §3.3, §3.5, §4.1–§4.4, §5, §6, §8, §13, §15.1 | sì |
+| **Gap verso il traguardo** | Distanza dall'elenco completo qui sotto, che include sezioni `sospesa` e `proposta` | no |
 | **Deroghe attive** | Scostamenti dichiarati secondo §16, con motivo e condizione di rientro | registrate |
 
 L'elenco che segue è il **traguardo completo**, non il criterio corrente, e la
@@ -909,8 +915,8 @@ sezioni non ratificate sono fotografia, non obbligo:
 14. Output atomico, no-clobber, durabilità dichiarata onestamente (R14).
 
 **Rispetto al traguardo completo, nessuno dei tre componenti è oggi conforme.**
-Sulla conformità corrente — §3.1, §4, §15.1 — la verifica non è ancora stata
-eseguita da nessun team. Il più vicino è
+Sulla conformità corrente — undici sezioni ratificate al 27 luglio — la
+verifica non è ancora stata eseguita da nessun team. Il più vicino è
 IO-tools (R1, R3.3, R6, R14 su Linux/Windows); il più distante è database-tools,
 che non ha CI e quindi non può dimostrare alcuna regola in modo automatico.
 
