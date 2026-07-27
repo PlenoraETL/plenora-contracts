@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-draft · 27 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc1 · 27 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -12,7 +12,8 @@
 > altrove nel documento, nei messaggi di commit o nei tag la sostituisce: dove
 > divergono, prevale la tabella.
 >
-> Stati: `proposta` (mai ratificata) · `ratificata` (vincolante) ·
+> Stati: `proposta` (non vincolante: mai ratificata, oppure emendata dopo una
+> sospensione e in attesa di nuova ratifica) · `ratificata` (vincolante) ·
 > `sospesa` (ratificata, poi sospesa dall'owner a seguito di un rilievo
 > bloccante accolto: **non** vincolante finché l'emendamento non la sostituisce)
 > · `superata` (rimpiazzata da una versione ratificata successiva).
@@ -42,7 +43,7 @@
 > | §4.1–§4.4 | CRS a tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ⚠ (emendamenti su formato della definizione e precedenza) |
 > | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown capability-gated | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 > | §5 R5 | Perdita di informazione mai silenziosa | **ratificata** | 27 lug | — | data ✔ (R5.3 implementata) |
-> | §6 R6 | Nessun panic nei crate `lib` | **ratificata** | 27 lug | — | IO ✔ (gate attivo) · data: in corso |
+> | §6 R6 | Nessun panic nei crate `lib` | **ratificata** | 27 lug | — | IO ✔ · data ✔ (`07f6823`) · db ✘ |
 > | §7 R7 | Limiti pre-allocazione; budget che attraversa la catena con lease (R7.5–R7.7) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 > | §8 R8 | Identità di crate e colonne | **ratificata** | 27 lug | — | R8.1 e R8.4 violate da IO e data (`plenora-core`, `PlenoraError`) |
 > | §9 | Errore a quattro assi: causa, fase, effetto remoto (R9.6), disposizione di ritentativo (R9.7) | proposta *(emendata 2.0)* | — | — | rilievi db chiusi; da ratificare |
@@ -53,8 +54,8 @@
 > | §13 R13 | Toolchain e baseline | **ratificata** | 27 lug | — | data ✔ (`a1f4130`) · IO: toolchain da fissare |
 > | §14 R14 | Esiti di scrittura; ripristino dichiarabile solo se verificato (R14.4) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 > | §15.1 | Repository autonomo `plenora-contracts` come fonte autorevole, e suo nome | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
-| §4.3.1–§4.3.3 | *(nuove 2.0, dentro una sezione ratificata)* formato della definizione CRS, precedenza fra rappresentazioni, coerenza con l'SRID EWKB, ordini d'asse estesi | proposta | — | — | rilievo db chiuso; da ratificare |
-| §6 R6.6–R6.7 | *(nuove 2.0, dentro una sezione ratificata)* il gate Clippy è minimo e non dimostra R6.1: servono fuzzing, boundary test, overflow-checks e audit delle API panicking | proposta | — | — | rilievo db chiuso; da ratificare |
+> | §4.3.1–§4.3.3 | *(nuove 2.0, dentro una sezione ratificata)* formato della definizione CRS, precedenza fra rappresentazioni, coerenza con l'SRID EWKB, ordini d'asse estesi | proposta | — | — | rilievo db chiuso; da ratificare |
+> | §6 R6.6–R6.7 | *(nuove 2.0, dentro una sezione ratificata)* il gate Clippy è minimo e non dimostra R6.1: servono fuzzing, boundary test, overflow-checks e audit delle API panicking | proposta | — | — | rilievo db chiuso; da ratificare |
 > | §15.2 | Distribuzione: tag firmato **e** revisione nel lockfile, citati entrambi nelle CIA | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 > | §15.3 | Contenuto e API del crate, ora completo su sei aree | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 >
@@ -194,7 +195,9 @@ metadati di campo (`Field::metadata`) dello schema Arrow.
 > dell'ingresso.
 >
 > **R2.5** *(nuova 2.0)* Ogni schema che porta chiavi canoniche **DEVE** dichiarare
-> `plenora.contract.version`. La versione corrente del protocollo dei metadati è
+> `plenora.contract.version` **nei metadati dello schema** (`Schema::metadata`),
+> non in quelli dei singoli campi: la versione descrive il protocollo, non la
+> colonna, e ripeterla per campo permetterebbe schemi internamente incoerenti. La versione corrente del protocollo dei metadati è
 > **`1`**. Un consumatore che riceve una versione maggiore di quella che conosce
 > **DEVE** fallire in modo esplicito, mai interpretare parzialmente.
 >
@@ -204,9 +207,12 @@ metadati di campo (`Field::metadata`) dello schema Arrow.
 > descrizioni **DEVONO** essere coerenti; in caso di divergenza il componente
 > **DEVE** fallire, non scegliere.
 >
-> **R2.7** *(nuova 2.0)* Durante la doppia lettura, la precedenza è: chiave
-> canonica, poi chiave legacy, poi standard esterno. La precedenza **DEVE** essere
-> decidibile senza ispezionare i dati.
+> **R2.7** *(nuova 2.0)* La precedenza — chiave canonica, poi legacy, poi standard
+> esterno — si applica **solo quando le rappresentazioni di rango inferiore sono
+> assenti o coerenti** con quella superiore. Se due rappresentazioni presenti
+> divergono, vale R2.6: il componente fallisce, non sceglie. La precedenza è una
+> regola di completamento, non di arbitrato, e **DEVE** essere decidibile senza
+> ispezionare i dati.
 
 ### Chiavi canoniche
 
@@ -223,9 +229,9 @@ metadati di campo (`Field::metadata`) dello schema Arrow.
 | `plenora.geometry.spatial_semantics` | `geometry` \| `geography` | no |
 | `plenora.geometry.precision` | `float64` \| `float32` \| `native` | no |
 | `plenora.field_id` | intero decimale senza segno | no |
-| `plenora.contract.version` | intero decimale; oggi `1` | sì se sono presenti chiavi canoniche |
+| `plenora.contract.version` | intero decimale; oggi `1`. **Vive in `Schema::metadata`**, non nel campo | sì se sono presenti chiavi canoniche |
 | `plenora.geometry.crs_definition_format` | `wkt` \| `wkt2` \| `projjson` | sì se `crs_definition` è presente |
-| `plenora.geometry.types_declaration` | `exact` \| `mixed` \| `unresolved` | sì se `types` è presente |
+| `plenora.geometry.types_declaration` | `exact` \| `mixed` \| `unresolved` | sì per colonne geometriche; indipendente dalla presenza di `types` |
 
 **Perché R2.2.** Un blob unico è opaco: un componente che non sa deserializzarlo
 perde tutte le proprietà insieme, e la perdita è silenziosa (H-01).
@@ -279,9 +285,11 @@ la tabella; test di round-trip dei metadati attraverso il componente centrale.
 > | Dichiarazione eterogenea | `mixed` | la colonna ammette tipi diversi **per dichiarazione**: è informazione, non ignoranza (una colonna PostGIS `geometry` senza vincolo) |
 > | Non risolto | `unresolved` | i byte non sono stati ispezionati e nessuna dichiarazione è disponibile |
 >
-> L'assenza della chiave `plenora.geometry.types` significa «proprietà non
-> dichiarata» ed è diversa da tutti e tre. Un componente **NON DEVE** convertire
-> `mixed` in `unresolved` né viceversa.
+> `types_declaration` è **indipendente** dalla presenza di `plenora.geometry.types`:
+> `mixed` e `unresolved` sono dichiarazioni sensate proprio quando l'elenco dei
+> tipi non c'è. Solo `exact` richiede che l'elenco sia presente. L'assenza di
+> entrambe le chiavi significa «proprietà non dichiarata», che è un quarto stato.
+> Un componente **NON DEVE** convertire `mixed` in `unresolved` né viceversa.
 >
 > **R3.5** L'encoding canonico è `wkb` o `ewkb`, come enumerazione chiusa. **NON
 > DEVE** essere modellato come stringa libera.
@@ -393,7 +401,8 @@ dovuta per PLN-ASR-007 e H-01 nel profilo di assurance di IO-tools.
 > semantica — CRS di partenza, CRS di arrivo e ordine degli assi restano quelli
 > decisi dal centro. Un bordo **NON DEVE** riproiettare di propria iniziativa.
 >
-> **R4.5.1** *(storica 1.x, superata)* La riproiezione è responsabilità esclusiva del componente centrale. I
+> **R4.5.1** *(testo 1.x, tuttora in vigore: resta la formulazione valida finché
+> l'emendamento R4.5 non è ratificato)* La riproiezione è responsabilità esclusiva del componente centrale. I
 > bordi **NON DEVONO** riproiettare: preservano il CRS sorgente e lo dichiarano.
 
 **Perché.** L'inversione lat/lon è il fallimento geospaziale più costoso e più
@@ -437,7 +446,7 @@ quale libreria l'ha prodotto.
 crate `lib`; test di ordinamento su valori limite (`i64::MAX`, `u64` a più cifre);
 grep dei cast `as` su tipi interi.
 
-**Stato oggi:** IO-tools ha 103 `unwrap_or*` nei crate `lib`, non censiti.
+**Stato oggi:** IO-tools ha 95 `unwrap_or*` nei crate `lib`, censiti ma non ancora classificati uno per uno.
 data-tools ha corretto R5.3 con `compare_cells_typed`, committato in `14a0a29`;
 resta il censimento di `unwrap_or*` e dei cast troncanti (R5.4), che è cosa
 distinta dal gate anti-panic e non viene intercettata da esso.
@@ -768,10 +777,17 @@ geometriche è in grado di propagare, per rendere verificabile R3.3.
 > un'operazione che riceve token e timeout da due canali diversi non può garantire
 > che il primo scada prima del secondo.
 >
-> **Dipendenze.** `cancelled()` richiede un `Future` e quindi un meccanismo di
-> risveglio. Il crate condiviso **PUÒ** dipendere da `futures-core` — che è privo
-> di runtime — ma **NON DEVE** dipendere da un runtime specifico: la scelta fra
-> `tokio`, `async-std` o altro resta del chiamante.
+> **R11.9** *(nuova 2.0)* `cancelled()` **NON** richiede dipendenze esterne: il
+> trait `Future` vive in `core::future` e il risveglio si implementa con
+> `core::task::Waker` più un registro dei waker registrati. Il crate condiviso
+> **NON DEVE** dipendere né da `futures-core` né da un runtime.
+>
+> **R11.10** *(nuova 2.0)* La deadline è **dichiarativa**: il token la espone e
+> `is_cancelled()` la valuta al momento della chiamata. Il risveglio *automatico*
+> alla scadenza richiede un timer, che il crate non ha e non deve avere: è il
+> chiamante a combinare `cancelled()` con il proprio meccanismo temporale, oppure
+> a iniettare un clock. Un token che promettesse di svegliarsi da solo starebbe
+> nascondendo una dipendenza da runtime.
 
 **Perché un token concreto e non un trait (R11.5).** Un trait per componente è
 esattamente la situazione attuale: data-tools e database-tools ne hanno uno
@@ -1075,7 +1091,7 @@ proprie regole interne, oggi in vigore.
 | Correzione di `driver.rs:347` (`unknown` → `xy`) | Violazione di PLN-ASR-007 e H-01, già ratificati in `AERONAUTICAL_PROFILE.md` |
 | Pin esatto delle 13 dipendenze caret | Regola 6 del profilo: un caret rende impossibile la CIA che il profilo richiede |
 | `rust-toolchain.toml` in IO-tools e data-tools | PLN-ASR-010 è già dichiarato «Parziale» per questo motivo |
-| Censimento dei 103 `unwrap_or*` nei crate `lib` | H-01: il gate anti-panic non li intercetta, sono l'altra metà della stessa regola |
+| Censimento dei 95 `unwrap_or*` nei crate `lib` | H-01: il gate anti-panic non li intercetta, sono l'altra metà della stessa regola |
 | Gate anti-panic `--lib` su data-tools e database-tools | Replica di un gate già in produzione, nessuna decisione di contratto |
 | Doppia **lettura** delle chiavi metadata (accettare canoniche e legacy, emettere solo legacy) | Retrocompatibile e reversibile; dimezza il lavoro del passo 1 senza anticiparne le scelte |
 
@@ -1086,7 +1102,8 @@ scrittura (§14). Tutte emendate dalla 2.0 e in attesa di ratifica.
 
 La forma dei valori dei tipi geometrici (§3.1) e il modello CRS (§4.1–§4.4) sono
 invece **ratificati**: si possono adottare subito. Anche l'istituzione del
-repository `plenora-contracts` (§15.1) è ratificata; restano sospese la sola
+repository `plenora-contracts` (§15.1) è ratificata; restano `proposta`, non
+ancora ratificate, la sola
 distribuzione (§15.2) e il contenuto (§15.3).
 
 ---
@@ -1106,26 +1123,36 @@ sua versione definitiva dipende dagli emendamenti 2.0. Le voci che riguardano
 sezioni non ratificate sono fotografia, non obbligo:
 
 1. Arrow pinnato alla versione di baseline (R1).
-2. Emette e accetta le chiavi canoniche §2, e propaga invariate quelle che non
-   interpreta (R2).
-3. Rappresenta e propaga le cinque dimensioni e i sedici tipi, rifiutando
-   esplicitamente ciò che non supporta (R3).
-4. Distingue i tre stati del CRS e trasporta l'axis order (R4).
+2. Emette e accetta le chiavi canoniche, dichiara `plenora.contract.version`, e
+   propaga le chiavi non interpretate **secondo la lineage del campo**: copia per
+   le trasformazioni identity-preserving, ricostruzione per i campi derivati,
+   errore sui conflitti (R2.4–R2.7).
+3. Rappresenta e propaga le cinque dimensioni e i sedici tipi, distingue `exact`
+   da `mixed` e `unresolved`, rifiuta esplicitamente ciò che non supporta (R3).
+4. Distingue i tre stati del CRS, dichiara il formato della definizione, rispetta
+   la precedenza fra rappresentazioni e la coerenza con l'SRID EWKB (R4).
 5. Non perde dati in silenzio: fail-closed o report esplicito (R5).
-6. Gate anti-panic attivo sui target `--lib`, zero occorrenze (R6).
-7. Applica limiti prima dell'allocazione, con profondità bounded (R7).
+6. Gate anti-panic attivo sui `--lib` con zero occorrenze, **più** l'evidenza
+   complementare che il gate non fornisce: fuzzing, boundary test,
+   `overflow-checks`, audit delle API panicking (R6.6–R6.7).
+7. Applica limiti prima dell'allocazione e **cede** il budget lungo la catena
+   invece di replicarlo, con aritmetica controllata (R7.5–R7.7).
 8. Nessuna collisione di nomi; dipende dal crate condiviso (R8).
-9. Errori con categoria, fase e ritentabilità; esito ignoto distinto (R9).
+9. Errori a **quattro assi**: causa, fase, effetto remoto, disposizione di
+   ritentativo (R9.1, R9.6–R9.8).
 10. Capability dichiarative interrogabili prima dell'esecuzione (R10).
-11. Cancellazione cooperativa senza residui (R11).
-12. Risultati deterministici, indipendenti da parallelismo e spill (R12).
+11. Cancellazione cooperativa; nessun residuo **dove la piattaforma lo consente**,
+    altrimenti effetto dichiarato e recovery disponibile (R11.3, R11.7–R11.10).
+12. Determinismo **dichiarato sul livello che si garantisce** — semantico,
+    dell'ordine, byte-for-byte o non ordinato — con le esclusioni note (R12).
 13. Toolchain fissata, `--locked` in CI, dipendenze pinnate (R13).
-14. Output atomico, no-clobber, durabilità dichiarata onestamente (R14).
+14. Output atomico dove la piattaforma lo consente, no-clobber, durabilità ed
+    effetto dichiarati solo se verificati (R14.3–R14.5).
 
 **Rispetto al traguardo completo, nessuno dei tre componenti è oggi conforme.**
 Sulla conformità corrente — undici sezioni ratificate al 27 luglio — la
 verifica non è ancora stata eseguita da nessun team. Il più vicino è
-IO-tools (R1, R3.3, R6, R14 su Linux/Windows); il più distante è database-tools,
+IO-tools (R1, R3.3, R6, R14 su Linux, Windows e macOS); il più distante è database-tools,
 che non ha CI e quindi non può dimostrare alcuna regola in modo automatico.
 
 ---
@@ -1144,14 +1171,14 @@ Rilevato per ispezione del codice al 27 luglio 2026. `—` = nozione non modella
 | R3.5 Encoding come enum | ✅ | — | ❌ `String` |
 | R4 Modello CRS | ✅ (shp corretto in `8bb65dd`) | ✅ | ❌ piatto |
 | R5 Perdita non silenziosa | ⚠ 95 `unwrap_or*` censiti | ✅ R5.3, censimento aperto | parziale |
-| R6 Nessun panic nei `lib` | ✅ 0, gate attivo | ❌ ~121 | ❌ 26 |
+| R6 Nessun panic nei `lib` | ✅ 0, gate attivo | ✅ 0, gate attivo (`07f6823`) | ❌ 26, nessuna CI |
 | R7 Limiti pre-allocazione | parziale | parziale | ✅ AST |
 | R8.1 Nomi crate unici | ❌ collisione | ❌ collisione | ✅ |
 | R8.3 Crate condiviso | ❌ non esiste | ❌ | ❌ |
 | R8.4 Tipi omonimi | ❌ `PlenoraError` | ❌ `PlenoraError` | ✅ |
-| R9 Modello d'errore | ❌ no fase/retry | ⚠ manca fase ed esito ignoto | ✅ riferimento |
+| R9 Modello d'errore (2.0) | ❌ no fase, effetto, disposizione | ⚠ ha categoria e `retryable()`; mancano fase ed effetto | ⚠ base del modello, ma senza `RemoteEffect` né `RetryDisposition` |
 | R10 Capability dichiarative | ✅ | ❌ assenti | ✅ |
-| R11 Cancellazione | ❌ assente | ✅ | ✅ |
+| R11 Cancellazione (2.0) | ❌ assente | ⚠ token interno: conforme R11.1–R11.4, non al token condiviso | ⚠ trait proprio; senza deadline, motivo e token figli |
 | R12 Determinismo | ❌ non testato | ✅ | ❌ non testato |
 | R13.1 Toolchain fissata | ❌ stable | ✅ `a1f4130` | ✅ 1.92.0 |
 | R13.3 Dipendenze pinnate | ❌ 8 caret (rustix e atomicwrites pinnate) | ✅ | ✅ |
