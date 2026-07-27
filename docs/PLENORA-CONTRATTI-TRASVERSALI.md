@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc1 · 27 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc2 · 27 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -49,13 +49,15 @@
 > | §9 | Errore a quattro assi: causa, fase, effetto remoto (R9.6), disposizione di ritentativo (R9.7) | proposta *(emendata 2.0)* | — | — | rilievi db chiusi; da ratificare |
 > | §10 R10 | Capability dichiarative interrogabili | proposta | — | — | forma definita in §15.3; da ratificare |
 > | §11.1–§11.4 | Cancellazione cooperativa; garanzia sui residui condizionata alla piattaforma (R11.3) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
-> | §11.5 | `CancellationToken` con attesa asincrona, deadline, motivo e token figli (R11.6–R11.8) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
+> | §11.5–§11.10 | `CancellationToken` con attesa asincrona race-free, deadline dichiarativa, motivo e token figli | proposta *(emendata 2.0-rc2)* | — | — | rilievo db chiuso; da ratificare |
 > | §12 R12 | Determinismo su quattro livelli; sorgenti remote e collation esclusi (R12.5–R12.6) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; data ✔ (R12.4) |
 > | §13 R13 | Toolchain e baseline | **ratificata** | 27 lug | — | data ✔ (`a1f4130`) · IO: toolchain da fissare |
 > | §14 R14 | Esiti di scrittura; ripristino dichiarabile solo se verificato (R14.4) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 > | §15.1 | Repository autonomo `plenora-contracts` come fonte autorevole, e suo nome | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
 > | §4.3.1–§4.3.3 | *(nuove 2.0, dentro una sezione ratificata)* formato della definizione CRS, precedenza fra rappresentazioni, coerenza con l'SRID EWKB, ordini d'asse estesi | proposta | — | — | rilievo db chiuso; da ratificare |
 > | §6 R6.6–R6.7 | *(nuove 2.0, dentro una sezione ratificata)* il gate Clippy è minimo e non dimostra R6.1: servono fuzzing, boundary test, overflow-checks e audit delle API panicking | proposta | — | — | rilievo db chiuso; da ratificare |
+> | §0 R0.1–R0.5 | Evidenza, tracciabilità bidirezionale, indipendenza della verifica e limiti delle dichiarazioni avioniche | proposta *(nuova 2.0-rc2)* | — | — | da ratificare |
+> | §16 R16.1–R16.5 | Deroghe, change control, autorità di ratifica e baseline | proposta *(numerata e chiarita 2.0-rc2)* | — | — | da ratificare |
 > | §15.2 | Distribuzione: tag firmato **e** revisione nel lockfile, citati entrambi nelle CIA | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 > | §15.3 | Contenuto e API del crate, ora completo su sei aree | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
 >
@@ -114,6 +116,7 @@ qui contenute prevalgono sulla documentazione locale dei singoli repository.
 - Appendice B — Hazard di riferimento
 - Appendice C — Tabelle di rinomina
 - Appendice D — Glossario
+- Appendice E — Matrice minima di verifica
 
 ---
 
@@ -127,13 +130,44 @@ significato consueto: `DEVE` è vincolante e la sua violazione blocca il merge;
 singolo repository (`Architetture.md`, ADR, `IMPLEMENTATION_STATUS.md`), prevale
 questo documento. Gli ADR locali possono restringere una regola, mai allargarla.
 
-**Verificabilità.** Ogni regola dichiara come si verifica. Una regola che non si
-può verificare meccanicamente è marcata `[ispezione]` e richiede evidenza scritta
-nella change impact analysis.
+**Verificabilità.** Ogni regola deve essere associata a un metodo e a un'evidenza
+nella matrice di verifica del componente. Una regola che non si può verificare
+meccanicamente è marcata `[ispezione]` e richiede evidenza scritta nella change
+impact analysis. L'Appendice E stabilisce il minimo comune; ogni componente può
+rafforzarlo.
 
 **Aggancio all'assurance.** Le regole sono collegate agli hazard definiti in
 `plenora-IO-tools/docs/assurance/TRACEABILITY.md` (H-01…H-09). Un componente che
 viola una regola ha un hazard non controllato, non solo un difetto di stile.
+
+> **R0.1** *(nuova 2.0-rc2)* Una dichiarazione di conformità **DEVE** essere
+> sostenuta da evidenza riproducibile che identifichi almeno: requisito, hazard
+> controllato, revisione del codice, configurazione e piattaforma, comando o caso
+> di prova, risultato e data. L'ispezione del codice da sola non dimostra un
+> requisito verificabile dinamicamente.
+>
+> **R0.2** *(nuova 2.0-rc2)* La tracciabilità **DEVE** essere bidirezionale:
+> requisito → hazard → verifica ed evidenza, ed evidenza → requisito. Un requisito
+> `DEVE` privo di verifica, o un test safety privo di requisito, è un gap di
+> assurance.
+>
+> **R0.3** *(nuova 2.0-rc2)* La verifica dei requisiti che controllano H-01,
+> H-02, H-04, H-05 o H-06 **DEVE** includere almeno un caso negativo o di fault
+> injection e un valore limite pertinente. Il solo happy path non è evidenza
+> sufficiente.
+>
+> **R0.4** *(nuova 2.0-rc2)* Una modifica a una regola ratificata, al relativo
+> codice di confine o alla verifica che ne dimostra la conformità **DEVE** ricevere
+> una revisione indipendente da una persona diversa dall'autore. Finché il
+> progetto non dispone di tale revisore, lo stato massimo dichiarabile è
+> `verificato internamente`, non `verificato indipendentemente`.
+>
+> **R0.5** *(nuova 2.0-rc2)* Questo ICD adotta una disciplina di sviluppo
+> safety-critical, ma **NON** costituisce da solo conformità o certificazione
+> avionica. Nessun componente **DEVE** dichiarare conformità a DO-178C,
+> DO-330 o ad altro standard regolato senza perimetro di sistema, livello di
+> assurance, piani approvati, evidenze complete e autorità competente
+> identificati separatamente.
 
 **Lettura minima per un team che parte.** §0, la regola che riguarda il proprio
 confine, la riga del proprio componente nell'Appendice A, e la tabella di
@@ -220,18 +254,18 @@ metadati di campo (`Field::metadata`) dello schema Arrow.
 |---|---|---|
 | `plenora.geometry.encoding` | `wkb` \| `ewkb` | sì per colonne geometriche |
 | `plenora.geometry.dimensions` | `xy` \| `xyz` \| `xym` \| `xyzm` \| `unknown` | sì |
-| `plenora.geometry.types` | lista separata da `,` di tipi canonici (§3) | no |
+| `plenora.geometry.types` | lista canonica separata da `,`: valori unici, ordinati come in §3.1, senza spazi | no; obbligatoria e non vuota se `types_declaration=exact` |
 | `plenora.geometry.srid` | intero decimale senza segno | no |
 | `plenora.geometry.crs_id` | identificatore d'autorità, es. `EPSG:4326` | no |
 | `plenora.geometry.crs_resolution` | `resolved` \| `declared_unresolved` \| `missing` | sì |
 | `plenora.geometry.crs_definition` | WKT o PROJJSON, testuale | no |
-| `plenora.geometry.axis_order` | `lon_lat` \| `lat_lon` \| `easting_northing` \| `unknown` | sì se `crs_id` presente |
+| `plenora.geometry.axis_order` | `lon_lat` \| `lat_lon` \| `easting_northing` \| `northing_easting` \| `other` \| `unknown` | sì se `crs_id` o `crs_definition` presente |
 | `plenora.geometry.spatial_semantics` | `geometry` \| `geography` | no |
 | `plenora.geometry.precision` | `float64` \| `float32` \| `native` | no |
 | `plenora.field_id` | intero decimale senza segno | no |
 | `plenora.contract.version` | intero decimale; oggi `1`. **Vive in `Schema::metadata`**, non nel campo | sì se sono presenti chiavi canoniche |
 | `plenora.geometry.crs_definition_format` | `wkt` \| `wkt2` \| `projjson` | sì se `crs_definition` è presente |
-| `plenora.geometry.types_declaration` | `exact` \| `mixed` \| `unresolved` | sì per colonne geometriche; indipendente dalla presenza di `types` |
+| `plenora.geometry.types_declaration` | `exact` \| `mixed` \| `unresolved` | sì in emissione per colonne geometriche; vedi R3.4.1 |
 
 **Perché R2.2.** Un blob unico è opaco: un componente che non sa deserializzarlo
 perde tutte le proprietà insieme, e la perdita è silenziosa (H-01).
@@ -285,11 +319,18 @@ la tabella; test di round-trip dei metadati attraverso il componente centrale.
 > | Dichiarazione eterogenea | `mixed` | la colonna ammette tipi diversi **per dichiarazione**: è informazione, non ignoranza (una colonna PostGIS `geometry` senza vincolo) |
 > | Non risolto | `unresolved` | i byte non sono stati ispezionati e nessuna dichiarazione è disponibile |
 >
-> `types_declaration` è **indipendente** dalla presenza di `plenora.geometry.types`:
-> `mixed` e `unresolved` sono dichiarazioni sensate proprio quando l'elenco dei
-> tipi non c'è. Solo `exact` richiede che l'elenco sia presente. L'assenza di
-> entrambe le chiavi significa «proprietà non dichiarata», che è un quarto stato.
-> Un componente **NON DEVE** convertire `mixed` in `unresolved` né viceversa.
+> `types_declaration` è semanticamente distinta da
+> `plenora.geometry.types`. `exact` richiede un elenco presente e non vuoto;
+> `mixed` può portare l'elenco non vuoto dei tipi ammessi o osservati;
+> `unresolved` **NON DEVE** portarlo, perché dichiarare tipi non è coerente con
+> l'assenza di risoluzione. Quando presente, l'elenco **DEVE** contenere valori
+> unici, nell'ordine canonico di §3.1 e senza spazi, così che una stessa
+> dichiarazione abbia una sola serializzazione. Un produttore conforme **DEVE**
+> emettere `types_declaration` per ogni colonna geometrica. Un consumatore può
+> ricevere entrambe le chiavi assenti solo da un ingresso legacy: tale stato
+> significa «proprietà non dichiarata» e va preservato o normalizzato con un
+> `LossReport`, mai interpretato come `unresolved`. Un componente **NON DEVE**
+> convertire `mixed` in `unresolved` né viceversa.
 >
 > **R3.5** L'encoding canonico è `wkb` o `ewkb`, come enumerazione chiusa. **NON
 > DEVE** essere modellato come stringa libera.
@@ -754,8 +795,10 @@ geometriche è in grado di propagare, per rendere verificabile R3.3.
 >
 > **R11.5** Il meccanismo canonico è un **token concreto e clonabile** definito nel
 > crate condiviso, non un trait per componente. Il token **DEVE** essere `Send`,
-> `Sync` e `Clone`; l'osservazione **DEVE** costare quanto una lettura atomica,
-> perché va controllata fra un batch e il successivo.
+> `Sync` e `Clone`; senza deadline, l'osservazione **DEVE** avere il fast path di
+> una lettura atomica. Con deadline può aggiungere soltanto la lettura monotona
+> del clock: resta non bloccante e senza allocazioni, perché va controllata fra
+> un batch e il successivo.
 >
 > **R11.6** *(emendata 2.0)* Il token **DEVE** poter essere segnalato da un altro
 > thread e **atteso** senza polling. L'osservazione a intervalli fra batch non
@@ -767,7 +810,7 @@ geometriche è in grado di propagare, per rendere verificabile R3.3.
 > ```
 > is_cancelled() -> bool          osservazione non bloccante, costo di una lettura atomica
 > cancel()                        segnalazione, idempotente
-> cancelled() -> Future           attesa asincrona, si risolve alla cancellazione
+> cancelled() -> Future           attesa asincrona di cancel(), padre o segnale esterno
 > deadline() -> Option<Instant>   scadenza oltre la quale il token si considera cancellato
 > reason() -> Option<Reason>      motivo: richiesta esplicita, scadenza, propagazione dal padre
 > child_token() -> Token          token figlio: cancellabile da solo, cancellato dal padre
@@ -780,14 +823,21 @@ geometriche è in grado di propagare, per rendere verificabile R3.3.
 > **R11.9** *(nuova 2.0)* `cancelled()` **NON** richiede dipendenze esterne: il
 > trait `Future` vive in `core::future` e il risveglio si implementa con
 > `core::task::Waker` più un registro dei waker registrati. Il crate condiviso
-> **NON DEVE** dipendere né da `futures-core` né da un runtime.
+> **NON DEVE** dipendere né da `futures-core` né da un runtime. Registrazione e
+> controllo **DEVONO** essere privi della race «check-then-sleep»: il `poll`
+> controlla lo stato, registra il waker e ricontrolla prima di restituire
+> `Pending`; `cancel()` pubblica lo stato prima di risvegliare tutti gli
+> attendenti. La rimozione di un future o di un token figlio **NON DEVE** causare
+> crescita illimitata del registro.
 >
 > **R11.10** *(nuova 2.0)* La deadline è **dichiarativa**: il token la espone e
 > `is_cancelled()` la valuta al momento della chiamata. Il risveglio *automatico*
 > alla scadenza richiede un timer, che il crate non ha e non deve avere: è il
 > chiamante a combinare `cancelled()` con il proprio meccanismo temporale, oppure
-> a iniettare un clock. Un token che promettesse di svegliarsi da solo starebbe
-> nascondendo una dipendenza da runtime.
+> a iniettare un clock e un notificatore. Il future restituito da `cancelled()`
+> **NON DEVE** promettere da solo il risveglio alla deadline. Un token che lo
+> promettesse senza un notificatore starebbe nascondendo una dipendenza da
+> runtime.
 
 **Perché un token concreto e non un trait (R11.5).** Un trait per componente è
 esattamente la situazione attuale: data-tools e database-tools ne hanno uno
@@ -919,8 +969,12 @@ variazione di dipendenza, e un caret la rende impossibile.
 > richiesta esplicita del chiamante. Il controllo **DEVE** essere atomico, non
 > una verifica seguita da una scrittura.
 >
-> **R14.2** Un output **DEVE** diventare visibile solo quando è completo. Nessun
-> consumatore deve poter osservare uno stato intermedio.
+> **R14.2** Quando la piattaforma offre una pubblicazione atomica, un output
+> **DEVE** diventare visibile solo quando è completo. Quando non la offre,
+> l'operazione **DEVE** essere rifiutata oppure dichiarare prima dell'esecuzione
+> la capability non atomica; ogni stato parziale o ignoto segue R14.4. Un
+> componente **NON DEVE** promettere invisibilità degli stati intermedi se non
+> può garantirla.
 >
 > **R14.3** Una garanzia di durabilità **NON DEVE** essere dichiarata se la
 > piattaforma non la conferma. L'esito **DEVE** distinguere «pubblicato e durevole»
@@ -1012,7 +1066,7 @@ anche la sede del documento sbilancerebbe la governance.
 | Contenuto — risorse e controllo | `ResourceBudget` con lease e aritmetica controllata (R7.6), `CancellationToken` completo (R11.7) |
 | Contenuto — fedeltà | `LossReport` e la policy che stabilisce quando è obbligatorio (R5.1) |
 | Contenuto — capability | descrizione dichiarativa interrogabile prima dell'esecuzione (§10), inclusa la capability di pushdown della riproiezione (R4.5) |
-| Vincoli di dipendenza | `serde`, `arrow-schema` e `futures-core` per `cancelled()`. **Nessun runtime asincrono.** Nessun `unsafe`, nessuna primitiva di panic |
+| Vincoli di dipendenza | `serde` e `arrow-schema`; `cancelled()` usa `core::future::Future` e `core::task::Waker`. **Né `futures-core` né runtime asincroni.** Nessun `unsafe`, nessuna primitiva di panic |
 
 **Stato.** L'elenco è ora completo: la 2.0 recepisce il rilievo che aveva portato
 alla sospensione. Il crate può essere creato quando §15.3 torna `ratificata`.
@@ -1052,28 +1106,40 @@ modello d'errore (§9), dove il punto di partenza è database-tools.
 
 ## §16 Deroghe e modifiche
 
-**Deroga.** Un componente che non può rispettare una regola **DEVE** dichiararlo
-esplicitamente: regola, motivo, impatto sugli hazard, condizione di rientro. Una
-deroga dichiarata è un gap noto; una regola aggirata in silenzio è un difetto.
-
-**Registro.** Le deroghe attive **DEVONO** essere elencate in un punto solo per
-componente, così che si possano contare. Una deroga senza condizione di rientro
-è permanente: va scritto.
-
-**Modifica del documento.** Una proposta di modifica **DEVE** indicare: regole
-toccate, impatto sui tre componenti, piano di migrazione, retrocompatibilità. La
-modifica entra in vigore quando i tre team l'hanno recepita — fino ad allora la
-versione precedente resta vincolante.
-
-**Versionamento.** Questo documento **DEVE** essere versionato in un repository,
-non distribuito come file sciolto: senza storia non esiste baseline, i team non
-sanno a quale versione si stanno conformando e nessuna change impact analysis è
-possibile. La versione è dichiarata in testa al documento e citata nelle CIA.
-
-**Proprietà.** Questo documento **DEVE** avere un owner nominato. Un contratto
-trasversale senza proprietario diventa tre interpretazioni divergenti: è già
-successo con i due `plenora-core`, ricopiati consapevolmente e poi lasciati
-derivare fino a definire due `PlenoraError` incompatibili.
+> **R16.1 — Deroga.** Un componente che non può rispettare una regola **DEVE**
+> dichiararlo esplicitamente: regola, motivo, impatto sugli hazard, owner della
+> deroga e condizione di rientro. Una deroga dichiarata è un gap noto; una regola
+> aggirata in silenzio è un difetto.
+>
+> **R16.2 — Registro.** Le deroghe attive **DEVONO** essere elencate in un punto
+> solo per componente, così che si possano contare. Una deroga senza condizione
+> di rientro è permanente: va scritto.
+>
+> **R16.3 — Modifica e ratifica.** Una proposta di modifica **DEVE** indicare:
+> regole toccate, impatto sui tre componenti, hazard interessati, piano di
+> migrazione e retrocompatibilità. Ciascun team **DEVE** registrare la propria
+> posizione tecnica (`accetta`, `accetta con deroga`, `rilievo bloccante`) su una
+> revisione esatta. L'owner è l'unica autorità che cambia lo stato nel registro e
+> **PUÒ** ratificare solo quando non esistono rilievi bloccanti aperti e sono
+> disponibili le tre posizioni e la revisione richiesta da R0.4. L'atto di
+> ratifica **DEVE** registrare data, commit e tag firmato della baseline.
+>
+> Ratificare un requisito e implementarlo sono atti distinti: la ratifica lo
+> rende vincolante; un componente non ancora conforme registra un gap o una
+> deroga. Fino alla ratifica resta vincolante la precedente baseline ratificata.
+>
+> **R16.4 — Versionamento.** Questo documento **DEVE** essere versionato in un
+> repository, non distribuito come file sciolto: senza storia non esiste
+> baseline, i team non sanno a quale versione si stanno conformando e nessuna
+> change impact analysis è possibile. La versione è dichiarata in testa al
+> documento e citata nelle CIA.
+>
+> **R16.5 — Proprietà.** Questo documento **DEVE** avere un owner nominato.
+> L'owner controlla il registro ma **NON DEVE** sostituire la revisione
+> indipendente richiesta da R0.4 quando è anche autore della modifica. Un
+> contratto trasversale senza proprietario diventa tre interpretazioni
+> divergenti: è già successo con i due `plenora-core`, ricopiati consapevolmente
+> e poi lasciati derivare fino a definire due `PlenoraError` incompatibili.
 
 ---
 
@@ -1119,8 +1185,8 @@ La conformità si misura su **tre grandezze distinte**, che non vanno confuse:
 | **Deroghe attive** | Scostamenti dichiarati secondo §16, con motivo e condizione di rientro | registrate |
 
 L'elenco che segue è il **traguardo completo**, non il criterio corrente, e la
-sua versione definitiva dipende dagli emendamenti 2.0. Le voci che riguardano
-sezioni non ratificate sono fotografia, non obbligo:
+sua entrata in vigore dipende dalla ratifica delle proposte 2.0. Le voci che
+riguardano sezioni non ratificate sono fotografia, non obbligo:
 
 1. Arrow pinnato alla versione di baseline (R1).
 2. Emette e accetta le chiavi canoniche, dichiara `plenora.contract.version`, e
@@ -1146,8 +1212,13 @@ sezioni non ratificate sono fotografia, non obbligo:
 12. Determinismo **dichiarato sul livello che si garantisce** — semantico,
     dell'ordine, byte-for-byte o non ordinato — con le esclusioni note (R12).
 13. Toolchain fissata, `--locked` in CI, dipendenze pinnate (R13).
-14. Output atomico dove la piattaforma lo consente, no-clobber, durabilità ed
-    effetto dichiarati solo se verificati (R14.3–R14.5).
+14. Output atomico dove la piattaforma lo consente; altrove rifiuto fail-closed
+    o capability non atomica dichiarata, con no-clobber, durabilità ed effetto
+    riportati solo se verificati (R14.2–R14.5).
+15. Evidenza riproducibile e tracciabilità bidirezionale fra requisito, hazard,
+    verifica e risultato; casi negativi e valori limite per gli hazard critici,
+    con revisione indipendente dichiarata senza sovrastimarne il livello
+    (R0.1–R0.5).
 
 **Rispetto al traguardo completo, nessuno dei tre componenti è oggi conforme.**
 Sulla conformità corrente — undici sezioni ratificate al 27 luglio — la
@@ -1172,7 +1243,7 @@ Rilevato per ispezione del codice al 27 luglio 2026. `—` = nozione non modella
 | R4 Modello CRS | ✅ (shp corretto in `8bb65dd`) | ✅ | ❌ piatto |
 | R5 Perdita non silenziosa | ⚠ 95 `unwrap_or*` censiti | ✅ R5.3, censimento aperto | parziale |
 | R6 Nessun panic nei `lib` | ✅ 0, gate attivo | ✅ 0, gate attivo (`07f6823`) | ❌ 26, nessuna CI |
-| R7 Limiti pre-allocazione | parziale | parziale | ✅ AST |
+| R7 Limiti pre-allocazione | parziale | parziale | ⚠ parziale: AST limitato, budget condiviso assente |
 | R8.1 Nomi crate unici | ❌ collisione | ❌ collisione | ✅ |
 | R8.3 Crate condiviso | ❌ non esiste | ❌ | ❌ |
 | R8.4 Tipi omonimi | ❌ `PlenoraError` | ❌ `PlenoraError` | ✅ |
@@ -1182,7 +1253,7 @@ Rilevato per ispezione del codice al 27 luglio 2026. `—` = nozione non modella
 | R12 Determinismo | ❌ non testato | ✅ | ❌ non testato |
 | R13.1 Toolchain fissata | ❌ stable | ✅ `a1f4130` | ✅ 1.92.0 |
 | R13.3 Dipendenze pinnate | ❌ 8 caret (rustix e atomicwrites pinnate) | ✅ | ✅ |
-| R14 Output atomico | ✅ Linux/Win/macOS (`target_vendor = "apple"`) | n/a | ✅ transazione |
+| R14 Output atomico | ✅ Linux/Win/macOS (`target_vendor = "apple"`) | n/a | ⚠ transazione; commit incerto modellato, recovery da completare |
 
 ---
 
@@ -1279,7 +1350,40 @@ documenti normativi a cui una CIA si riferisce.
 
 ---
 
-*Documento redatto come revisione tecnica indipendente. Lo stato normativo di
+## Appendice E — Matrice minima di verifica
+
+Questa matrice definisce l'evidenza minima comune richiesta da R0. Non sostituisce
+i piani di verifica dei componenti e non trasforma una regola `proposta` in una
+regola vincolante.
+
+| Regole | Metodo minimo | Evidenza minima |
+|---|---|---|
+| R0 | analisi di tracciabilità e revisione indipendente | matrice requisito–hazard–test senza collegamenti mancanti; autore e revisore identificati |
+| R1 | analisi automatica dei manifest e build | versioni esatte coincidenti; `cargo ... --locked` riuscito sui tre workspace |
+| R2 | test di contratto e property test | round-trip dei metadata; conflitto fra rappresentazioni; casi di lineage identity, derived e multi-source |
+| R3 | test tabellari, property test e fuzzing dei decoder | sedici tipi, cinque dimensioni, quattro stati di dichiarazione; input non supportato e malformato |
+| R4 | test tabellari e negativi | tre stati CRS, sei ordini d'asse, rappresentazioni discordanti ed EWKB SRID incoerente |
+| R5 | test differenziali e sui limiti | perdita rifiutata o nel `LossReport`; confronti su estremi numerici e cast non rappresentabili |
+| R6 | analisi statica, fuzzing, boundary test e audit | gate §6, corpus e seed riproducibili, overflow in release, elenco delle API panicking e relativa mitigazione |
+| R7 | property test, test concorrenti e fault injection | nessuna allocazione prima del limite; lease restituiti; overflow rifiutato; limiti di espansione, decompressione, CPU e spill |
+| R8 | analisi automatica del grafo e test d'API | nomi package unici, un solo tipo per concetto di confine, stabilità di `FieldId` attraverso le rinomine |
+| R9 | test tabellari e fault injection | combinazioni dei quattro assi; commit perso, timeout per fase, effetto ignoto e decisione di retry senza inferenze dal messaggio |
+| R10 | test di conformità delle capability | ogni capability dichiarata ha un test positivo; ogni assenza ha un test di rifiuto fail-closed |
+| R11 | test concorrenti e temporali con clock controllato | `cancel()` idempotente, wake senza polling, deadline, motivo, propagazione padre–figlio e cancellazione durante I/O bloccante |
+| R12 | ripetizione con scheduling e spill differenti | confronto semantico, d'ordine e byte-for-byte secondo il livello dichiarato; snapshot e collation registrati |
+| R13 | build riproducibile e analisi delle dipendenze | toolchain esatta, lockfile invariato, assenza di caret, CIA associata a ogni variazione |
+| R14 | fault injection in ogni fase di pubblicazione | no-clobber concorrente, crash prima/durante/dopo commit, durabilità verificata, classificazione `partial`/`unknown` e recovery provata |
+| R15 | verifica crittografica e test d'integrazione | firma del tag valida, commit coincidente col lockfile, build `--locked`, API pubblica del crate conforme all'ICD |
+| R16 | ispezione del registro delle deroghe | regola, hazard, motivo, owner, condizione di rientro e stato presenti per ogni deroga |
+| R17 | generazione del report di conformità | risultato per ogni regola ratificata, commit e ambiente; nessun `✅` derivato dalla sola assenza di evidenza contraria |
+
+Ogni esecuzione **DOVREBBE** produrre un artefatto machine-readable conservato
+dalla CI. Un risultato scaduto perché riferito a una revisione precedente resta
+storico, ma non dimostra la revisione corrente.
+
+---
+
+*Documento redatto come revisione tecnica. Lo stato normativo di
 ogni sezione è quello, e soltanto quello, del registro di ratifica in testa al
 documento: nessuna affermazione altrove sostituisce quel registro. Gli stati di
 conformità in Appendice A sono rilevati per ispezione del codice, non per

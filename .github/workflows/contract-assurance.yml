@@ -1,0 +1,39 @@
+name: Contract assurance
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  document-control:
+    name: Validate normative baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      # actions/checkout v4, pinned to the exact revision resolved on 2026-07-27.
+      - name: Check out the candidate baseline
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Record the execution environment
+        run: python3 --version
+
+      - name: Validate the contract
+        run: >-
+          python3 scripts/check_contract.py
+          --json-out assurance-results/contract-check.json
+
+      # actions/upload-artifact v4, pinned to the exact revision resolved on
+      # 2026-07-27. The report is evidence of this check, not certification.
+      - name: Preserve the machine-readable report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: contract-assurance-${{ github.sha }}
+          path: assurance-results/contract-check.json
+          if-no-files-found: error
+          retention-days: 90

@@ -8,9 +8,9 @@ Baseline dei contratti trasversali fra i tre componenti Plenora:
 - [`docs/PLENORA-CONTRATTI-TRASVERSALI.md`](docs/PLENORA-CONTRATTI-TRASVERSALI.md)
   — documento normativo di interfaccia (ICD). È la fonte autorevole: in caso di
   conflitto prevale sulla documentazione dei singoli repository.
-- `src/` — il crate `plenora-contracts` con i tipi di confine. **Non ancora
-  creato**: la sua estrazione è il passo 2 di §15 dell'ICD ed è sospesa in
-  attesa della versione 2.0 del documento.
+- `src/` — il futuro crate `plenora-contracts` con i tipi di confine. **Non
+  ancora creato**: la sua estrazione è il passo 2 di §15 dell'ICD ed è in
+  attesa della ratifica di §15.3.
 
 ## Stato
 
@@ -21,13 +21,17 @@ Owner: Marco Bonamente.
 
 ## Come citarlo
 
-Ogni change impact analysis nei tre repository **deve** riferirsi a un tag di
-questo repository, non al contenuto del file in un dato momento. I tag sono
-immutabili per convenzione; le dipendenze future dal crate useranno il revision
-esatto registrato nel `Cargo.lock`, non il solo tag.
+La proposta §15.2 della 2.0-rc2 richiede che ogni change impact analysis nei tre
+repository si riferisca a un tag annotato e firmato e alla revisione esatta
+corrispondente, non al contenuto del file in un dato momento. Dopo la ratifica,
+le dipendenze dal crate useranno la revisione registrata nel `Cargo.lock` e la CI
+userà `--locked`.
 
 ## Come proporre una modifica
 
-Secondo §16 dell'ICD: indicare regole toccate, impatto sui tre componenti, piano
-di migrazione e retrocompatibilità. La modifica entra in vigore quando i tre team
-l'hanno recepita; fino ad allora resta vincolante la versione precedente.
+La proposta §16 della 2.0-rc2 richiede di indicare regole e hazard toccati,
+impatto sui tre componenti, piano di migrazione e retrocompatibilità. I tre team
+registrano la propria posizione tecnica; l'owner ratifica solo in assenza di
+rilievi bloccanti e dopo la revisione indipendente richiesta. La ratifica rende
+il requisito vincolante; l'adozione nei componenti è un atto successivo e
+verificabile.
