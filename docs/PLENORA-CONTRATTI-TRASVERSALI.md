@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 1.1-draft · 27 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 1.1.2-draft · 27 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -14,26 +14,47 @@
 >
 > Stati: `proposta` (mai ratificata) · `ratificata` (vincolante) ·
 > `contestata` (ratificata, ma con rilievo bloccante accolto: **non** vincolante
-> per nuovo lavoro, in attesa di decisione dell'owner) · `superata`.
+> per nuovo lavoro, in attesa di decisione dell'owner) · `superata` (sostituita
+> da una versione ratificata successiva).
 >
-> | Sezione | Oggetto | Stato | Dal | Sostituita da | Posizioni dei team |
+> **Clausola di chiusura.** Ogni regola o sezione non elencata in questa tabella
+> ha stato `proposta`. La tabella è esaustiva per costruzione: se una regola
+> compare nel corpo ma non qui, non è vincolante.
+>
+> | Sezione | Oggetto | Stato | Dal | Emendamento previsto | Posizioni dei team |
 > |---|---|---|---|---|---|
+> | §1 R1 | Versione Arrow unica e pinnata | proposta | — | — | conforme di fatto in tutti e tre |
 > | §2 | Chiavi metadata canoniche, una per proprietà | **contestata** | 27 lug | 2.0-draft | IO ✔ · data ✔ · db ✘ (manca versione protocollo, vieta chiavi Arrow standard) |
 > | §3.1 | Sedici tipi geometrici, forma `linestring` | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
 > | §3.2 | Rifiuto esplicito dei tipi non supportati | proposta | — | — | data ✔ |
-> | §3.3 | Cinque dimensioni rappresentabili e propagabili | proposta | — | — | data: richiede decisione |
+> | §3.3 | Cinque dimensioni rappresentabili e propagabili | proposta | — | — | data: richiede decisione dell'owner |
 > | §3.4 | `unknown` non degradabile a `xy` | proposta | — | 2.0-draft | db ✘ (non distingue *mixed* da *non risolto*) |
 > | §3.5 | Encoding come enumerazione chiusa | proposta | — | — | — |
-> | §4 | CRS a tre stati, axis order non canonicalizzato | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ⚠ (emendamenti §7 revisione: formato definizione, precedenza, R4.5 pushdown) |
+> | §4.1–§4.4 | CRS a tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ⚠ (emendamenti su formato della definizione e precedenza) |
+> | §4.5 | Riproiezione riservata al centro | **contestata** | 27 lug | 2.0-draft | db ✘ (vieta il pushdown `ST_Transform` deciso dal planner) |
+> | §5 R5 | Perdita di informazione mai silenziosa | proposta | — | — | data ✔ (R5.3 implementata) |
+> | §6 R6 | Nessun panic nei crate `lib` | proposta | — | — | IO ✔ (gate attivo) · data: in corso |
+> | §7 R7 | Limiti applicati prima dell'allocazione | proposta | — | 2.0-draft | db ✘ (budget da cedere lungo la catena, non replicare) |
+> | §8 R8 | Identità di crate e colonne | proposta | — | — | — |
 > | §9 | Categorie e fasi d'errore | **contestata** | 27 lug | 2.0-draft | db ✘ (causa ed effetto sullo stesso asse; `retryable: bool` insufficiente) |
+> | §10 R10 | Capability dichiarative interrogabili | proposta | — | 2.0-draft | data: forma da definire |
+> | §11.1–§11.4 | Cancellazione cooperativa, categoria propria, nessun residuo | proposta | — | 2.0-draft | db ✘ (R11.3 è garanzia assoluta non dimostrabile) |
 > | §11.5 | `CancellationToken` concreto e clonabile | **contestata** | 27 lug | 2.0-draft | db ✘ (manca attesa asincrona e deadline) |
+> | §12 R12 | Determinismo e riproducibilità | proposta | — | 2.0-draft | db ✘ (troppo assoluta per sorgenti remote) · data ✔ (R12.4) |
+> | §13 R13 | Toolchain e baseline | proposta | — | — | data ✔ (`a1f4130`) |
+> | §14 R14 | Esiti di scrittura e pubblicazione | proposta | — | 2.0-draft | db ✘ (R14.4 è garanzia assoluta non dimostrabile) |
 > | §15.1 | Repository autonomo `plenora-contracts` come fonte autorevole, e suo nome | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
 > | §15.2 | Distribuzione: tag, revisione, immutabilità del riferimento | **contestata** | 27 lug | 2.0-draft | db ✘ (un tag è spostabile: serve tag firmato più revisione esatta) |
 > | §15.3 | Contenuto e API del crate | **contestata** | 27 lug | 2.0-draft | db ✘ (mancano `LossReport`, budget, capability, esito di scrittura, versione del contratto, lineage) |
 >
+> La colonna **Emendamento previsto** indica dove il rilievo sarà risolto: non
+> significa che la regola sia già stata sostituita. Una sezione diventa `superata`
+> soltanto quando la versione che la sostituisce è a sua volta ratificata.
+>
 > **Effetto pratico degli stati.** Una sezione `contestata` non fonda nuovo
 > lavoro: chi ha già iniziato non disfa, chi non ha iniziato attende la 2.0. Una
-> sezione `proposta` non è vincolante per nessuno.
+> sezione `proposta` non è vincolante per nessuno — il che non impedisce a un
+> componente di applicarla per propria scelta o per una regola interna.
 >
 > Restano in vigore, indipendentemente da questa tabella, le regole che ciascun
 > componente si è dato internamente: la correzione di
@@ -73,7 +94,7 @@ qui contenute prevalgono sulla documentazione locale dei singoli repository.
 - §12 R12 — Determinismo e riproducibilità dei risultati
 - §13 R13 — Toolchain e baseline
 - §14 R14 — Esiti di scrittura e pubblicazione
-- §15 Migrazione verso il crate condiviso
+- §15 Crate condiviso e migrazione (§15.1 autorità · §15.2 distribuzione · §15.3 contenuto · §15.4 piano)
 - §16 Deroghe e modifiche
 - §17 Definizione di componente conforme
 - Appendice A — Riepilogo di conformità
@@ -286,7 +307,11 @@ dovuta per PLN-ASR-007 e H-01 nel profilo di assurance di IO-tools.
 > **R4.4** Nessun componente **DEVE** assumere un CRS di default. In particolare,
 > l'assenza di CRS **NON DEVE** essere interpretata come WGS84.
 >
-> **R4.5** La riproiezione è responsabilità esclusiva del componente centrale. I
+> **R4.5** *(`contestata` — vedi registro; emendamento previsto in 2.0-draft: il
+> centro resta l'unico a **decidere** la riproiezione, ma il bordo può
+> **eseguirla** come pushdown capability-gated senza alterarne parametri o
+> semantica.)*
+> La riproiezione è responsabilità esclusiva del componente centrale. I
 > bordi **NON DEVONO** riproiettare: preservano il CRS sorgente e lo dichiarano.
 
 **Perché.** L'inversione lat/lon è il fallimento geospaziale più costoso e più
@@ -704,46 +729,79 @@ R14.4 in transazione, con `OutcomeUnknown` sul commit incerto. data-tools ha un
 
 ---
 
-## §15 Migrazione verso il crate condiviso
+## §15 Crate condiviso e migrazione
+
+Le tre sottosezioni che seguono hanno stati normativi distinti nel registro e
+vanno citate separatamente.
+
+### §15.1 — Repository e autorità
+
+> **R15.1.1** Il documento normativo e il crate dei tipi di confine **DEVONO**
+> risiedere in un repository autonomo, condiviso fra i tre team e **non** interno
+> a uno dei tre componenti. Il repository è `plenora-contracts`.
+>
+> **R15.1.2** Documento e crate **DEVONO** condividere lo stesso repository e la
+> stessa versione: quando cambia il contratto cambiano insieme, e una change
+> impact analysis può citare un riferimento unico.
+>
+> **R15.1.3** Una collocazione provvisoria altrove è ammessa solo se dichiarata
+> tale secondo §16, con condizione di rientro esplicita.
+
+**Perché non `docs/` di uno dei tre.** Un contratto che vincola tre team non può
+essere ospitato da uno di essi: chi lo ospita ne controlla di fatto il merge, e
+§15.4 assegna già a IO-tools il ruolo di riferimento per i tipi. Concentrare
+anche la sede del documento sbilancerebbe la governance.
+
+### §15.2 — Distribuzione e immutabilità del riferimento
+
+> **R15.2.1** La dipendenza dal crate **DEVE** essere risolta per revisione
+> esatta, registrata nel `Cargo.lock`, e la CI **DEVE** usare `--locked`.
+>
+> **R15.2.2** Il riferimento umano a una versione del contratto **DEVE** essere
+> un tag annotato e firmato. Un tag non firmato è spostabile e non costituisce
+> evidenza sufficiente per una change impact analysis.
+>
+> **R15.2.3** La distribuzione per `path` locale è **vietata**: riprodurrebbe il
+> problema che il crate deve risolvere, dando a ogni team una copia non
+> verificabile — un terzo modello anziché un contratto comune.
+
+### §15.3 — Contenuto e API del crate
+
+> **R15.3.1** Il crate **DEVE** essere definito nella sua interezza prima di
+> essere creato: un'estrazione parziale costringerebbe i team ad adottarlo due
+> volte.
+>
+> **R15.3.2** Il crate **NON DEVE** dipendere da altro che dai crate strettamente
+> necessari ai tipi di confine, e **NON DEVE** contenere `unsafe` né primitive di
+> panic.
+
+| Attributo | Valore |
+|---|---|
+| Nome del pacchetto | `plenora-contracts` |
+| Versione iniziale | `0.1.0`, `publish = false` |
+| Contenuto minimo | `FieldId`, `CoordinateDimensions`, `GeometryType`, `GeometryEncoding`, `SpatialSemantics`, `CrsResolution`, `ResolvedCrs`, `AxisOrder`, costanti delle chiavi §2 |
+| Contenuto da definire in 2.0 | `CancellationToken` con attesa asincrona e deadline, envelope d'errore con causa/effetto/disposizione di ritentativo, `LossReport` e relativa policy, `ResourceBudget`, capability, esito di scrittura e recovery, versione del protocollo, lineage dei campi |
+| Vincoli di dipendenza | da fissare in 2.0: l'attesa asincrona di R11.5 può richiedere più di `serde` e `arrow-schema` |
+
+**Stato.** Questa sottosezione è `contestata`: la revisione database-tools ha
+rilevato che l'elenco del contenuto era incompleto. Il crate **non va creato**
+finché la 2.0 non lo definisce per intero.
+
+### §15.4 — Piano di migrazione
 
 La convergenza avviene in quattro passi, in quest'ordine. Ogni passo è
 verificabile e non richiede il successivo per essere utile.
 
-**Passo 1 — Chiavi metadata (R2).** Non dipende da nessun refactoring: sono
+**Passo 1 — Chiavi metadata (§2).** Non dipende da nessun refactoring: sono
 costanti stringa. Ogni componente allinea i propri nomi alla tabella §2, con un
-periodo di doppia lettura (accettare vecchio e nuovo, emettere solo il nuovo) se
-serve compatibilità all'indietro. Vedi Appendice C.
+periodo di doppia lettura (accettare vecchio e nuovo, emettere solo il vecchio)
+se serve compatibilità all'indietro. Vedi Appendice C. Finché §2 è `contestata`,
+è consentita la sola doppia lettura, non l'emissione canonica.
 
 **Passo 2 — Estrazione a semantica zero.** Nasce il crate condiviso, come pura
 estrazione dei tipi di confine oggi in `plenora-IO-tools/crates/plenora-core`.
 IO-tools ci dipende e re-esporta; nessun cambiamento di comportamento, nessuno
-stato di tracciabilità si muove.
-
-Il crate **DEVE** essere definito nella sua interezza prima di essere creato:
-
-| Attributo | Valore |
-|---|---|
-| Nome | `plenora-contracts` |
-| Repository | proprio, condiviso fra i tre team — **non** dentro uno dei tre componenti |
-| Versione iniziale | `0.1.0`, `publish = false` |
-| Distribuzione | dipendenza git per tag, non per path locale |
-| Contenuto | `FieldId`, `CoordinateDimensions`, `GeometryType`, `GeometryEncoding`, `SpatialSemantics`, `CrsResolution`, `ResolvedCrs`, `AxisOrder`, `CancellationToken` (R11.5), `ErrorCategory` e `ErrorPhase` (§9), costanti delle chiavi §2 |
-| Vincoli | nessuna dipendenza oltre `serde` e `arrow-schema`; nessun `unsafe`; nessuna primitiva di panic |
-
-**Perché un repository proprio e non `docs/` di uno dei tre.** Un contratto che
-vincola tre team non può essere ospitato da uno di essi: chi lo ospita ne
-controlla di fatto il merge, e §15 assegna già a IO-tools il ruolo di riferimento
-per i tipi. Ospitare anche il documento normativo concentrerebbe troppo. Il
-documento e il crate **DOVREBBERO** vivere nello stesso repository e condividere
-la versione: quando cambia il contratto, cambiano insieme, e una CIA può citare
-un tag unico.
-
-Se serve partire prima che il repository esista, la collocazione provvisoria
-**DEVE** essere dichiarata tale, con la condizione di rientro, secondo §16.
-
-**Distribuzione per path locale: vietata.** Una dipendenza `path = "../..."`
-riproduce il problema che il crate deve risolvere: ogni team avrebbe una copia
-non verificabile, cioè un terzo modello anziché un contratto comune.
+stato di tracciabilità si muove. Subordinato a §15.3.
 
 **Passo 3 — Adozione.** data-tools e database-tools adottano il crate condiviso,
 uno per volta, ciascuno con la propria change impact analysis.
@@ -807,10 +865,15 @@ proprie regole interne, oggi in vigore.
 | Gate anti-panic `--lib` su data-tools e database-tools | Replica di un gate già in produzione, nessuna decisione di contratto |
 | Doppia **lettura** delle chiavi metadata (accettare canoniche e legacy, emettere solo legacy) | Retrocompatibile e reversibile; dimezza il lavoro del passo 1 senza anticiparne le scelte |
 
-**Subordinato alla ratifica:** rinomina delle chiavi in emissione (R2), forma dei
-valori dei tipi geometrici (R3.1), estensione delle dimensioni propagabili (R3.3),
-enumerazioni d'errore condivise (§9), token di cancellazione comune (R11.5),
-creazione del crate `plenora-contracts` (§15 passo 2).
+**Subordinato al registro:** rinomina delle chiavi in emissione (§2,
+`contestata`), estensione delle dimensioni propagabili (§3.3, `proposta`),
+enumerazioni d'errore condivise (§9, `contestata`), token di cancellazione comune
+(§11.5, `contestata`), contenuto del crate (§15.3, `contestata`).
+
+La forma dei valori dei tipi geometrici (§3.1) e il modello CRS (§4.1–§4.4) sono
+invece **ratificati**: si possono adottare subito. Anche l'istituzione del
+repository `plenora-contracts` (§15.1) è ratificata; resta contestata la sola
+distribuzione (§15.2) e il contenuto (§15.3).
 
 ---
 
@@ -865,8 +928,8 @@ Rilevato per ispezione del codice al 27 luglio 2026. `—` = nozione non modella
 | R3.3 Dimensioni propagabili | ✅ 5/5 | ❌ solo `xy` | 4/5 |
 | R3.4 `unknown` non degradato | ❌ `driver.rs:347` | n/a | n/a |
 | R3.5 Encoding come enum | ✅ | — | ❌ `String` |
-| R4 Modello CRS | ✅ modello, ⚠ shp:223 | ✅ | ❌ piatto |
-| R5 Perdita non silenziosa | ⚠ 103 `unwrap_or*` | ✅ R5.3, censimento aperto | parziale |
+| R4 Modello CRS | ✅ (shp corretto in `8bb65dd`) | ✅ | ❌ piatto |
+| R5 Perdita non silenziosa | ⚠ 95 `unwrap_or*` censiti | ✅ R5.3, censimento aperto | parziale |
 | R6 Nessun panic nei `lib` | ✅ 0, gate attivo | ❌ ~121 | ❌ 26 |
 | R7 Limiti pre-allocazione | parziale | parziale | ✅ AST |
 | R8.1 Nomi crate unici | ❌ collisione | ❌ collisione | ✅ |
@@ -876,9 +939,9 @@ Rilevato per ispezione del codice al 27 luglio 2026. `—` = nozione non modella
 | R10 Capability dichiarative | ✅ | ❌ assenti | ✅ |
 | R11 Cancellazione | ❌ assente | ✅ | ✅ |
 | R12 Determinismo | ❌ non testato | ✅ | ❌ non testato |
-| R13.1 Toolchain fissata | ❌ stable | ❌ stable | ✅ 1.92.0 |
-| R13.3 Dipendenze pinnate | ❌ 13 caret | ✅ | ✅ |
-| R14 Output atomico | ✅ Linux/Win | n/a | ✅ transazione |
+| R13.1 Toolchain fissata | ❌ stable | ✅ `a1f4130` | ✅ 1.92.0 |
+| R13.3 Dipendenze pinnate | ❌ 8 caret (rustix e atomicwrites pinnate) | ✅ | ✅ |
+| R14 Output atomico | ✅ Linux/Win/macOS (`target_vendor = "apple"`) | n/a | ✅ transazione |
 
 ---
 
