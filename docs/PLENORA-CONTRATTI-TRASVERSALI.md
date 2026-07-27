@@ -6,37 +6,43 @@
 >
 > **Stato: parzialmente ratificato.**
 >
-> **Registro di ratifica**
+> ## Registro di ratifica
 >
-> | Sezione | Oggetto | Stato |
-> |---|---|---|
-> | §2 | Chiavi metadata canoniche, una per proprietà | **Ratificata** 27 lug 2026 |
-> | §3.1 | Sedici tipi geometrici, forma `linestring` | **Ratificata** 27 lug 2026 |
-> | §3.2 | Rifiuto esplicito dei tipi non supportati | *non ratificata* |
-> | §3.3 | Cinque dimensioni rappresentabili e propagabili | *non ratificata* |
-> | §3.4 | `unknown` non degradabile a `xy` | *non ratificata* |
-> | §3.5 | Encoding come enumerazione chiusa | *non ratificata* |
-> | §4 | CRS a tre stati, axis order non canonicalizzato | **Ratificata** 27 lug 2026 |
-> | §9 | Diciannove categorie e dieci fasi d'errore | **Ratificata** 27 lug 2026 |
-> | §11.5 | `CancellationToken` concreto e clonabile | **Ratificata** 27 lug 2026 |
-> | §15 | Crate `plenora-contracts`, repository proprio, tag git | **Ratificata** 27 lug 2026 |
+> Questa tabella è l'**unica** fonte sullo stato normativo. Nessuna affermazione
+> altrove nel documento, nei messaggi di commit o nei tag la sostituisce: dove
+> divergono, prevale la tabella.
 >
-> Le regole non ratificate non sono vincolanti. Restano comunque in vigore per
-> ciascun componente le regole che si è dato internamente: in particolare la
-> correzione di `plenora-io-core/src/driver.rs:347` è dovuta per PLN-ASR-007 e
-> H-01 **a prescindere** dallo stato di §3.4 (vedi §16-bis).
+> Stati: `proposta` (mai ratificata) · `ratificata` (vincolante) ·
+> `contestata` (ratificata, ma con rilievo bloccante accolto: **non** vincolante
+> per nuovo lavoro, in attesa di decisione dell'owner) · `superata`.
 >
-> Le sezioni §9 e §11 recepiscono i rilievi del team IO-tools del 27 luglio;
-> §5, §9 e §12 recepiscono la fotografia del team data-tools; l'Appendice A
-> §R13.3 corregge un dato errato della versione 1.0.
+> | Sezione | Oggetto | Stato | Dal | Sostituita da | Posizioni dei team |
+> |---|---|---|---|---|---|
+> | §2 | Chiavi metadata canoniche, una per proprietà | **contestata** | 27 lug | 2.0-draft | IO ✔ · data ✔ · db ✘ (manca versione protocollo, vieta chiavi Arrow standard) |
+> | §3.1 | Sedici tipi geometrici, forma `linestring` | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
+> | §3.2 | Rifiuto esplicito dei tipi non supportati | proposta | — | — | data ✔ |
+> | §3.3 | Cinque dimensioni rappresentabili e propagabili | proposta | — | — | data: richiede decisione |
+> | §3.4 | `unknown` non degradabile a `xy` | proposta | — | 2.0-draft | db ✘ (non distingue *mixed* da *non risolto*) |
+> | §3.5 | Encoding come enumerazione chiusa | proposta | — | — | — |
+> | §4 | CRS a tre stati, axis order non canonicalizzato | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ⚠ (emendamenti §7 revisione: formato definizione, precedenza, R4.5 pushdown) |
+> | §9 | Categorie e fasi d'errore | **contestata** | 27 lug | 2.0-draft | db ✘ (causa ed effetto sullo stesso asse; `retryable: bool` insufficiente) |
+> | §11.5 | `CancellationToken` concreto e clonabile | **contestata** | 27 lug | 2.0-draft | db ✘ (manca attesa asincrona e deadline) |
+> | §15a | Crate `plenora-contracts`: nome, repository proprio, distribuzione | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
+> | §15b | Contenuto e API del crate | **contestata** | 27 lug | 2.0-draft | db ✘ (mancano `LossReport`, budget, capability, esito di scrittura, versione, lineage) |
 >
-> **Revisione database-tools del 27 luglio: cinque rilievi bloccanti accolti.**
-> §9 (separazione causa/effetto e disposizione di ritentativo), §11.5 (attesa
-> asincrona e deadline), §2 (versione del protocollo, deroga per le chiavi
-> standard Arrow/GeoArrow), R11.3 e R14.4 (garanzie assolute non dimostrabili),
-> §15 (contenuto del crate incompleto) sono **riaperti** e confluiscono nella
-> versione 2.0. Le ratifiche del 27 luglio su §3.1, §4 e §15 restano valide;
-> quelle su §2, §9 e §11.5 sono sospese in attesa degli emendamenti.
+> **Effetto pratico degli stati.** Una sezione `contestata` non fonda nuovo
+> lavoro: chi ha già iniziato non disfa, chi non ha iniziato attende la 2.0. Una
+> sezione `proposta` non è vincolante per nessuno.
+>
+> Restano in vigore, indipendentemente da questa tabella, le regole che ciascun
+> componente si è dato internamente: la correzione di
+> `plenora-io-core/src/driver.rs:347` è dovuta per PLN-ASR-007 e H-01 **a
+> prescindere** dallo stato di §3.4 (vedi §16-bis).
+>
+> **Cronologia.** §9 e §11 recepiscono i rilievi del team IO-tools; §5, §9 e §12
+> la fotografia del team data-tools; l'Appendice A §R13.3 corregge un dato errato
+> della 1.0. Gli stati `contestata` recepiscono i cinque rilievi bloccanti della
+> revisione database-tools, accolti integralmente.
 
 Governa i confini fra i tre componenti Plenora sviluppati separatamente. Le regole
 qui contenute prevalgono sulla documentazione locale dei singoli repository.
@@ -809,7 +815,10 @@ creazione del crate `plenora-contracts` (§15 passo 2).
 
 ## §17 Definizione di componente conforme
 
-Un componente è **conforme alla v1.0** quando, verificabile in CI:
+Un componente è **conforme** quando soddisfa, verificabile in CI, tutte le regole
+che il registro di ratifica indica come `ratificata` al momento della verifica.
+Alla data odierna sono §3.1, §4 e §15a; l'elenco che segue è il traguardo
+completo, non il criterio corrente:
 
 1. Arrow pinnato alla versione di baseline (R1).
 2. Emette e accetta le chiavi canoniche §2, e propaga invariate quelle che non
@@ -828,7 +837,7 @@ Un componente è **conforme alla v1.0** quando, verificabile in CI:
 13. Toolchain fissata, `--locked` in CI, dipendenze pinnate (R13).
 14. Output atomico, no-clobber, durabilità dichiarata onestamente (R14).
 
-**Nessuno dei tre componenti è oggi conforme alla v1.0.** Il più vicino è
+**Nessuno dei tre componenti è oggi conforme all'elenco completo.** Il più vicino è
 IO-tools (R1, R3.3, R6, R14 su Linux/Windows); il più distante è database-tools,
 che non ha CI e quindi non può dimostrare alcuna regola in modo automatico.
 
@@ -960,6 +969,11 @@ documenti normativi a cui una CIA si riferisce.
 ogni sezione è quello, e soltanto quello, del registro di ratifica in testa al
 documento: nessuna affermazione altrove sostituisce quel registro. Gli stati di
 conformità in Appendice A sono rilevati per ispezione del codice, non per
-esecuzione dei test, e sono ancorati ai commit `0fbe405` (IO-tools), `4607719`
+esecuzione dei test, e sono ancorati ai commit `00f293e` (IO-tools), `a1f4130`
 (data-tools) e `058aebf` (database-tools). Ogni fotografia successiva deve
-dichiarare i propri.*
+dichiarare i propri: conteggi e riferimenti a numeri di riga non ancorati a un
+commit sono obsoleti nel momento in cui vengono scritti.*
+
+*Le fotografie in Appendice A precedono i lavori in corso dei team e non li
+riflettono: `8bb65dd` e `03b6590` in IO-tools, `8fd8f79` e `a1f4130` in
+data-tools chiudono già alcune righe della tabella.*
