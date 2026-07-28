@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc5 · 28 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc6 · 28 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -57,9 +57,10 @@
 > la fotografia del team data-tools; l'Appendice A §R13.3 corregge un dato errato
 > della 1.0. La 2.0 emenda le sei sezioni che erano `sospesa` e le sei `proposta`
 > con rilievi aperti: nessuna sezione risulta più sospesa, tutte attendono
-> ratifica. La 2.0-rc3 aggiorna esclusivamente la fotografia verificata di
-> IO-tools alla revisione `1c1ee61e6d87ce2810ec482298b483e90a3abe80`; non
-> modifica requisiti né stati normativi.
+> ratifica. Le revisioni successive alla 2.0 aggiornano la fotografia
+> dell'Appendice A e la forma normativa; la sola modifica di sostanza è
+> l'emendamento di §15.4 in rc5 (emissione canonica ammessa con deroga
+> registrata, DER-ICD-002).
 
 Governa i confini fra i tre componenti Plenora sviluppati separatamente. Le regole
 qui contenute prevalgono sulla documentazione locale dei singoli repository.
@@ -149,6 +150,12 @@ viola una regola ha un hazard non controllato, non solo un difetto di stile.
 > assurance, piani approvati, evidenze complete e autorità competente
 > identificati separatamente.
 
+**Dove sta lo stato di fatto.** Il corpo di questo documento contiene solo
+regole. La fotografia della conformità dei tre componenti sta **esclusivamente**
+nell'Appendice A, ancorata a revisioni esatte. Nessuna sezione la ripete: una
+fotografia duplicata invecchia sempre in un punto solo, ed è il modo in cui il
+documento inizia a contraddirsi.
+
 **Lettura minima per un team che parte.** §0, la regola che riguarda il proprio
 confine, la riga del proprio componente nell'Appendice A, e la tabella di
 rinomina in Appendice C.
@@ -172,8 +179,6 @@ compilazione al confine: produce due tipi `RecordBatch` incompatibili che il
 sistema dei tipi tratta come estranei.
 
 **Verifica.** `grep -h 'arrow-' */Cargo.toml` — tutte le occorrenze pinnate e uguali.
-
-**Stato oggi: conforme in tutti e tre.**
 
 ---
 
@@ -256,8 +261,6 @@ che il driver aveva preservato con cura.
 
 **Verifica.** `grep -rhoE '"plenora\.[a-z_.]+"' crates/ | sort -u` confrontato con
 la tabella; test di round-trip dei metadati attraverso il componente centrale.
-
-**Stato oggi: nessuno dei tre conforme.** Vedi Appendice C per le rinomine.
 
 ---
 
@@ -349,14 +352,6 @@ XYZM etichettati come XY. È H-01 nella forma «reinterpretazione», non in quel
 end-to-end XYZM attraverso i tre componenti; grep di assegnazioni che portano a
 `Xy` un valore letto dai metadati.
 
-**Stato oggi:**
-
-| | Tipi | Dimensioni | Encoding |
-|---|---|---|---|
-| IO-tools | 7, forma canonica senza separatore ✅ | 5 ✅ | enum ✅ |
-| database-tools | 16 ✅, forma ✅ | 4 (manca `unknown`) | `String` ❌ |
-| data-tools | assenti ❌ | 1 (`xy`) ❌ | assente ❌ |
-
 **Rilievo R3.4 chiuso in IO-tools.** Il default storico XY è stabilito dal
 costruttore del solo contratto legacy, prima della lettura dei metadati. Un
 valore esplicito, incluso `unknown`, lo sostituisce. La regressione
@@ -418,12 +413,6 @@ pianeta, senza alcun errore (H-06).
 
 **Verifica.** `[ispezione]` più matrice di test axis-order per componente.
 
-**Stato oggi (28 luglio):** IO-tools distingue i tre stati e da `59369fd` emette
-sul bridge Arrow l'insieme completo — `crs_id`, `crs_resolution`,
-`crs_definition`, `crs_definition_format` e `axis_order`. database-tools rappresenta
-il CRS come `srid: Option<u32>` + `crs: Option<String>`: non può esprimere né i
-tre stati né l'axis order. data-tools ha `ResolvedCrs` allineato nel modello.
-
 ---
 
 ## §5 R5 — Perdita di informazione
@@ -452,15 +441,6 @@ quale libreria l'ha prodotto.
 **Verifica.** Censimento di `unwrap_or`, `unwrap_or_default`, `unwrap_or_else` nei
 crate `lib`; test di ordinamento su valori limite (`i64::MAX`, `u64` a più cifre);
 grep dei cast `as` su tipi interi.
-
-**Stato oggi:** IO-tools censisce e classifica 82 `unwrap_or*` nell'intero
-workspace: 41 nei crate distribuibili, includendo conservativamente i moduli di
-test, e 41 nei target CLI/benchmark/fuzz. Il gate
-`check_assurance_fallbacks.sh` impedisce variazioni non riesaminate.
-data-tools ha corretto R5.3 con `compare_cells_typed`, committato in `14a0a29`;
-resta il censimento di `unwrap_or*` e dei cast troncanti (R5.4), che è cosa
-distinta dal gate anti-panic e non viene intercettata da esso.
-database-tools non ha un report di perdita uniforme.
 
 ---
 
@@ -504,9 +484,6 @@ cargo clippy --workspace --lib --all-features --locked --
   -D clippy::unreachable -D clippy::todo -D clippy::unimplemented
 ```
 
-**Stato oggi:** IO-tools **0** occorrenze, gate attivo. data-tools **~121** nei
-crate libreria, nessun gate. database-tools **26**, nessuna CI.
-
 ---
 
 ## §7 R7 — Limiti di risorsa
@@ -546,11 +523,6 @@ crate libreria, nessun gate. database-tools **26**, nessuna CI.
 
 **Verifica.** `[ispezione]` dei punti di allocazione; fuzzing con input ostili.
 
-**Stato oggi:** IO-tools dichiara R7 «Parziale» (PLN-ASR-004). database-tools
-applica profondità e nodi all'AST tramite `validate_query_operation`, iterativa e
-quindi conforme a R7.3. data-tools valida il framing IPC prima di delegare ad
-arrow-rs.
-
 ---
 
 ## §8 R8 — Identità dei crate e delle colonne
@@ -565,11 +537,6 @@ arrow-rs.
 >
 > **R8.4** Due tipi pubblici omonimi con forma diversa **NON DEVONO** esistere nel
 > perimetro Plenora.
-
-**Stato oggi:** IO-tools ha chiuso le collisioni locali rinominando il package
-in `plenora-io-model` e l'errore in `PlenoraIoError`, con gate CI dedicato.
-data-tools conserva ancora il proprio `plenora-core`/`PlenoraError`; non esiste
-ancora il crate condiviso previsto da R8.3.
 
 ---
 
@@ -699,17 +666,6 @@ atomico di publish.
 | data `Step` | `Execution` |
 | data `Cancelled` | `Cancelled` |
 
-**Stato oggi: tre modelli distinti e incompatibili.**
-
-| Componente | Tipo | Categoria | Fase | Ritentabilità | Esito ignoto |
-|---|---|---|---|---|---|
-| IO-tools | `PlenoraIoError` | ✅ | ✅ | ✅ `RetryDisposition` | ✅ `RemoteEffect` |
-| data-tools | `PlenoraError` | ✅ | ✅ | ✅ | ✅ |
-| database-tools | `DatabaseError` | ✅ | ✅ | ✅ | ✅ |
-
-Al 28 luglio i tre hanno `ErrorPhase` e `RemoteEffect` **identici variante per
-variante**, pur senza dipendenze condivise.
-
 Le categorie di data-tools e database-tools condividono oggi soltanto
 `Unsupported` e `Cancelled`.
 
@@ -736,13 +692,6 @@ funzione esplicita con test dedicato, e `execution_id` è portato dalle varianti
 
 **Perché.** Il valore di un modello di capability sta nel fallire *presto*: un
 fallimento a metà scrittura lascia lo stato parziale che H-02 descrive.
-
-**Stato oggi:** IO-tools ha `FormatWriteCapabilities` e `CapabilityReason`
-tipizzato, con validatore statico prima della creazione. database-tools ha
-`ProviderCapabilities` (read, write, transaction, spatial, limits). I due modelli
-sono paralleli ma non condividono nulla. data-tools, come componente centrale,
-non espone capability: **DOVREBBE** dichiarare almeno quali tipi e dimensioni
-geometriche è in grado di propagare, per rendere verificabile R3.3.
 
 ---
 
@@ -820,14 +769,6 @@ astrarre *implementazioni* diverse; qui l'implementazione è una sola e la
 flessibilità che serve davvero — collegare una sorgente esterna di segnale — la
 dà R11.6.
 
-**Stato oggi: due modelli e un'assenza.** data-tools ha un modulo `cancellation`
-con token cooperativo; database-tools ha un trait `Cancellation` e sa cancellare
-il backend remoto. IO-tools non ha un modello di cancellazione, e lo dichiara
-**Stato oggi (28 luglio):** tutti e tre hanno un token con `is_cancelled`,
-`deadline` e `child_token`. IO-tools dichiara un limite residuo: le singole
-chiamate interne ai parser sincroni KML, DXF e XLSX non sono interrompibili a
-metà, e la cancellazione è osservata al confine controllato successivo.
-
 ---
 
 ## §12 R12 — Determinismo e riproducibilità dei risultati
@@ -880,15 +821,6 @@ non si riproduce sulla macchina di chi lo segnala.
 memoria e percorso con spill; confronto fra sopra e sotto la soglia di
 parallelizzazione.
 
-**Stato oggi:** normato solo in data-tools, che ha test di determinismo canonico
-IPC, catalogo canonico e — da `14a0a29` — l'oracolo memoria-contro-spill per
-tutti e tre gli operatori spillabili (`spilled_sort_matches_in_memory`,
-`spilled_distinct_matches_in_memory`, `spilled_aggregate_matches_in_memory`) più
-un property test sul contratto d'insieme. R12.4 è quindi soddisfatta, non
-parzialmente ma per l'intera superficie di spill. Gli altri due componenti non
-hanno test equivalenti: IO-tools e database-tools non verificano oggi che
-percorso parallelo e sequenziale coincidano.
-
 ---
 
 ## §13 R13 — Toolchain e baseline
@@ -911,10 +843,6 @@ percorso parallelo e sequenziale coincidano.
 **Perché R13.1.** Una CI che installa «stable» compila con una versione diversa
 ogni settimana: la baseline non è riproducibile e un difetto introdotto da un
 cambio di compilatore è indistinguibile da uno di codice (H-07).
-
-**Stato oggi:** tutti e tre dichiarano `edition = 2021` e `rust-version = 1.92`,
-quindi R13.4 è soddisfatta. IO-tools, data-tools e database-tools hanno ora un
-`rust-toolchain.toml` che fissa il canale a `1.92.0`.
 
 Su R13.3 le fotografie 1.0 e 2.0-rc2 precedevano la centralizzazione e il pin
 esatto completati da IO-tools. La verifica corrente dei tre manifest workspace
@@ -965,13 +893,6 @@ analysis secondo il proprio profilo assurance.
 identici su un file e su una tabella: sostituire un dataset pubblicato con uno
 parziale ha lo stesso effetto sul consumatore, che si tratti di uno Shapefile o
 di una tabella PostGIS.
-
-**Stato oggi:** IO-tools è il riferimento — rename no-clobber autorevole,
-sequenza durable con esito tipizzato, staging ripulito con guardia RAII — ma solo
-su Linux e Windows: sulle altre piattaforme `publish_dir_atomic` fallisce sempre,
-e i test sono gated, quindi la CI non lo rileva. database-tools soddisfa R14.3 e
-R14.4 in transazione, con `OutcomeUnknown` sul commit incerto. data-tools ha un
-`TempStore` con scavenging degli orfani.
 
 ---
 
@@ -1122,7 +1043,7 @@ modello d'errore (§9), dove il punto di partenza è database-tools.
 
 | ID | Regola | Motivo | Rientro |
 |---|---|---|---|
-| DER-ICD-001 | R15.2.2 — tag annotati **e firmati** | Nessuna chiave di firma nell'ambiente in cui il documento è mantenuto: i sette tag pubblicati sono annotati ma non firmati | Alla disponibilità di una chiave dell'owner, rifirmare con `git tag -s -f` |
+| DER-ICD-001 | R15.2.2 — tag annotati **e firmati** | Nessuna chiave di firma nell'ambiente in cui il documento è mantenuto: i dieci tag pubblicati sono annotati ma non firmati | Alla disponibilità di una chiave dell'owner, **creare una nuova baseline firmata**. I tag già pubblicati non vanno riscritti: chi li ha recuperati ne conserverebbe una versione divergente |
 | DER-ICD-002 | §15.4 passo 1 — nessuna emissione canonica prima della ratifica | Tutti e tre i componenti emettono già le chiavi candidate di §2, per scelta propria e con deroga registrata nei rispettivi repository | Ratifica di §2 con nomi compatibili, oppure migrazione degli emittenti |
 
 Finché DER-ICD-001 è attiva, la revisione esatta resta l'unico riferimento
@@ -1211,44 +1132,30 @@ documento controllano gli hazard indicati.
 
 ## Appendice C — Tabelle di rinomina
 
-Migrazione delle chiavi metadata al namespace canonico (§2, passo 1 di §15).
+Migrazione delle chiavi al namespace canonico (§2, passo 1 di §15.4). Stato al
+28 luglio 2026, alle revisioni dichiarate in Appendice A.
 
 ### plenora-IO-tools
 
-| Attuale | Canonica | Nota |
-|---|---|---|
-| `plenora.geometry.dimensions` | invariata | ✅ |
-| `plenora.geometry.srid` | invariata | ✅ |
-| `plenora.geometry.encoding` | invariata | ✅ |
-| `plenora.geometry.types` | invariata | ✅ valori canonici R3.1 |
-| `plenora.geometry.spatial_semantics` | invariata | ✅ |
-| `plenora.geometry.precision` | invariata | ✅ |
-| `plenora.geometry.native.*` | `plenora.<formato>.*` | sotto-namespace per formato (R2.3) |
-| `plenora.filegdb.*` | invariata | ✅ conforme a R2.3 |
-| — | `plenora.geometry.crs_id` | ✅ emessa da `59369fd` |
-| — | `plenora.geometry.crs_resolution` | ✅ emessa da `59369fd` |
-| — | `plenora.geometry.crs_definition` | ✅ emessa da `59369fd` |
-| — | `plenora.geometry.axis_order` | ✅ emessa da `59369fd` |
-
-### plenora-database-tools
-
-| Attuale | Canonica |
-|---|---|
-| `plenora.dimensions` | `plenora.geometry.dimensions` |
-| `plenora.srid` | `plenora.geometry.srid` |
-| `plenora.geometry_type` | `plenora.geometry.types` |
-| `plenora.spatial_semantics` | `plenora.geometry.spatial_semantics` |
-| `plenora.native_type` | `plenora.postgres.native_type` |
-| `plenora.native_declaration` | `plenora.postgres.native_declaration` |
-| `plenora.postgres_type_kind` | `plenora.postgres.type_kind` |
-| — | `plenora.geometry.encoding` (oggi `String` interna) |
-| — | `plenora.geometry.crs_resolution`, `crs_id`, `axis_order` |
+Emette l'insieme canonico completo. Resta da verificare `plenora.geometry.native.*`,
+che secondo R2.3 dovrebbe usare un sotto-namespace per formato.
 
 ### plenora-data-tools
 
-| Attuale | Canonica |
-|---|---|
-| `plenora.contract` (blob unico) | esplodere nelle chiavi §2, una per proprietà |
+Emetteva un'unica chiave `plenora.contract`, che R2.2 vieta. Dalla milestone B
+emette le chiavi canoniche separate. Resta da dismettere la chiave legacy quando
+§2 sarà ratificata.
+
+### plenora-database-tools
+
+Emette l'insieme canonico completo e mantiene in parallelo le chiavi legacy —
+`plenora.dimensions`, `plenora.srid`, `plenora.geometry_type`,
+`plenora.spatial_semantics`, `plenora.native_type`, `plenora.native_declaration`,
+`plenora.postgres_type_kind` — in doppia emissione. Le estensioni proprie usano
+già il sotto-namespace `plenora.postgres.*` conforme a R2.3.
+
+Le legacy vanno dismesse alla ratifica di §2, non prima: finché la forma canonica
+è `proposta`, la doppia emissione è la sola compatibile con DER-ICD-002.
 
 ---
 
@@ -1320,12 +1227,7 @@ storico, ma non dimostra la revisione corrente.
 ogni sezione è quello, e soltanto quello, del registro di ratifica in testa al
 documento: nessuna affermazione altrove sostituisce quel registro. Gli stati di
 conformità in Appendice A sono rilevati per ispezione del codice, non per
-esecuzione dei test, e sono ancorati ai commit
-`1c1ee61e6d87ce2810ec482298b483e90a3abe80` (IO-tools), `a1f4130`
-(data-tools) e `058aebf` (database-tools). Ogni fotografia successiva deve
-dichiarare i propri: conteggi e riferimenti a numeri di riga non ancorati a un
-commit sono obsoleti nel momento in cui vengono scritti.*
-
-*La fotografia IO-tools incorpora gli incrementi fino a `1c1ee61`; le
-fotografie degli altri due componenti restano ancorate alle revisioni indicate
-e non vanno estese per inferenza.*
+esecuzione dei test, e sono ancorati alle revisioni dichiarate in Appendice A.
+Ogni fotografia successiva deve dichiarare le proprie: conteggi e riferimenti a
+numeri di riga non ancorati a un commit sono obsoleti nel momento in cui vengono
+scritti, e non vanno estesi per inferenza ad altre revisioni.*

@@ -2,7 +2,7 @@
 
 Stato: **non ratificato**.
 
-Revisione candidata: `v2.0-rc5`, da compilare con il commit corrispondente
+Revisione candidata: `v2.0-rc6`, da compilare con il commit corrispondente
 al momento della richiesta di ratifica.
 
 ## Perimetro necessario
@@ -56,5 +56,5 @@ L'owner può cambiare il registro soltanto dopo:
 3. revisione indipendente completata;
 4. commit della baseline e tag annotato e firmato disponibili.
 
-Fino ad allora la 2.0-rc3 è una candidata e restano in vigore gli stati del
+Fino ad allora la 2.0-rc6 è una candidata e restano in vigore gli stati del
 registro corrente.

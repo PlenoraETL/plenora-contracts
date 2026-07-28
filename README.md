@@ -21,7 +21,7 @@ Owner: Marco Bonamente.
 
 ## Come citarlo
 
-La proposta §15.2 della 2.0-rc5 richiede che ogni change impact analysis nei tre
+La proposta §15.2 della 2.0-rc6 richiede che ogni change impact analysis nei tre
 repository si riferisca a un tag annotato e firmato e alla revisione esatta
 corrispondente, non al contenuto del file in un dato momento. Dopo la ratifica,
 le dipendenze dal crate useranno la revisione registrata nel `Cargo.lock` e la CI
@@ -29,7 +29,7 @@ userà `--locked`.
 
 ## Come proporre una modifica
 
-La proposta §16 della 2.0-rc5 richiede di indicare regole e hazard toccati,
+La proposta §16 della 2.0-rc6 richiede di indicare regole e hazard toccati,
 impatto sui tre componenti, piano di migrazione e retrocompatibilità. I tre team
 registrano la propria posizione tecnica; l'owner ratifica solo in assenza di
 rilievi bloccanti e dopo la revisione indipendente richiesta. La ratifica rende
