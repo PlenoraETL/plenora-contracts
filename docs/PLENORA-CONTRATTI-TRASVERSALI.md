@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc7 · 28 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc8 · 28 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -345,13 +345,6 @@ Vanno distinti tre comportamenti, perché solo il terzo è un difetto:
 end-to-end XYZM attraverso i tre componenti; grep di assegnazioni che portano a
 `Xy` un valore letto dai metadati.
 
-**Rilievo R3.4 chiuso in IO-tools.** Il default storico XY è stabilito dal
-costruttore del solo contratto legacy, prima della lettura dei metadati. Un
-valore esplicito, incluso `unknown`, lo sostituisce. La regressione
-`legacy_geometry_defaults_xy_only_when_dimensions_are_absent` distingue i due
-casi. Evidenza: `b1e13fa` e successiva separazione senza modifica semantica in
-`8dda5d7`.
-
 ---
 
 ## §4 R4 — Sistema di riferimento (CRS)
@@ -643,22 +636,6 @@ Per i bordi su filesystem, `Connect` copre l'acquisizione dell'handle e del leas
 sulla risorsa, `Probe` l'ispezione preliminare del formato, `Commit` il rename
 atomico di publish.
 
-### Mappatura dai modelli attuali
-
-| Oggi | Categoria canonica |
-|---|---|
-| IO `Contract`, data `Contract` | `InvalidPlan` |
-| IO `Schema`, data `Schema` | `Schema` |
-| IO `Crs`, data `Crs` | `Crs` |
-| IO `Wkb` | `DataMapping` |
-| IO `LimitExceeded` | `ResourceLimit` |
-| IO `OutputExists` | `Conflict` |
-| IO/data `Unsupported`, data `UnsupportedPublishTarget` | `Unsupported` |
-| IO/data `Io` | `Io` |
-| IO/data `Json`, data `Arrow` | `DataMapping` |
-| data `Step` | `Execution` |
-| data `Cancelled` | `Cancelled` |
-
 ---
 
 ## §10 R10 — Capability e negoziazione
@@ -828,17 +805,9 @@ parallelizzazione.
 ogni settimana: la baseline non è riproducibile e un difetto introdotto da un
 cambio di compilatore è indistinguibile da uno di codice (H-07).
 
-Su R13.3 le fotografie 1.0 e 2.0-rc2 precedevano la centralizzazione e il pin
-esatto.
-
----|---|
-| IO-tools | nessuna |
-| data-tools | nessuna |
-| database-tools | nessuna |
-
-IO-tools verifica inoltre pin esatti e collocazione unica con
-`check_dependency_pins.py`; ogni variazione resta soggetta a change impact
-analysis secondo il proprio profilo assurance.
+Il pin esatto va accompagnato da un controllo automatico che ne impedisca la
+regressione: senza, un `cargo add` reintroduce un caret senza che nulla lo
+segnali.
 
 ---
 
@@ -1113,6 +1082,22 @@ documento controllano gli hazard indicati.
 ---
 
 ## Appendice C — Tabelle di rinomina
+
+### Mappatura delle categorie d'errore dai modelli locali
+
+| Categoria locale | Categoria canonica |
+|---|---|
+| `Contract` | `InvalidPlan` |
+| `Schema` | `Schema` |
+| `Crs` | `Crs` |
+| `Wkb` | `DataMapping` |
+| `LimitExceeded` | `ResourceLimit` |
+| `OutputExists` | `Conflict` |
+| `Unsupported`, `UnsupportedPublishTarget` | `Unsupported` |
+| `Io` | `Io` |
+| `Json`, `Arrow` | `DataMapping` |
+| `Step` | `Execution` |
+| `Cancelled` | `Cancelled` |
 
 Migrazione delle chiavi al namespace canonico (§2, passo 1 di §15.4). Stato al
 28 luglio 2026, alle revisioni dichiarate in Appendice A.

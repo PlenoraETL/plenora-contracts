@@ -166,6 +166,7 @@ def validate_document(
         "comportamento attuale",
         "allo stato attuale",
         "milestone",
+        "| Oggi |",
     ):
         if marker.lower() in body.lower():
             errors.append(
@@ -173,6 +174,11 @@ def validate_document(
                 " Lo stato di fatto sta solo in Appendice A"
             )
 
+    for line_number, line in enumerate(body.splitlines(), start=1):
+        if line.startswith("---|") or line.strip() == "|":
+            errors.append(
+                f"corpo normativo: tabella malformata o separatore orfano alla riga {line_number}"
+            )
     cited = set(re.findall(r"DER-ICD-\d{3}", document))
     defined = set(re.findall(r"^\| (DER-ICD-\d{3}) \|", document, re.MULTILINE))
     for missing in sorted(cited - defined):
