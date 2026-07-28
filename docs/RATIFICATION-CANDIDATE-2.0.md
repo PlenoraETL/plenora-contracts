@@ -2,8 +2,10 @@
 
 Stato: **non ratificato**.
 
-Revisione candidata: `v2.0-rc6`, da compilare con il commit corrispondente
-al momento della richiesta di ratifica.
+Revisione candidata: `v2.0-rc7`.
+
+Commit: da registrare alla creazione del tag. La revisione precedente,
+`v2.0-rc7`, corrisponde a `701bad40233413f3ea41473dea0f2d5229a207b5`.
 
 ## Perimetro necessario
 
@@ -56,5 +58,5 @@ L'owner può cambiare il registro soltanto dopo:
 3. revisione indipendente completata;
 4. commit della baseline e tag annotato e firmato disponibili.
 
-Fino ad allora la 2.0-rc6 è una candidata e restano in vigore gli stati del
+Fino ad allora la 2.0-rc7 è una candidata e restano in vigore gli stati del
 registro corrente.

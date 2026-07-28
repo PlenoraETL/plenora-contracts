@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc6 · 28 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc7 · 28 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -324,29 +324,22 @@ WKT — che usano tutti `LINESTRING`, `MULTIPOLYGON`. La forma `line_string`
 richiederebbe una traduzione a ogni confine, e ogni traduzione è un punto in cui
 si perde informazione.
 
-**Perché R3.3 è la regola più costosa.** Oggi `data-tools` ammette solo `xy`. La
-regola non impone di *calcolare* in 3D: impone di non distruggere e di non
-descrivere in modo errato ciò che non si elabora.
+**Perché R3.3 è la regola più costosa.** Impone di rappresentare e propagare una
+dimensionalità che un componente può non saper elaborare. La regola non chiede
+calcoli tridimensionali: chiede di non distruggere e di non descrivere in modo
+errato ciò che si attraversa.
 
-Il comportamento attuale di data-tools va descritto con precisione, perché non è
-una perdita silenziosa e la versione 1.0 di questo documento lo diceva a torto:
+Vanno distinti tre comportamenti, perché solo il terzo è un difetto:
 
-1. **Operazioni geometriche su Z/M: rifiuto esplicito.** `geometry_from_wkb`
-   respinge con `Unsupported` ogni WKB che porti Z, M o SRID — «non preservabili
-   nel protocollo 2D» — e c'è un test dedicato anche al caso annidato in una
-   `GeometryCollection`. È fail-closed, quindi conforme a R5.1 e R3.2.
-2. **Operazioni tabellari su dati Z/M: i byte transitano.** I kernel tabellari
-   non decodificano la colonna geometrica, che resta un buffer opaco. Un filtro,
-   un join o un ordinamento su attributi non attivano il rifiuto.
-3. **Ma il contratto emesso dichiara comunque `xy`**, perché è l'unica variante
-   rappresentabile.
-
-Il punto 3 è il difetto reale, ed è di natura diversa da quella ipotizzata: non
-è perdita di dati, è un **metadato che contraddice i byte che accompagna**. Un
-consumatore a valle — per esempio database-tools, che decide su
-`plenora.geometry.dimensions` come dichiarare la colonna PostGIS — riceve dati
-XYZM etichettati come XY. È H-01 nella forma «reinterpretazione», non in quella
-«perdita».
+1. **Operazione geometrica su Z/M non supportata: rifiuto esplicito.** È
+   fail-closed, conforme a R5.1 e R3.2.
+2. **Operazione tabellare su dati Z/M: i byte transitano.** La colonna
+   geometrica resta un buffer opaco e nulla si perde.
+3. **Contratto che dichiara `xy` per dati che portano Z o M.** Questo è il
+   difetto: non perdita di dati, ma un metadato che contraddice i byte che
+   accompagna. Un consumatore che decide sulla dimensionalità dichiarata riceve
+   un'informazione falsa. È H-01 nella forma «reinterpretazione», non in quella
+   «perdita».
 
 **Verifica.** `[ispezione]` sulle definizioni dei tipi; test di round-trip
 end-to-end XYZM attraverso i tre componenti; grep di assegnazioni che portano a
@@ -666,14 +659,6 @@ atomico di publish.
 | data `Step` | `Execution` |
 | data `Cancelled` | `Cancelled` |
 
-Le categorie di data-tools e database-tools condividono oggi soltanto
-`Unsupported` e `Cancelled`.
-
-data-tools soddisfa R9.2 dalla milestone M1: `PlenoraError::retryable()` è una
-funzione esplicita con test dedicato, e `execution_id` è portato dalle varianti
-`Step` e `Cancelled`. Restano da aggiungere la fase (R9.1) e l'esito ignoto
-(R9.3).
-
 ---
 
 ## §10 R10 — Capability e negoziazione
@@ -761,10 +746,9 @@ fallimento a metà scrittura lascia lo stato parziale che H-02 descrive.
 > runtime.
 
 **Perché un token concreto e non un trait (R11.5).** Un trait per componente è
-esattamente la situazione attuale: data-tools e database-tools ne hanno uno
-ciascuno e non sono interoperabili, quindi un'operazione che attraversa i tre
-richiede due adattatori. L'obiettivo del contratto è che un token creato dalla CLI
-attraversi i tre componenti invariato. La flessibilità del trait serve a chi deve
+un token per componente, non interoperabile: un'operazione che attraversa i tre
+richiederebbe un adattatore per confine. L'obiettivo del contratto è che un token
+creato dall'orchestratore attraversi i tre componenti invariato. La flessibilità del trait serve a chi deve
 astrarre *implementazioni* diverse; qui l'implementazione è una sola e la
 flessibilità che serve davvero — collegare una sorgente esterna di segnale — la
 dà R11.6.
@@ -845,11 +829,9 @@ ogni settimana: la baseline non è riproducibile e un difetto introdotto da un
 cambio di compilatore è indistinguibile da uno di codice (H-07).
 
 Su R13.3 le fotografie 1.0 e 2.0-rc2 precedevano la centralizzazione e il pin
-esatto completati da IO-tools. La verifica corrente dei tre manifest workspace
-non rileva dipendenze dirette non pinnate:
+esatto.
 
-| Componente | Dipendenze non pinnate |
-|---|---|
+---|---|
 | IO-tools | nessuna |
 | data-tools | nessuna |
 | database-tools | nessuna |
@@ -1043,7 +1025,7 @@ modello d'errore (§9), dove il punto di partenza è database-tools.
 
 | ID | Regola | Motivo | Rientro |
 |---|---|---|---|
-| DER-ICD-001 | R15.2.2 — tag annotati **e firmati** | Nessuna chiave di firma nell'ambiente in cui il documento è mantenuto: i dieci tag pubblicati sono annotati ma non firmati | Alla disponibilità di una chiave dell'owner, **creare una nuova baseline firmata**. I tag già pubblicati non vanno riscritti: chi li ha recuperati ne conserverebbe una versione divergente |
+| DER-ICD-001 | R15.2.2 — tag annotati **e firmati** | Nessuna chiave di firma nell'ambiente in cui il documento è mantenuto: i tag pubblicati sono annotati ma non firmati | Alla disponibilità di una chiave dell'owner, **creare una nuova baseline firmata**. I tag già pubblicati non vanno riscritti: chi li ha recuperati ne conserverebbe una versione divergente |
 | DER-ICD-002 | §15.4 passo 1 — nessuna emissione canonica prima della ratifica | Tutti e tre i componenti emettono già le chiavi candidate di §2, per scelta propria e con deroga registrata nei rispettivi repository | Ratifica di §2 con nomi compatibili, oppure migrazione degli emittenti |
 
 Finché DER-ICD-001 è attiva, la revisione esatta resta l'unico riferimento

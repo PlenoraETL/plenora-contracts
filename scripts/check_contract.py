@@ -157,6 +157,22 @@ def validate_document(
             f" {ratified_rows} righe ratificate, ma la baseline ne dichiara 11"
         )
 
+    appendix_a = document.find("## Appendice A")
+    body = document[:appendix_a] if appendix_a > 0 else document
+    for marker in (
+        "Stato oggi",
+        "situazione attuale",
+        "verifica corrente",
+        "comportamento attuale",
+        "allo stato attuale",
+        "milestone",
+    ):
+        if marker.lower() in body.lower():
+            errors.append(
+                f"corpo normativo: fotografia di stato vietata, marcatore {marker!r}."
+                " Lo stato di fatto sta solo in Appendice A"
+            )
+
     cited = set(re.findall(r"DER-ICD-\d{3}", document))
     defined = set(re.findall(r"^\| (DER-ICD-\d{3}) \|", document, re.MULTILINE))
     for missing in sorted(cited - defined):
