@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc3 · 28 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc4 · 28 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -12,63 +12,40 @@
 > altrove nel documento, nei messaggi di commit o nei tag la sostituisce: dove
 > divergono, prevale la tabella.
 >
-> Stati: `proposta` (non vincolante: mai ratificata, oppure emendata dopo una
-> sospensione e in attesa di nuova ratifica) · `ratificata` (vincolante) ·
-> `sospesa` (ratificata, poi sospesa dall'owner a seguito di un rilievo
-> bloccante accolto: **non** vincolante finché l'emendamento non la sostituisce)
-> · `superata` (rimpiazzata da una versione ratificata successiva).
+> Stati: **ratificata** (vincolante) · `proposta` (non vincolante: mai
+> ratificata, oppure ratificata e poi riaperta da un rilievo accolto).
 >
-> Al 28 luglio nessuna sezione è `sospesa`: la 2.0 ha emendato tutte quelle che
-> lo erano, riportandole a `proposta` in attesa di ratifica.
+> **Clausola di chiusura.** Ogni regola non elencata qui ha stato `proposta`.
+> Se compare nel corpo ma non in tabella, non obbliga nessuno.
 >
-> **Clausola di chiusura.** Ogni regola o sezione non elencata in questa tabella
-> ha stato `proposta`. La tabella è esaustiva per costruzione: se una regola
-> compare nel corpo ma non qui, non è vincolante.
+> | Sezione | Oggetto | Stato | Nota |
+> |---|---|---|---|
+> | §1 | Versione Arrow unica e pinnata | **ratificata** | dal 27 lug |
+> | §2 | Chiavi metadata canoniche, versione del protocollo, lineage | `proposta` | riaperta dopo i rilievi 2.0; emendata, attende ratifica |
+> | §3.1 | Sedici tipi geometrici, forma `linestring` | **ratificata** | dal 27 lug |
+> | §3.2 | Rifiuto esplicito dei tipi non supportati | **ratificata** | dal 27 lug |
+> | §3.3 | Cinque dimensioni rappresentabili e propagabili | **ratificata** | dal 27 lug, ambito in R3.3.1 |
+> | §3.4 | `unknown` non degradabile; tre stati di dichiarazione | `proposta` | emendata 2.0 |
+> | §3.5 | Encoding come enumerazione chiusa | **ratificata** | dal 27 lug |
+> | §4.1–§4.4 | CRS: tre stati, axis order, formato della definizione e precedenza | **ratificata** | dal 27 lug |
+> | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | `proposta` | emendata 2.0 |
+> | §5 | Perdita di informazione mai silenziosa | **ratificata** | dal 27 lug |
+> | §6 | Nessun panic nei crate `lib` | **ratificata** | dal 27 lug; R6.6-R6.7 sul gate minimo attendono ratifica |
+> | §7 | Limiti pre-allocazione e budget ceduto lungo la catena | `proposta` | emendata 2.0 |
+> | §8 | Identità di crate e colonne | **ratificata** | dal 27 lug |
+> | §9 | Errore a quattro assi | `proposta` | emendata 2.0; già adottata dai tre |
+> | §10 | Capability dichiarative interrogabili | `proposta` | forma da definire |
+> | §11.5–§11.10 | Cancellazione: token, attesa asincrona race-free, deadline, token figli | `proposta` | emendata 2.0; già adottata dai tre |
+> | §12 | Determinismo su quattro livelli | `proposta` | emendata 2.0 |
+> | §13 | Toolchain e baseline riproducibile | **ratificata** | dal 27 lug |
+> | §14 | Esiti di scrittura e pubblicazione | `proposta` | emendata 2.0 |
+> | §15.1 | Repository autonomo come fonte autorevole | **ratificata** | dal 27 lug |
+> | §15.2 | Distribuzione: tag firmato e revisione | `proposta` | vedi deroga DER-ICD-001 |
+> | §15.3 | Contenuto e API del crate condiviso | `proposta` | il crate non va creato finché non è ratificata |
 >
-> **Effetto della 2.0.** Gli emendamenti chiudono i rilievi che avevano portato
-> alla sospensione, ma **entrano come `proposta`**: una sezione emendata non
-> torna vincolante da sé. La ratifica degli emendamenti è l'atto che manca.
-> Le undici sezioni ratificate il 27 luglio restano tali sul testo che coprivano;
-> le clausole aggiunte dalla 2.0 dentro quelle sezioni sono elencate a parte.
->
-> | Sezione | Oggetto | Stato | Dal | Emendamento previsto | Posizioni dei team |
-> |---|---|---|---|---|---|
-> | §1 R1 | Versione Arrow unica e pinnata | **ratificata** | 27 lug | — | conforme in tutti e tre |
-> | §2 | Chiavi metadata canoniche, versione del protocollo (R2.5), deroga Arrow/GeoArrow (R2.6), lineage (R2.4) | proposta *(emendata 2.0)* | — | — | rilievi db chiusi; da ratificare |
-> | §3.1 | Sedici tipi geometrici, forma `linestring` | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
-> | §3.2 | Rifiuto esplicito dei tipi non supportati | **ratificata** | 27 lug | — | data ✔ |
-> | §3.3 | Cinque dimensioni rappresentabili e propagabili | **ratificata** | 27 lug | — | ambito: rappresentare e propagare, **non** elaborare (vedi clausola) |
-> | §3.4 | `unknown` non degradabile; tre stati di dichiarazione dei tipi (R3.4.1) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
-> | §3.5 | Encoding come enumerazione chiusa | **ratificata** | 27 lug | — | db: `String` da convertire |
-> | §4.1–§4.4 | CRS a tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ⚠ (emendamenti su formato della definizione e precedenza) |
-> | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown capability-gated | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
-> | §5 R5 | Perdita di informazione mai silenziosa | **ratificata** | 27 lug | — | data ✔ (R5.3 implementata) |
-> | §6 R6 | Nessun panic nei crate `lib` | **ratificata** | 27 lug | — | IO ✔ · data ✔ (`07f6823`) · db ✘ |
-> | §7 R7 | Limiti pre-allocazione; budget che attraversa la catena con lease (R7.5–R7.7) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
-> | §8 R8 | Identità di crate e colonne | **ratificata** | 27 lug | — | IO ✔ nel perimetro locale (`plenora-io-model`, `PlenoraIoError`) · data ✘ · R8.3 aperta per tutti |
-> | §9 | Errore a quattro assi: causa, fase, effetto remoto (R9.6), disposizione di ritentativo (R9.7) | proposta *(emendata 2.0)* | — | — | rilievi db chiusi; da ratificare |
-> | §10 R10 | Capability dichiarative interrogabili | proposta | — | — | forma definita in §15.3; da ratificare |
-> | §11.1–§11.4 | Cancellazione cooperativa; garanzia sui residui condizionata alla piattaforma (R11.3) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
-> | §11.5–§11.10 | `CancellationToken` con attesa asincrona race-free, deadline dichiarativa, motivo e token figli | proposta *(emendata 2.0-rc2)* | — | — | rilievo db chiuso; da ratificare |
-> | §12 R12 | Determinismo su quattro livelli; sorgenti remote e collation esclusi (R12.5–R12.6) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; data ✔ (R12.4) |
-> | §13 R13 | Toolchain e baseline | **ratificata** | 27 lug | — | data ✔ (`a1f4130`) · IO: toolchain da fissare |
-> | §14 R14 | Esiti di scrittura; ripristino dichiarabile solo se verificato (R14.4) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
-> | §15.1 | Repository autonomo `plenora-contracts` come fonte autorevole, e suo nome | **ratificata** | 27 lug | — | IO ✔ · data ✔ · db ✔ |
-> | §4.3.1–§4.3.3 | *(nuove 2.0, dentro una sezione ratificata)* formato della definizione CRS, precedenza fra rappresentazioni, coerenza con l'SRID EWKB, ordini d'asse estesi | proposta | — | — | rilievo db chiuso; da ratificare |
-> | §6 R6.6–R6.7 | *(nuove 2.0, dentro una sezione ratificata)* il gate Clippy è minimo e non dimostra R6.1: servono fuzzing, boundary test, overflow-checks e audit delle API panicking | proposta | — | — | rilievo db chiuso; da ratificare |
-> | §0 R0.1–R0.5 | Evidenza, tracciabilità bidirezionale, indipendenza della verifica e limiti delle dichiarazioni avioniche | proposta *(nuova 2.0-rc2)* | — | — | da ratificare |
-> | §16 R16.1–R16.5 | Deroghe, change control, autorità di ratifica e baseline | proposta *(numerata e chiarita 2.0-rc2)* | — | — | da ratificare |
-> | §15.2 | Distribuzione: tag firmato **e** revisione nel lockfile, citati entrambi nelle CIA | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
-> | §15.3 | Contenuto e API del crate, ora completo su sei aree | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
->
-> La colonna **Emendamento previsto** indica dove il rilievo sarà risolto: non
-> significa che la regola sia già stata sostituita. Una sezione diventa `superata`
-> soltanto quando la versione che la sostituisce è a sua volta ratificata.
->
-> **Effetto pratico degli stati.** Una sezione `sospesa` non fonda nuovo
-> lavoro: chi ha già iniziato non disfa, chi non ha iniziato attende la 2.0. Una
-> sezione `proposta` non è vincolante per nessuno — il che non impedisce a un
-> componente di applicarla per propria scelta o per una regola interna.
+> **Effetto pratico.** Una sezione `proposta` non obbliga, ma non vieta: un
+> componente può adottarla per scelta propria, e i tre lo stanno facendo su §9 e
+> §11. Ciò che è vincolante va rispettato o derogato per iscritto (§16).
 >
 > Restano in vigore, indipendentemente da questa tabella, le regole che ciascun
 > componente si è dato internamente. IO-tools ha chiuso la distinzione fra
@@ -1132,117 +1109,63 @@ modello d'errore (§9), dove il punto di partenza è database-tools.
 
 ---
 
-## §16-bis Lavoro non subordinato alla ratifica
+## §17 Come si misura la conformità
 
-La ratifica è necessaria per tutto ciò che tocca **tipi condivisi, nomi di chiavi
-metadata e firme pubbliche**: cambiarli prima significa produrre un terzo modello
-da rifare. Non è invece necessaria per ciò che ciascun componente già deve alle
-proprie regole interne, oggi in vigore.
+Tre grandezze distinte, da non confondere:
 
-**Eseguibile subito, senza attendere:**
-
-| Intervento | Perché non dipende da questo documento |
-|---|---|
-| Gate anti-panic `--lib` su data-tools e database-tools | Replica di un gate già in produzione, nessuna decisione di contratto |
-| Doppia **lettura** delle chiavi metadata (accettare canoniche e legacy, emettere solo legacy) | Retrocompatibile e reversibile; dimezza il lavoro del passo 1 senza anticiparne le scelte |
-| Benchmark e pulizia interna che non cambiano firme o wire | Controllano H-03/H-08 senza creare tipi di confine concorrenti |
-
-IO-tools ha già chiuso il default R3.4, i pin esatti, il toolchain file e il
-censimento dei fallback; non sono più elencati come lavoro aperto.
-
-**Subordinato al registro:** rinomina delle chiavi in emissione (§2), enumerazioni
-d'errore condivise (§9), token di cancellazione comune (§11.5), contenuto del
-crate (§15.3), budget condiviso (§7), determinismo dichiarato (§12), esiti di
-scrittura (§14). Tutte emendate dalla 2.0 e in attesa di ratifica.
-
-La forma dei valori dei tipi geometrici (§3.1) e il modello CRS (§4.1–§4.4) sono
-invece **ratificati**: si possono adottare subito. Anche l'istituzione del
-repository `plenora-contracts` (§15.1) è ratificata; restano `proposta`, non
-ancora ratificate, la sola
-distribuzione (§15.2) e il contenuto (§15.3).
-
----
-
-## §17 Definizione di componente conforme
-
-La conformità si misura su **tre grandezze distinte**, che non vanno confuse:
-
-| Grandezza | Definizione | Vincolante |
+| Grandezza | Definizione | Obbliga |
 |---|---|---|
-| **Conformità corrente** | Rispetto delle sole sezioni `ratificata` nel registro al momento della verifica: oggi §1, §3.1, §3.2, §3.3, §3.5, §4.1–§4.4, §5, §6, §8, §13, §15.1 | sì |
-| **Gap verso il traguardo** | Distanza dall'elenco completo qui sotto, che include sezioni `proposta` | no |
-| **Deroghe attive** | Scostamenti dichiarati secondo §16, con motivo e condizione di rientro | registrate |
+| **Conformità corrente** | rispetto delle sole sezioni **ratificate** del registro | sì |
+| **Distanza dal traguardo** | scarto dalle sezioni ancora `proposta` | no |
+| **Deroghe attive** | scostamenti dichiarati secondo §16, con condizione di rientro | vanno registrate |
 
-L'elenco che segue è il **traguardo completo**, non il criterio corrente, e la
-sua entrata in vigore dipende dalla ratifica delle proposte 2.0. Le voci che
-riguardano sezioni non ratificate sono fotografia, non obbligo:
-
-1. Arrow pinnato alla versione di baseline (R1).
-2. Emette e accetta le chiavi canoniche, dichiara `plenora.contract.version`, e
-   propaga le chiavi non interpretate **secondo la lineage del campo**: copia per
-   le trasformazioni identity-preserving, ricostruzione per i campi derivati,
-   errore sui conflitti (R2.4–R2.7).
-3. Rappresenta e propaga le cinque dimensioni e i sedici tipi, distingue `exact`
-   da `mixed` e `unresolved`, rifiuta esplicitamente ciò che non supporta (R3).
-4. Distingue i tre stati del CRS, dichiara il formato della definizione, rispetta
-   la precedenza fra rappresentazioni e la coerenza con l'SRID EWKB (R4).
-5. Non perde dati in silenzio: fail-closed o report esplicito (R5).
-6. Gate anti-panic attivo sui `--lib` con zero occorrenze, **più** l'evidenza
-   complementare che il gate non fornisce: fuzzing, boundary test,
-   `overflow-checks`, audit delle API panicking (R6.6–R6.7).
-7. Applica limiti prima dell'allocazione e **cede** il budget lungo la catena
-   invece di replicarlo, con aritmetica controllata (R7.5–R7.7).
-8. Nessuna collisione di nomi; dipende dal crate condiviso (R8).
-9. Errori a **quattro assi**: causa, fase, effetto remoto, disposizione di
-   ritentativo (R9.1, R9.6–R9.8).
-10. Capability dichiarative interrogabili prima dell'esecuzione (R10).
-11. Cancellazione cooperativa; nessun residuo **dove la piattaforma lo consente**,
-    altrimenti effetto dichiarato e recovery disponibile (R11.3, R11.7–R11.10).
-12. Determinismo **dichiarato sul livello che si garantisce** — semantico,
-    dell'ordine, byte-for-byte o non ordinato — con le esclusioni note (R12).
-13. Toolchain fissata, `--locked` in CI, dipendenze pinnate (R13).
-14. Output atomico dove la piattaforma lo consente; altrove rifiuto fail-closed
-    o capability non atomica dichiarata, con no-clobber, durabilità ed effetto
-    riportati solo se verificati (R14.2–R14.5).
-15. Evidenza riproducibile e tracciabilità bidirezionale fra requisito, hazard,
-    verifica e risultato; casi negativi e valori limite per gli hazard critici,
-    con revisione indipendente dichiarata senza sovrastimarne il livello
-    (R0.1–R0.5).
-
-**Rispetto al traguardo completo, nessuno dei tre componenti è oggi conforme.**
-Sulla conformità corrente — undici sezioni ratificate al 27 luglio — la
-verifica non è ancora stata eseguita da nessun team. Il più vicino è
-IO-tools (R1, R3.3, R6, R14 su Linux, Windows e macOS); il più distante è database-tools,
-che non ha CI e quindi non può dimostrare alcuna regola in modo automatico.
+Il registro in testa al documento dice quali sezioni sono ratificate. Nessun elenco altrove lo sostituisce.
 
 ---
 
 ## Appendice A — Riepilogo di conformità
 
-Rilevato per ispezione del codice al 28 luglio 2026. `—` = nozione non modellata.
+Stato al 28 luglio 2026.
+
+Rilevata per ispezione del codice, non per esecuzione dei test. Ancoraggi:
+IO-tools `59369fd`, data-tools `40771de`, database-tools `f7cc5b1`.
+
+### Sezioni vincolanti
 
 | Regola | IO-tools | data-tools | database-tools |
 |---|---|---|---|
-| R1 Arrow pinnato `=59.1.0` | ✅ | ✅ | ✅ |
-| R2 Chiavi canoniche | parziale | ❌ blob | ❌ namespace |
-| R3.1 Tipi geometrici | 7/16 | — | 16/16, forma ✅ |
-| R3.3 Dimensioni propagabili | ✅ 5/5 | ❌ solo `xy` | 4/5 |
-| R3.4 `unknown` non degradato | ✅ assente distinto da esplicito `unknown` | n/a | n/a |
-| R3.5 Encoding come enum | ✅ | — | ❌ `String` |
-| R4 Modello CRS | ✅ interno; ⚠ chiavi Arrow canoniche incomplete | ✅ | ❌ piatto |
-| R5 Perdita non silenziosa | ⚠ 82 `unwrap_or*` censiti e classificati | ✅ R5.3, censimento aperto | parziale |
-| R6 Nessun panic nei `lib` | ✅ 0, gate attivo | ✅ 0, gate attivo (`07f6823`) | ❌ 26, nessuna CI |
-| R7 Limiti pre-allocazione | parziale | parziale | ⚠ parziale: AST limitato, budget condiviso assente |
-| R8.1 Nomi crate unici | ✅ `plenora-io-model` | ❌ collisione | ✅ |
-| R8.3 Crate condiviso | ❌ non esiste | ❌ | ❌ |
-| R8.4 Tipi omonimi | ✅ `PlenoraIoError` | ❌ `PlenoraError` | ✅ |
-| R9 Modello d'errore (2.0) | ❌ no fase, effetto, disposizione | ⚠ ha categoria e `retryable()`; mancano fase ed effetto | ⚠ base del modello, ma senza `RemoteEffect` né `RetryDisposition` |
-| R10 Capability dichiarative | ✅ | ❌ assenti | ✅ |
-| R11 Cancellazione (2.0) | ❌ assente | ⚠ token interno: conforme R11.1–R11.4, non al token condiviso | ⚠ trait proprio; senza deadline, motivo e token figli |
-| R12 Determinismo | ❌ non testato | ✅ | ❌ non testato |
-| R13.1 Toolchain fissata | ✅ 1.92.0 | ✅ `a1f4130` | ✅ 1.92.0 |
-| R13.3 Dipendenze pinnate | ✅ gate dedicato | ✅ | ✅ |
-| R14 Output atomico | ✅ Linux/Win/macOS (`target_vendor = "apple"`) | n/a | ⚠ transazione; commit incerto modellato, recovery da completare |
+| §1 Arrow pinnato `=59.1.0` | ✅ | ✅ | ✅ |
+| §3.1 Tipi geometrici, forma canonica | ✅ 7/16 | ✅ | ✅ 16/16 |
+| §3.2 Rifiuto esplicito | ✅ | ✅ | ✅ |
+| §3.3 Cinque dimensioni | ✅ | ✅ | ✅ |
+| §3.5 Encoding come enum | ✅ | ✅ | ✅ |
+| §4 Modello CRS | ✅ chiavi complete | ✅ | ✅ |
+| §5 Perdita non silenziosa | ⚠ 82 fallback censiti, non classificati | ✅ | ⚠ nessun `LossReport` uniforme |
+| §6 Nessun panic nei `lib` | ✅ 0, gate | ✅ 0, gate | ✅ 0, gate |
+| §8 Identità di crate e colonne | ✅ | ✅ | ✅ |
+| §13 Toolchain e pin | ✅ | ✅ | ✅ |
+| §15.1 Repository autorevole | ✅ | ✅ | ✅ |
+
+### Sezioni non ancora vincolanti, già adottate
+
+| Regola | IO-tools | data-tools | database-tools |
+|---|---|---|---|
+| §2 Chiavi canoniche | ✅ 13 | ✅ 14 | ✅ 14 |
+| §9 Errore a quattro assi | ✅ | ✅ | ✅ riferimento |
+| §11 Cancellazione | ✅ token, deadline, figli | ✅ | ✅ |
+| §7 Budget ceduto | ⚠ parziale | ✅ lease | ✅ lease |
+| §12 Determinismo dichiarato | ❌ non testato | ✅ oracolo spill | ⚠ differenziale encoder |
+| §10 Capability interrogabili | ⚠ per driver | ❌ | ⚠ per provider |
+| §14 Esiti di scrittura | ✅ | n/a | ✅ |
+| §15.3 Crate condiviso | ❌ non esiste | ❌ | ❌ |
+
+### Cosa manca alla catena
+
+I tre emettono e leggono lo stesso vocabolario, ma **nessuno verifica la catena
+completa**: un dataset con Z, M, CRS irrisolto e ordine assi lat/lon che entri da
+un bordo, attraversi il centro ed esca dall'altro bordo non è oggi oggetto di
+alcun test. È il primo contenuto eseguibile che questo repository dovrebbe
+ospitare.
 
 ---
 
