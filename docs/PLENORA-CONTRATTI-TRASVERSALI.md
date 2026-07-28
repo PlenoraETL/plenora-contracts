@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc2 · 27 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc3 · 28 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -18,7 +18,7 @@
 > bloccante accolto: **non** vincolante finché l'emendamento non la sostituisce)
 > · `superata` (rimpiazzata da una versione ratificata successiva).
 >
-> Al 27 luglio nessuna sezione è `sospesa`: la 2.0 ha emendato tutte quelle che
+> Al 28 luglio nessuna sezione è `sospesa`: la 2.0 ha emendato tutte quelle che
 > lo erano, riportandole a `proposta` in attesa di ratifica.
 >
 > **Clausola di chiusura.** Ogni regola o sezione non elencata in questa tabella
@@ -45,7 +45,7 @@
 > | §5 R5 | Perdita di informazione mai silenziosa | **ratificata** | 27 lug | — | data ✔ (R5.3 implementata) |
 > | §6 R6 | Nessun panic nei crate `lib` | **ratificata** | 27 lug | — | IO ✔ · data ✔ (`07f6823`) · db ✘ |
 > | §7 R7 | Limiti pre-allocazione; budget che attraversa la catena con lease (R7.5–R7.7) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
-> | §8 R8 | Identità di crate e colonne | **ratificata** | 27 lug | — | R8.1 e R8.4 violate da IO e data (`plenora-core`, `PlenoraError`) |
+> | §8 R8 | Identità di crate e colonne | **ratificata** | 27 lug | — | IO ✔ nel perimetro locale (`plenora-io-model`, `PlenoraIoError`) · data ✘ · R8.3 aperta per tutti |
 > | §9 | Errore a quattro assi: causa, fase, effetto remoto (R9.6), disposizione di ritentativo (R9.7) | proposta *(emendata 2.0)* | — | — | rilievi db chiusi; da ratificare |
 > | §10 R10 | Capability dichiarative interrogabili | proposta | — | — | forma definita in §15.3; da ratificare |
 > | §11.1–§11.4 | Cancellazione cooperativa; garanzia sui residui condizionata alla piattaforma (R11.3) | proposta *(emendata 2.0)* | — | — | rilievo db chiuso; da ratificare |
@@ -71,15 +71,17 @@
 > componente di applicarla per propria scelta o per una regola interna.
 >
 > Restano in vigore, indipendentemente da questa tabella, le regole che ciascun
-> componente si è dato internamente: la correzione di
-> `plenora-io-core/src/driver.rs:347` è dovuta per PLN-ASR-007 e H-01 **a
-> prescindere** dallo stato di §3.4 (vedi §16-bis).
+> componente si è dato internamente. IO-tools ha chiuso la distinzione fra
+> dimensioni legacy assenti ed `unknown` esplicito, dovuta per PLN-ASR-007 e
+> H-01 a prescindere dallo stato di §3.4.
 >
 > **Cronologia.** §9 e §11 recepiscono i rilievi del team IO-tools; §5, §9 e §12
 > la fotografia del team data-tools; l'Appendice A §R13.3 corregge un dato errato
 > della 1.0. La 2.0 emenda le sei sezioni che erano `sospesa` e le sei `proposta`
 > con rilievi aperti: nessuna sezione risulta più sospesa, tutte attendono
-> ratifica.
+> ratifica. La 2.0-rc3 aggiorna esclusivamente la fotografia verificata di
+> IO-tools alla revisione `1c1ee61e6d87ce2810ec482298b483e90a3abe80`; non
+> modifica requisiti né stati normativi.
 
 Governa i confini fra i tre componenti Plenora sviluppati separatamente. Le regole
 qui contenute prevalgono sulla documentazione locale dei singoli repository.
@@ -373,30 +375,16 @@ end-to-end XYZM attraverso i tre componenti; grep di assegnazioni che portano a
 
 | | Tipi | Dimensioni | Encoding |
 |---|---|---|---|
-| IO-tools | 7, `snake_case` | 5 ✅ | enum ✅ |
+| IO-tools | 7, forma canonica senza separatore ✅ | 5 ✅ | enum ✅ |
 | database-tools | 16 ✅, forma ✅ | 4 (manca `unknown`) | `String` ❌ |
 | data-tools | assenti ❌ | 1 (`xy`) ❌ | assente ❌ |
 
-**Violazione nota di R3.4** — `plenora-io-core/src/driver.rs:347`. Segnalata dal
-team IO-tools e confermata:
-
-```rust
-read_geometry_contract_metadata(field, &mut geometry);
-if geometry.dimensions == CoordinateDimensions::Unknown {
-    geometry.dimensions = CoordinateDimensions::Xy;
-}
-```
-
-L'intento documentato è il default per i contratti v1 privi di metadati
-geometrici, ed è legittimo. Il difetto è la posizione: la conversione avviene
-**dopo** la lettura dei metadati, quindi sovrascrive anche un `unknown`
-dichiarato esplicitamente. La correzione non è rimuovere il default ma spostarlo
-nel ramo in cui i metadati sono assenti, così che i due casi — «nessuna
-informazione, si applica il default storico» e «informazione presente, dice
-`unknown`» — restino distinti.
-
-Questa correzione **non dipende dalla ratifica del presente documento**: è già
-dovuta per PLN-ASR-007 e H-01 nel profilo di assurance di IO-tools.
+**Rilievo R3.4 chiuso in IO-tools.** Il default storico XY è stabilito dal
+costruttore del solo contratto legacy, prima della lettura dei metadati. Un
+valore esplicito, incluso `unknown`, lo sostituisce. La regressione
+`legacy_geometry_defaults_xy_only_when_dimensions_are_absent` distingue i due
+casi. Evidenza: `b1e13fa` e successiva separazione senza modifica semantica in
+`8dda5d7`.
 
 ---
 
@@ -452,11 +440,12 @@ pianeta, senza alcun errore (H-06).
 
 **Verifica.** `[ispezione]` più matrice di test axis-order per componente.
 
-**Stato oggi:** IO-tools conforme nel modello; `driver-shp` proietta però
-`crs.id.unwrap_or("unknown")` nei metadati, collassando *assente* e *irrisolto*
-(violazione R4.1 nel dato che esce). database-tools rappresenta il CRS come
-`srid: Option<u32>` + `crs: Option<String>`: non può esprimere né i tre stati né
-l'axis order. data-tools ha `ResolvedCrs` allineato al modello.
+**Stato oggi:** IO-tools distingue i tre stati nel modello e non proietta più
+un `ResolvedCrs` senza identificatore nella stringa `"unknown"`; restano però
+assenti dal bridge Arrow le chiavi canoniche `crs_id`, `crs_resolution`,
+`crs_definition`, relativo formato e `axis_order`. database-tools rappresenta
+il CRS come `srid: Option<u32>` + `crs: Option<String>`: non può esprimere né i
+tre stati né l'axis order. data-tools ha `ResolvedCrs` allineato nel modello.
 
 ---
 
@@ -487,7 +476,10 @@ quale libreria l'ha prodotto.
 crate `lib`; test di ordinamento su valori limite (`i64::MAX`, `u64` a più cifre);
 grep dei cast `as` su tipi interi.
 
-**Stato oggi:** IO-tools ha 95 `unwrap_or*` nei crate `lib`, censiti ma non ancora classificati uno per uno.
+**Stato oggi:** IO-tools censisce e classifica 82 `unwrap_or*` nell'intero
+workspace: 41 nei crate distribuibili, includendo conservativamente i moduli di
+test, e 41 nei target CLI/benchmark/fuzz. Il gate
+`check_assurance_fallbacks.sh` impedisce variazioni non riesaminate.
 data-tools ha corretto R5.3 con `compare_cells_typed`, committato in `14a0a29`;
 resta il censimento di `unwrap_or*` e dei cast troncanti (R5.4), che è cosa
 distinta dal gate anti-panic e non viene intercettata da esso.
@@ -597,10 +589,10 @@ arrow-rs.
 > **R8.4** Due tipi pubblici omonimi con forma diversa **NON DEVONO** esistere nel
 > perimetro Plenora.
 
-**Stato oggi: violazioni aperte.** `plenora-IO-tools/crates/plenora-core` e
-`plenora-data-tools/crates/plenora-core` sono due pacchetti distinti con lo stesso
-nome (R8.1), e definiscono entrambi un `PlenoraError` con varianti diverse (R8.4).
-Il crate condiviso previsto da R8.3 non esiste.
+**Stato oggi:** IO-tools ha chiuso le collisioni locali rinominando il package
+in `plenora-io-model` e l'errore in `PlenoraIoError`, con gate CI dedicato.
+data-tools conserva ancora il proprio `plenora-core`/`PlenoraError`; non esiste
+ancora il crate condiviso previsto da R8.3.
 
 ---
 
@@ -734,7 +726,7 @@ atomico di publish.
 
 | Componente | Tipo | Categoria | Fase | Ritentabilità | Esito ignoto |
 |---|---|---|---|---|---|
-| IO-tools | `PlenoraError` enum | implicita nella variante | ❌ | ❌ | solo nel publish |
+| IO-tools | `PlenoraIoError` enum | implicita nella variante | ❌ | ❌ | solo nel publish |
 | data-tools | `PlenoraError` enum + `ErrorCategory` (11) | ✅ | ❌ | ✅ `retryable()` | ❌ |
 | database-tools | `DatabaseError` struct | ✅ (15) | ✅ (10) | ✅ | ✅ |
 
@@ -940,26 +932,22 @@ ogni settimana: la baseline non è riproducibile e un difetto introdotto da un
 cambio di compilatore è indistinguibile da uno di codice (H-07).
 
 **Stato oggi:** tutti e tre dichiarano `edition = 2021` e `rust-version = 1.92`,
-quindi R13.4 è soddisfatta. Ma soltanto **database-tools** ha un
-`rust-toolchain.toml` che fissa il canale a `1.92.0`: gli altri due compilano con
-lo stable corrente, in violazione di R13.1.
+quindi R13.4 è soddisfatta. IO-tools, data-tools e database-tools hanno ora un
+`rust-toolchain.toml` che fissa il canale a `1.92.0`.
 
-Su R13.3 la versione 1.0 di questo documento riportava «due dipendenze caret» in
-IO-tools: la fotografia era errata, perché contava solo
-`plenora-io-core/Cargo.toml` senza il manifest di workspace. Il conteggio reale è
-il seguente, e la segnalazione del team IO-tools è corretta:
+Su R13.3 le fotografie 1.0 e 2.0-rc2 precedevano la centralizzazione e il pin
+esatto completati da IO-tools. La verifica corrente dei tre manifest workspace
+non rileva dipendenze dirette non pinnate:
 
 | Componente | Dipendenze non pinnate |
 |---|---|
-| IO-tools | `geo-types "0.7"`, `shapefile "0.6"`, `kml "0.8"`, `calamine "0.26"`, `rust_xlsxwriter "0.79"`, `gdal "0.17"`, `serde "1"`, `serde_json "1"`, `sha2 "0.10"`, `tempfile "3"` (workspace) · `rustix "1"`, `atomicwrites "0.4.4"` (crate, anche fuori da `[workspace.dependencies]`) · `libc "0.2"` |
+| IO-tools | nessuna |
 | data-tools | nessuna |
 | database-tools | nessuna |
 
-Le due dichiarate nel crate anziché nel workspace violano R13.3 due volte: per il
-caret e per la collocazione. Le altre solo per il caret. Anche questa correzione
-**non dipende dalla ratifica del presente documento**: la regola 6 del profilo
-`AERONAUTICAL_PROFILE.md` di IO-tools chiede già change impact analysis per ogni
-variazione di dipendenza, e un caret la rende impossibile.
+IO-tools verifica inoltre pin esatti e collocazione unica con
+`check_dependency_pins.py`; ogni variazione resta soggetta a change impact
+analysis secondo il proprio profilo assurance.
 
 ---
 
@@ -1083,7 +1071,8 @@ se serve compatibilità all'indietro. Vedi Appendice C. Finché l'emendamento di
 non è ratificato, è consentita la sola doppia lettura, non l'emissione canonica.
 
 **Passo 2 — Estrazione a semantica zero.** Nasce il crate condiviso, come pura
-estrazione dei tipi di confine oggi in `plenora-IO-tools/crates/plenora-core`.
+estrazione dei tipi di confine oggi in
+`plenora-IO-tools/crates/plenora-io-model`.
 IO-tools ci dipende e re-esporta; nessun cambiamento di comportamento, nessuno
 stato di tracciabilità si muove. Subordinato a §15.3.
 
@@ -1154,12 +1143,12 @@ proprie regole interne, oggi in vigore.
 
 | Intervento | Perché non dipende da questo documento |
 |---|---|
-| Correzione di `driver.rs:347` (`unknown` → `xy`) | Violazione di PLN-ASR-007 e H-01, già ratificati in `AERONAUTICAL_PROFILE.md` |
-| Pin esatto delle 13 dipendenze caret | Regola 6 del profilo: un caret rende impossibile la CIA che il profilo richiede |
-| `rust-toolchain.toml` in IO-tools e data-tools | PLN-ASR-010 è già dichiarato «Parziale» per questo motivo |
-| Censimento dei 95 `unwrap_or*` nei crate `lib` | H-01: il gate anti-panic non li intercetta, sono l'altra metà della stessa regola |
 | Gate anti-panic `--lib` su data-tools e database-tools | Replica di un gate già in produzione, nessuna decisione di contratto |
 | Doppia **lettura** delle chiavi metadata (accettare canoniche e legacy, emettere solo legacy) | Retrocompatibile e reversibile; dimezza il lavoro del passo 1 senza anticiparne le scelte |
+| Benchmark e pulizia interna che non cambiano firme o wire | Controllano H-03/H-08 senza creare tipi di confine concorrenti |
+
+IO-tools ha già chiuso il default R3.4, i pin esatti, il toolchain file e il
+censimento dei fallback; non sono più elencati come lavoro aperto.
 
 **Subordinato al registro:** rinomina delle chiavi in emissione (§2), enumerazioni
 d'errore condivise (§9), token di cancellazione comune (§11.5), contenuto del
@@ -1230,7 +1219,7 @@ che non ha CI e quindi non può dimostrare alcuna regola in modo automatico.
 
 ## Appendice A — Riepilogo di conformità
 
-Rilevato per ispezione del codice al 27 luglio 2026. `—` = nozione non modellata.
+Rilevato per ispezione del codice al 28 luglio 2026. `—` = nozione non modellata.
 
 | Regola | IO-tools | data-tools | database-tools |
 |---|---|---|---|
@@ -1238,21 +1227,21 @@ Rilevato per ispezione del codice al 27 luglio 2026. `—` = nozione non modella
 | R2 Chiavi canoniche | parziale | ❌ blob | ❌ namespace |
 | R3.1 Tipi geometrici | 7/16 | — | 16/16, forma ✅ |
 | R3.3 Dimensioni propagabili | ✅ 5/5 | ❌ solo `xy` | 4/5 |
-| R3.4 `unknown` non degradato | ❌ `driver.rs:347` | n/a | n/a |
+| R3.4 `unknown` non degradato | ✅ assente distinto da esplicito `unknown` | n/a | n/a |
 | R3.5 Encoding come enum | ✅ | — | ❌ `String` |
-| R4 Modello CRS | ✅ (shp corretto in `8bb65dd`) | ✅ | ❌ piatto |
-| R5 Perdita non silenziosa | ⚠ 95 `unwrap_or*` censiti | ✅ R5.3, censimento aperto | parziale |
+| R4 Modello CRS | ✅ interno; ⚠ chiavi Arrow canoniche incomplete | ✅ | ❌ piatto |
+| R5 Perdita non silenziosa | ⚠ 82 `unwrap_or*` censiti e classificati | ✅ R5.3, censimento aperto | parziale |
 | R6 Nessun panic nei `lib` | ✅ 0, gate attivo | ✅ 0, gate attivo (`07f6823`) | ❌ 26, nessuna CI |
 | R7 Limiti pre-allocazione | parziale | parziale | ⚠ parziale: AST limitato, budget condiviso assente |
-| R8.1 Nomi crate unici | ❌ collisione | ❌ collisione | ✅ |
+| R8.1 Nomi crate unici | ✅ `plenora-io-model` | ❌ collisione | ✅ |
 | R8.3 Crate condiviso | ❌ non esiste | ❌ | ❌ |
-| R8.4 Tipi omonimi | ❌ `PlenoraError` | ❌ `PlenoraError` | ✅ |
+| R8.4 Tipi omonimi | ✅ `PlenoraIoError` | ❌ `PlenoraError` | ✅ |
 | R9 Modello d'errore (2.0) | ❌ no fase, effetto, disposizione | ⚠ ha categoria e `retryable()`; mancano fase ed effetto | ⚠ base del modello, ma senza `RemoteEffect` né `RetryDisposition` |
 | R10 Capability dichiarative | ✅ | ❌ assenti | ✅ |
 | R11 Cancellazione (2.0) | ❌ assente | ⚠ token interno: conforme R11.1–R11.4, non al token condiviso | ⚠ trait proprio; senza deadline, motivo e token figli |
 | R12 Determinismo | ❌ non testato | ✅ | ❌ non testato |
-| R13.1 Toolchain fissata | ❌ stable | ✅ `a1f4130` | ✅ 1.92.0 |
-| R13.3 Dipendenze pinnate | ❌ 8 caret (rustix e atomicwrites pinnate) | ✅ | ✅ |
+| R13.1 Toolchain fissata | ✅ 1.92.0 | ✅ `a1f4130` | ✅ 1.92.0 |
+| R13.3 Dipendenze pinnate | ✅ gate dedicato | ✅ | ✅ |
 | R14 Output atomico | ✅ Linux/Win/macOS (`target_vendor = "apple"`) | n/a | ⚠ transazione; commit incerto modellato, recovery da completare |
 
 ---
@@ -1287,7 +1276,7 @@ Migrazione delle chiavi metadata al namespace canonico (§2, passo 1 di §15).
 | `plenora.geometry.dimensions` | invariata | ✅ |
 | `plenora.geometry.srid` | invariata | ✅ |
 | `plenora.geometry.encoding` | invariata | ✅ |
-| `plenora.geometry.types` | invariata | valori da riformattare (R3.1) |
+| `plenora.geometry.types` | invariata | ✅ valori canonici R3.1 |
 | `plenora.geometry.spatial_semantics` | invariata | ✅ |
 | `plenora.geometry.precision` | invariata | ✅ |
 | `plenora.geometry.native.*` | `plenora.<formato>.*` | sotto-namespace per formato (R2.3) |
@@ -1387,11 +1376,12 @@ storico, ma non dimostra la revisione corrente.
 ogni sezione è quello, e soltanto quello, del registro di ratifica in testa al
 documento: nessuna affermazione altrove sostituisce quel registro. Gli stati di
 conformità in Appendice A sono rilevati per ispezione del codice, non per
-esecuzione dei test, e sono ancorati ai commit `00f293e` (IO-tools), `a1f4130`
+esecuzione dei test, e sono ancorati ai commit
+`1c1ee61e6d87ce2810ec482298b483e90a3abe80` (IO-tools), `a1f4130`
 (data-tools) e `058aebf` (database-tools). Ogni fotografia successiva deve
 dichiarare i propri: conteggi e riferimenti a numeri di riga non ancorati a un
 commit sono obsoleti nel momento in cui vengono scritti.*
 
-*Le fotografie in Appendice A precedono i lavori in corso dei team e non li
-riflettono: `8bb65dd` e `03b6590` in IO-tools, `8fd8f79` e `a1f4130` in
-data-tools chiudono già alcune righe della tabella.*
+*La fotografia IO-tools incorpora gli incrementi fino a `1c1ee61`; le
+fotografie degli altri due componenti restano ancorate alle revisioni indicate
+e non vanno estese per inferenza.*

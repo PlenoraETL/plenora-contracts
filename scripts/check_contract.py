@@ -19,6 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DOCUMENT = ROOT / "docs" / "PLENORA-CONTRATTI-TRASVERSALI.md"
 README = ROOT / "README.md"
+RATIFICATION_CANDIDATE = ROOT / "docs" / "RATIFICATION-CANDIDATE-2.0.md"
 
 VERSION_RE = re.compile(
     r"^\*\*Documento normativo di interfaccia \(ICD\) · versione "
@@ -41,6 +42,10 @@ FORBIDDEN_STALE_TEXT = (
     "è sospesa in attesa della versione 2.0",
     "modifica entra in vigore quando i tre team l'hanno recepita",
     "Documento redatto come revisione tecnica indipendente",
+    "`driver.rs:347`",
+    "95 `unwrap_or*`",
+    "IO-tools | 7, `snake_case`",
+    "IO-tools | `PlenoraError`",
 )
 
 
@@ -108,7 +113,9 @@ def registry_rows(document: str, errors: list[str]) -> list[str]:
     return rows[2:]
 
 
-def validate_document(document: str, readme: str) -> dict[str, object]:
+def validate_document(
+    document: str, readme: str, ratification_candidate: str
+) -> dict[str, object]:
     errors: list[str] = []
 
     if "\ufffd" in document or "\x00" in document:
@@ -158,6 +165,20 @@ def validate_document(document: str, readme: str) -> dict[str, object]:
         if stale_text in document or stale_text in readme:
             errors.append(f"testo obsoleto presente: {stale_text!r}")
 
+    required_candidate_clauses = (
+        "Stato: **non ratificato**.",
+        "| IO-tools | da registrare |",
+        "| data-tools | da registrare |",
+        "| database-tools | da registrare |",
+        "Revisore diverso dall'autore",
+    )
+    for clause in required_candidate_clauses:
+        if clause not in ratification_candidate:
+            errors.append(
+                "candidato di ratifica: clausola di governance assente:"
+                f" {clause!r}"
+            )
+
     required_clauses = (
         "valori unici, ordinati come in §3.1, senza spazi",
         "`northing_easting` \\| `other` \\| `unknown`",
@@ -198,7 +219,8 @@ def main() -> int:
     read_errors: list[str] = []
     document = read_utf8(DOCUMENT, read_errors)
     readme = read_utf8(README, read_errors)
-    report = validate_document(document, readme)
+    ratification_candidate = read_utf8(RATIFICATION_CANDIDATE, read_errors)
+    report = validate_document(document, readme, ratification_candidate)
     report["errors"] = [*read_errors, *report["errors"]]
     report["status"] = "pass" if not report["errors"] else "fail"
 
