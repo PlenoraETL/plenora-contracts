@@ -29,7 +29,7 @@ VERSION_RE = re.compile(
 REQUIREMENT_DEFINITION_RE = re.compile(
     r"^>\s+\*\*(?P<id>R[0-9]+(?:\.[0-9]+)+)\b", re.MULTILINE
 )
-ALLOWED_REGISTRY_STATES = ("ratificata", "proposta", "sospesa", "superata")
+ALLOWED_REGISTRY_STATES = ("ratificata", "proposta")
 REQUIRED_APPENDICES = (
     "## Appendice A — Riepilogo di conformità",
     "## Appendice B — Hazard di riferimento",
@@ -156,6 +156,11 @@ def validate_document(
             "registro di ratifica:"
             f" {ratified_rows} righe ratificate, ma la baseline ne dichiara 11"
         )
+
+    cited = set(re.findall(r"DER-ICD-\d{3}", document))
+    defined = set(re.findall(r"^\| (DER-ICD-\d{3}) \|", document, re.MULTILINE))
+    for missing in sorted(cited - defined):
+        errors.append(f"deroga {missing} citata ma non definita nel registro")
 
     for heading in REQUIRED_APPENDICES:
         if document.count(heading) != 1:

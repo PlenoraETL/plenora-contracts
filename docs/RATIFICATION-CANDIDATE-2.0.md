@@ -2,7 +2,8 @@
 
 Stato: **non ratificato**.
 
-Revisione candidata: da compilare dopo il commit della 2.0-rc3.
+Revisione candidata: `v2.0-rc5`, da compilare con il commit corrispondente
+al momento della richiesta di ratifica.
 
 ## Perimetro necessario
 

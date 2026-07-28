@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc4 · 28 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc5 · 28 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -27,7 +27,8 @@
 > | §3.3 | Cinque dimensioni rappresentabili e propagabili | **ratificata** | dal 27 lug, ambito in R3.3.1 |
 > | §3.4 | `unknown` non degradabile; tre stati di dichiarazione | `proposta` | emendata 2.0 |
 > | §3.5 | Encoding come enumerazione chiusa | **ratificata** | dal 27 lug |
-> | §4.1–§4.4 | CRS: tre stati, axis order, formato della definizione e precedenza | **ratificata** | dal 27 lug |
+> | §4.1–§4.4 | CRS: tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | dal 27 lug, testo 1.x |
+> | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | `proposta` | nuove 2.0, dentro una sezione ratificata |
 > | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | `proposta` | emendata 2.0 |
 > | §5 | Perdita di informazione mai silenziosa | **ratificata** | dal 27 lug |
 > | §6 | Nessun panic nei crate `lib` | **ratificata** | dal 27 lug; R6.6-R6.7 sul gate minimo attendono ratifica |
@@ -417,10 +418,9 @@ pianeta, senza alcun errore (H-06).
 
 **Verifica.** `[ispezione]` più matrice di test axis-order per componente.
 
-**Stato oggi:** IO-tools distingue i tre stati nel modello e non proietta più
-un `ResolvedCrs` senza identificatore nella stringa `"unknown"`; restano però
-assenti dal bridge Arrow le chiavi canoniche `crs_id`, `crs_resolution`,
-`crs_definition`, relativo formato e `axis_order`. database-tools rappresenta
+**Stato oggi (28 luglio):** IO-tools distingue i tre stati e da `59369fd` emette
+sul bridge Arrow l'insieme completo — `crs_id`, `crs_resolution`,
+`crs_definition`, `crs_definition_format` e `axis_order`. database-tools rappresenta
 il CRS come `srid: Option<u32>` + `crs: Option<String>`: non può esprimere né i
 tre stati né l'axis order. data-tools ha `ResolvedCrs` allineato nel modello.
 
@@ -703,9 +703,12 @@ atomico di publish.
 
 | Componente | Tipo | Categoria | Fase | Ritentabilità | Esito ignoto |
 |---|---|---|---|---|---|
-| IO-tools | `PlenoraIoError` enum | implicita nella variante | ❌ | ❌ | solo nel publish |
-| data-tools | `PlenoraError` enum + `ErrorCategory` (11) | ✅ | ❌ | ✅ `retryable()` | ❌ |
-| database-tools | `DatabaseError` struct | ✅ (15) | ✅ (10) | ✅ | ✅ |
+| IO-tools | `PlenoraIoError` | ✅ | ✅ | ✅ `RetryDisposition` | ✅ `RemoteEffect` |
+| data-tools | `PlenoraError` | ✅ | ✅ | ✅ | ✅ |
+| database-tools | `DatabaseError` | ✅ | ✅ | ✅ | ✅ |
+
+Al 28 luglio i tre hanno `ErrorPhase` e `RemoteEffect` **identici variante per
+variante**, pur senza dipendenze condivise.
 
 Le categorie di data-tools e database-tools condividono oggi soltanto
 `Unsupported` e `Cancelled`.
@@ -820,9 +823,10 @@ dà R11.6.
 **Stato oggi: due modelli e un'assenza.** data-tools ha un modulo `cancellation`
 con token cooperativo; database-tools ha un trait `Cancellation` e sa cancellare
 il backend remoto. IO-tools non ha un modello di cancellazione, e lo dichiara
-apertamente in `IMPLEMENTATION_STATUS.md` («restano da uniformare cancellazione e
-streaming dei parser che materializzano»). Un'operazione lunga che parte da un
-driver non è oggi interrompibile.
+**Stato oggi (28 luglio):** tutti e tre hanno un token con `is_cancelled`,
+`deadline` e `child_token`. IO-tools dichiara un limite residuo: le singole
+chiamate interne ai parser sincroni KML, DXF e XLSX non sono interrompibili a
+metà, e la cancellazione è osservata al confine controllato successivo.
 
 ---
 
@@ -1044,8 +1048,13 @@ verificabile e non richiede il successivo per essere utile.
 **Passo 1 — Chiavi metadata (§2).** Non dipende da nessun refactoring: sono
 costanti stringa. Ogni componente allinea i propri nomi alla tabella §2, con un
 periodo di doppia lettura (accettare vecchio e nuovo, emettere solo il vecchio)
-se serve compatibilità all'indietro. Vedi Appendice C. Finché l'emendamento di §2
-non è ratificato, è consentita la sola doppia lettura, non l'emissione canonica.
+se serve compatibilità all'indietro. Vedi Appendice C.
+
+*(emendato 2.0-rc5)* Prima della ratifica di §2 la doppia lettura è sempre
+consentita. L'**emissione** canonica è ammessa solo con deroga registrata nel
+repository che la pratica, che dichiari l'hazard per i consumatori non allineati
+e la condizione di rientro. Tutti e tre i componenti sono oggi in questa
+condizione: vedi DER-ICD-002.
 
 **Passo 2 — Estrazione a semantica zero.** Nasce il crate condiviso, come pura
 estrazione dei tipi di confine oggi in
@@ -1109,6 +1118,18 @@ modello d'errore (§9), dove il punto di partenza è database-tools.
 
 ---
 
+## §16-ter Deroghe attive di questo documento
+
+| ID | Regola | Motivo | Rientro |
+|---|---|---|---|
+| DER-ICD-001 | R15.2.2 — tag annotati **e firmati** | Nessuna chiave di firma nell'ambiente in cui il documento è mantenuto: i sette tag pubblicati sono annotati ma non firmati | Alla disponibilità di una chiave dell'owner, rifirmare con `git tag -s -f` |
+| DER-ICD-002 | §15.4 passo 1 — nessuna emissione canonica prima della ratifica | Tutti e tre i componenti emettono già le chiavi candidate di §2, per scelta propria e con deroga registrata nei rispettivi repository | Ratifica di §2 con nomi compatibili, oppure migrazione degli emittenti |
+
+Finché DER-ICD-001 è attiva, la revisione esatta resta l'unico riferimento
+autorevole: ogni change impact analysis **DEVE** citare il commit, non il solo tag.
+
+---
+
 ## §17 Come si misura la conformità
 
 Tre grandezze distinte, da non confondere:
@@ -1140,7 +1161,7 @@ IO-tools `59369fd`, data-tools `40771de`, database-tools `f7cc5b1`.
 | §3.3 Cinque dimensioni | ✅ | ✅ | ✅ |
 | §3.5 Encoding come enum | ✅ | ✅ | ✅ |
 | §4 Modello CRS | ✅ chiavi complete | ✅ | ✅ |
-| §5 Perdita non silenziosa | ⚠ 82 fallback censiti, non classificati | ✅ | ⚠ nessun `LossReport` uniforme |
+| §5 Perdita non silenziosa | ⚠ 88 fallback censiti e classificati | ✅ | ⚠ nessun `LossReport` uniforme |
 | §6 Nessun panic nei `lib` | ✅ 0, gate | ✅ 0, gate | ✅ 0, gate |
 | §8 Identità di crate e colonne | ✅ | ✅ | ✅ |
 | §13 Toolchain e pin | ✅ | ✅ | ✅ |
@@ -1204,10 +1225,10 @@ Migrazione delle chiavi metadata al namespace canonico (§2, passo 1 di §15).
 | `plenora.geometry.precision` | invariata | ✅ |
 | `plenora.geometry.native.*` | `plenora.<formato>.*` | sotto-namespace per formato (R2.3) |
 | `plenora.filegdb.*` | invariata | ✅ conforme a R2.3 |
-| — | `plenora.geometry.crs_id` | da aggiungere |
-| — | `plenora.geometry.crs_resolution` | da aggiungere |
-| — | `plenora.geometry.crs_definition` | da aggiungere |
-| — | `plenora.geometry.axis_order` | da aggiungere |
+| — | `plenora.geometry.crs_id` | ✅ emessa da `59369fd` |
+| — | `plenora.geometry.crs_resolution` | ✅ emessa da `59369fd` |
+| — | `plenora.geometry.crs_definition` | ✅ emessa da `59369fd` |
+| — | `plenora.geometry.axis_order` | ✅ emessa da `59369fd` |
 
 ### plenora-database-tools
 
