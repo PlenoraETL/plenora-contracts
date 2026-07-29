@@ -14,9 +14,9 @@
     {
       "name": "plenora-IO-tools",
       "role": "file_boundary",
-      "revision": "2f5684424af4e2ab9c0f07f0c7f02f80d05a92fe",
+      "revision": "3f3562a4707995549ff5eb8dc03f9e37f2cde355",
       "tested_revision": "f8a89170785c938a9105deae6cc479576abb969a",
-      "tested_revision_note": "Fra f8a8917 e 2f56844 l'albero di crates/, Cargo.toml e Cargo.lock e' identico (tree c4325a1832): i tre commit intermedi toccano solo assurance, manifesti di rilascio e gate. L'esito della qualifica sul codice resta valido; la rieseguzione serve per il flag proj-backend e per R4.6, non per questo avanzamento.",
+      "tested_revision_note": "La qualifica del 30 luglio ha girato su f8a8917. Da allora a28e5ae ha modificato il codice: il bordo di lettura dichiara ora l'incoerenza fra crs_id EPSG e srid nel LossReport, senza rifiutare (R4.6.1). L'esito precedente non copre questo comportamento e la rieseguzione e' necessaria. Residuo dichiarato in CHANGE_IMPACT_2026-07-30_RC3_CRS_SCOPE.md: crs_definition contro SRID resta fuori da rc3, quindi R4.3.1 non e' completa.",
       "remote": "https://github.com/PlenoraETL/plenora-IO-tools.git"
     },
     {
@@ -129,10 +129,11 @@
         {
           "component": "plenora-IO-tools",
           "case": "conflicting_crs",
-          "observed": "conflitto crs_id=EPSG:4326 contro srid=3003 accettato in silenzio invece di fallire chiuso",
-          "rule": "R4.3.1",
+          "observed": "conflitto crs_id=EPSG:4326 contro srid=3003 accettato in silenzio",
+          "rule": "R4.3.1, R4.6.1",
           "rule_state": "proposta",
-          "note": "R4.3.1 non e' ratificata: e' un gap verso una regola proposta, non la violazione di un vincolo in vigore."
+          "status": "chiuso il 30 luglio 2026",
+          "note": "Rilievo superato due volte. Non era un difetto nella forma in cui l'avevo registrato: la fixture chiedeva a un bordo di lettura di rifiutare, cioe' il contrario di R4.6.1. Il gap vero era il secondo obbligo di R4.6.1, dichiarare l'incoerenza: chiuso in a28e5ae, che confronta l'autorita' EPSG risolta da crs_id con srid e registra `inconsistent_crs_representations` nel LossReport senza rifiutare ne' conciliare. Residuo dichiarato: crs_definition contro SRID non e' confrontata, quindi R4.3.1 non e' completa."
         },
         {
           "component": "plenora-database-tools",
