@@ -1,6 +1,11 @@
 {
   "manifest_version": 1,
   "gate_id": "plenora-chain-conformance-v1",
+  "satisfies_gate": {
+    "gate_id": "plenora-system-contract-roundtrip-v1",
+    "defined_in": "plenora-IO-tools:release/system-rc-gate.json",
+    "note": "Dalla baseline RC3 di IO-tools (f8a89170785c938a9105deae6cc479576abb969a) quel gate dichiara ownership `external_system_qualification` e external_owner `plenora-contracts/conformance`. La qualifica di sistema e' posseduta qui: le sue fixture, proprieta' e condizioni di superamento vincolano questo perimetro."
+  },
   "icd": {
     "tag": "v2.0-rc8",
     "revision": "62b12e3496466d2c908dac3cc098640b99b52e21"
@@ -9,19 +14,19 @@
     {
       "name": "plenora-IO-tools",
       "role": "file_boundary",
-      "revision": "f47bf4605b248d127205e49a7e6ebd2a0984a83f",
+      "revision": "f8a89170785c938a9105deae6cc479576abb969a",
       "remote": "https://github.com/PlenoraETL/plenora-IO-tools.git"
     },
     {
       "name": "plenora-data-tools",
       "role": "transformation_core",
-      "revision": "04f3120fc5432923e35aa991fafbb339eace2d38",
+      "revision": "2826ece45f0d2c86f03177e3300d526d8cf12233",
       "remote": "https://github.com/PlenoraETL/plenora-data-tools.git"
     },
     {
       "name": "plenora-database-tools",
       "role": "database_boundary",
-      "revision": "5281cd3204c58ec6b8257c54b9c7be2d549f30fa",
+      "revision": "589072dacaf800a973222c8a72840e5dc7373995",
       "remote": "https://github.com/PlenoraETL/plenora-database-tools.git"
     }
   ],
@@ -98,19 +103,21 @@
       "component": "plenora-database-tools",
       "status": "not_available",
       "invocation": null,
-      "blocker": "plenora-database-cli non espone alcun comando che accetti un dataset Arrow IPC e riporti il contratto geometrico che ne deriverebbe. I comandi disponibili sono validate-plan, che valida un piano di scrittura e non un dataset, e postgres-probe/describe/read-summary, che richiedono un server attivo.",
-      "required_capability": "Un comando offline, senza connessione, che legga Arrow IPC e produca su stdout il contratto geometrico osservato secondo plenora-database-core, incluso l'esito del parser EWKB su ogni cella. Finché non esiste, il terzo anello e' verificato solo dall'oracolo ospitato in plenora-IO-tools, che non e' terzo rispetto al primo anello."
+      "blocker": "plenora-database-cli non espone ancora un comando che accetti un dataset Arrow IPC e riporti il contratto geometrico che ne deriverebbe. I comandi disponibili sono validate-plan, che valida un piano di scrittura e non un dataset, e postgres-probe/describe/read-summary, che richiedono un server attivo. La capacita' e' in corso di recepimento in plenora-database-tools.",
+      "required_capability": "Il comando dichiarato in roundtrips[database]: offline, senza connessione, legge Arrow IPC e produce su stdout il contratto geometrico osservato secondo plenora-database-core, incluso l'esito del parser EWKB su ogni cella. Fino ad allora nessuna verifica indipendente del terzo anello esiste: l'oracolo che copriva parzialmente il ruolo e' stato rimosso dalla baseline RC3 di IO-tools."
     }
   ],
-  "last_verified_by_component_gate": {
-    "source": "plenora-IO-tools:release/system-rc-gate.json",
-    "status": "not_satisfied",
-    "revisions": {
-      "plenora-IO-tools": "179ad037aad18c3c92ff3c703315a7033ff43773",
-      "plenora-data-tools": "97e48ba469f9f55a2cc83e9598d72899c29e2be6",
-      "plenora-database-tools": "2588523bf6a4ad57e62ae3d44e9f58025c55a913"
-    },
-    "note": "Le tre revisioni sopra sono superate: i tre componenti sono avanzati. Il pin dell'ICD invece coincide."
+  "system_qualification": {
+    "status": "not_run",
+    "note": "Nessuna qualifica di sistema e' stata eseguita su questo perimetro. Le tre revisioni fissate sopra sono quelle su cui va eseguita, non quelle su cui e' stata superata.",
+    "historical_observation": {
+      "source": "plenora-IO-tools:release/system-rc-gate.json",
+      "release_tag": "v0.1.0-rc.2",
+      "fixture": "exact_point_xyz_resolved_crs",
+      "platform": "linux_x86_64",
+      "result": "pass",
+      "note": "Osservazione conservata dal tag immutabile v0.1.0-rc.2. L'harness che la produsse e' stato rimosso dalla baseline RC3 di IO-tools e generava anche il dataset di partenza: non era terzo rispetto al primo anello. Non e' evidenza della baseline corrente e non contribuisce al superamento del gate."
+    }
   },
   "required_directions": [
     "io_to_data_to_database",

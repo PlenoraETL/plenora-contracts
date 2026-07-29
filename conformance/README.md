@@ -108,9 +108,23 @@ Finché non c'è, entrambi i runner riportano il terzo come non eseguito e **non
 lo contano come superato**: con un roundtrip o uno stadio saltato l'esito
 complessivo non è mai `0`.
 
-L'unico controllo oggi esistente sul terzo anello è l'oracolo Rust in
-`plenora-IO-tools/conformance/three-component-chain`, che però genera anche il
-dataset di partenza: il primo anello scrive ciò su cui verrà giudicato.
+Fino ad allora nessuna verifica indipendente del terzo anello esiste. L'oracolo
+che ne copriva parzialmente il ruolo — `three-component-chain` in IO-tools — è
+stato rimosso dalla baseline RC3: generava anche il dataset di partenza, quindi
+il primo anello scriveva ciò su cui veniva giudicato.
+
+## Chi possiede la qualifica di sistema
+
+Dalla baseline RC3 di IO-tools, il gate `plenora-system-contract-roundtrip-v1`
+dichiara `ownership: external_system_qualification` e nomina questo perimetro
+come proprietario. Le sue otto fixture, quindici proprietà e sei condizioni di
+superamento vincolano `conformance/`, e `components.json` lo registra sotto
+`satisfies_gate`.
+
+Lo stato è `not_run`. L'osservazione storica di una tratta Point XYZ conservata
+dal tag `v0.1.0-rc.2` resta citata in `system_qualification.historical_observation`
+ma non contribuisce al superamento: non è evidenza della baseline corrente e non
+proveniva da un giudice terzo.
 
 ## Esecuzione
 
