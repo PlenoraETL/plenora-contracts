@@ -26,8 +26,9 @@
     {
       "name": "plenora-database-tools",
       "role": "database_boundary",
-      "revision": "eecb3a33b52601ee6cc9e8855855e9d9cb294144",
-      "pending_merge": "PR #17 — https://github.com/PlenoraETL/plenora-database-tools/pull/17. La revisione fissata vive sul ramo feat/core-field-contract-arrow-ipc e non ancora su main: il roundtrip `database` richiede questo checkout finche' la PR non e' unita.",
+      "revision": "1ca0208b513aace3738b748c9d76619133208b0f",
+      "tested_revision": "eecb3a33b52601ee6cc9e8855855e9d9cb294144",
+      "tested_revision_note": "La qualifica del 30 luglio (13/13) e' stata eseguita su eecb3a3, sul ramo della PR #17. La PR e' ora unita: l'albero di 1ca0208 e' identico byte per byte a quello di eecb3a3, quindi il risultato resta valido sulla revisione di main e non richiede rieseguzione.",
       "remote": "https://github.com/PlenoraETL/plenora-database-tools.git"
     }
   ],
