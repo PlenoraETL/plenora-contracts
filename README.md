@@ -8,6 +8,12 @@ Baseline dei contratti trasversali fra i tre componenti Plenora:
 - [`docs/PLENORA-CONTRATTI-TRASVERSALI.md`](docs/PLENORA-CONTRATTI-TRASVERSALI.md)
   — documento normativo di interfaccia (ICD). È la fonte autorevole: in caso di
   conflitto prevale sulla documentazione dei singoli repository.
+- [`docs/PLENORA-CRITERI-RC.md`](docs/PLENORA-CRITERI-RC.md) — criteri di release
+  candidate. Documento di **processo**, non di interfaccia: fissa solo ciò che
+  deve essere confrontabile fra i tre componenti, non quali test eseguire. Non
+  emenda l'ICD e non ha voce in capitolo sul contratto dati. Verificato da
+  `scripts/check_release_manifest.py`, che a sua volta è verificato da
+  `scripts/test_check_release_manifest.py`.
 - [`docs/PLENORA-INTEGRAZIONE-TRE-LIBRERIE.pdf`](docs/PLENORA-INTEGRAZIONE-TRE-LIBRERIE.pdf)
   — documento divulgativo su come i tre componenti si dividono il lavoro e cosa
   mettono a disposizione. Non è normativo: in caso di conflitto prevale l'ICD.
