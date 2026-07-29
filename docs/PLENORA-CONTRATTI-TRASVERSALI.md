@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc10 · 30 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc11 · 30 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -44,6 +44,7 @@
 > | §15.1 | Repository autonomo come fonte autorevole | **ratificata** | dal 27 lug |
 > | §15.2 | Distribuzione: tag firmato e revisione | `proposta` | vedi deroga DER-ICD-001 |
 > | §15.3 | Contenuto e API del crate condiviso | `proposta` | il crate non va creato finché non è ratificata |
+> | §15.4 | Passi della migrazione e doppia lettura prima della ratifica di §2 | `proposta` | nuova 2.0-rc11: era prosa fino a rc9, promossa a regola in rc10 senza riga di registro |
 >
 > **Effetto pratico.** Una sezione `proposta` non obbliga, ma non vieta: un
 > componente può adottarla per scelta propria, e i tre lo stanno facendo su §9 e

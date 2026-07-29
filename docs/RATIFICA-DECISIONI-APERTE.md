@@ -1,6 +1,6 @@
-# Tredici decisioni di ratifica aperte
+# Quattordici decisioni di ratifica aperte
 
-Il registro dell'ICD ha 24 voci: 11 ratificate, 13 `proposta`. Questa pagina
+Il registro dell'ICD ha 25 voci: 11 ratificate, 14 `proposta`. Questa pagina
 serve a decidere voce per voce senza rileggere il documento.
 
 **Perché conta.** Una regola `proposta` non vincola nessuno. Alla data di questa
@@ -45,16 +45,17 @@ ed è da lì che conviene cominciare.
 | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | Emendamento di una regola 1.x che resta in vigore (R4.5.1). Finché non è ratificata vale la formulazione più restrittiva: nessun pushdown |
 | §15.2 | Distribuzione: tag firmato e revisione esatta | Nessun tag di questo repository è firmato. Ratificarla richiede una baseline firmata prima di poterla rispettare |
 | §15.3 | Contenuto e API del crate condiviso | Il crate non esiste. È il blocco del passo 2 di §15.4, e ora esiste un'implementazione candidata da estrarre: `field_contract.rs` di `plenora-database-core` |
+| §15.4 | Passi della migrazione, doppia lettura prima della ratifica di §2 | Era prosa fino a 2.0-rc9 e non vincolava; promossa a regola in rc10. Ratificarla rende esigibile l'ordine dei passi e la deroga DER-ICD-002 sull'emissione canonica |
 
 ## Ordine suggerito
 
 Le quattro voci a costo quasi nullo prima: portano il registro da 11 a 15
-ratificate su 24 senza aprire un solo gap, e rendono esigibile ciò che i tre già
+ratificate su 25 senza aprire un solo gap, e rendono esigibile ciò che i tre già
 fanno. Poi §4.6 e §4.3.1–§4.3.3 insieme, perché sono la stessa materia e
 ratificarle separatamente lascerebbe scoperto proprio il punto che si è voluto
 chiarire. Poi §15.3, che sblocca il crate. Il resto quando l'evidenza esiste.
 
-**Cosa non fare.** Ratificare tutto in blocco per portare il contatore a 24. Una
+**Cosa non fare.** Ratificare tutto in blocco per portare il contatore a 25. Una
 ratifica senza gap dichiarati né deroghe registrate è una dichiarazione di
 conformità che nessuno ha verificato, e vale meno di una regola `proposta`
 onesta.

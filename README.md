@@ -12,7 +12,7 @@ Baseline dei contratti trasversali fra i tre componenti Plenora:
   team: chi fa cosa, in che ordine, e cosa sblocca cosa. Istantanea datata e non
   normativa; lo stato autorevole sta nelle fonti citate in Appendice A dell'ICD.
 - [`docs/RATIFICA-DECISIONI-APERTE.md`](docs/RATIFICA-DECISIONI-APERTE.md) — le
-  tredici voci del registro ancora `proposta`, con l'adozione già in atto nei tre
+  quattordici voci del registro ancora `proposta`, con l'adozione già in atto nei tre
   componenti e cosa comporta ratificare ciascuna. Serve a decidere voce per voce
   senza rileggere l'ICD; non è normativo, prevale il registro.
 - [`docs/PLENORA-CRITERI-RC.md`](docs/PLENORA-CRITERI-RC.md) — criteri di release
@@ -43,7 +43,7 @@ Owner: Marco Bonamente.
 
 ## Come citarlo
 
-La proposta §15.2 della 2.0-rc10 richiede che ogni change impact analysis nei tre
+La proposta §15.2 della 2.0-rc11 richiede che ogni change impact analysis nei tre
 repository si riferisca a un tag annotato e firmato e alla revisione esatta
 corrispondente, non al contenuto del file in un dato momento. Dopo la ratifica,
 le dipendenze dal crate useranno la revisione registrata nel `Cargo.lock` e la CI
@@ -51,7 +51,7 @@ userà `--locked`.
 
 ## Come proporre una modifica
 
-La proposta §16 della 2.0-rc10 richiede di indicare regole e hazard toccati,
+La proposta §16 della 2.0-rc11 richiede di indicare regole e hazard toccati,
 impatto sui tre componenti, piano di migrazione e retrocompatibilità. I tre team
 registrano la propria posizione tecnica; l'owner ratifica solo in assenza di
 rilievi bloccanti e dopo la revisione indipendente richiesta. La ratifica rende
