@@ -100,6 +100,30 @@ def contract_from_stdout(payload: str) -> dict[str, str]:
     return observed
 
 
+def judge_rejection(expected: dict, detail: str) -> tuple[bool, str]:
+    """Un rifiuto vale solo se e' il rifiuto giusto.
+
+    Nella prima esecuzione della matrice un componente che respingeva ogni
+    dataset per un backend CRS non abilitato ha superato il caso `fail_closed`:
+    il runner accettava qualunque uscita diversa da zero. Ora la fixture
+    dichiara le tracce della causa attesa e quelle che la squalificano.
+    """
+    signature = expected.get("expected_error") or {}
+    hints = [h.lower() for h in signature.get("cause_hints", [])]
+    disqualifying = [d.lower() for d in signature.get("disqualifying", [])]
+    lowered = detail.lower()
+
+    for marker in disqualifying:
+        if marker in lowered:
+            return False, (f"respinto per una ragione estranea al caso "
+                           f"({marker!r} nel messaggio): non e' evidenza che il "
+                           f"conflitto sia rilevato")
+    if hints and not any(hint in lowered for hint in hints):
+        return False, ("respinto senza citare la causa attesa "
+                       f"({', '.join(hints)}): rifiuto non attribuibile")
+    return True, "respinto per la causa attesa"
+
+
 def run(invocation: list[str], repo: Path, substitutions: dict[str, str]):
     command = [part.format(**substitutions) for part in invocation]
     return subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
@@ -170,9 +194,15 @@ def main() -> int:
 
                 if completed.returncode != 0:
                     detail = (completed.stderr or completed.stdout or "").strip()
-                    record["verdict"] = "pass" if fail_closed else "fail"
-                    record["reason"] = ("respinto come previsto" if fail_closed
-                                        else f"errore: {detail[-400:]}")
+                    # L'evidenza del rifiuto va conservata proprio dove conta.
+                    record["rejection"] = detail[-600:]
+                    if fail_closed:
+                        right, why = judge_rejection(expected, detail)
+                        record["verdict"] = "pass" if right else "fail"
+                        record["reason"] = why
+                    else:
+                        record["verdict"] = "fail"
+                        record["reason"] = f"errore: {detail[-400:]}"
                     results.append(record)
                     continue
 

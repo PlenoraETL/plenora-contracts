@@ -122,7 +122,7 @@
         "plenora-data-tools": "1/13",
         "plenora-database-tools": "13/13"
       },
-      "invalidated": "Il risultato di plenora-data-tools non e' interpretabile: undici dei dodici fallimenti sono CRS_BACKEND_UNAVAILABLE, prodotti dall'assenza del flag `--features proj-backend` in questo manifesto e non da un difetto della libreria. Va rieseguito con l'invocazione corretta prima di attribuire un punteggio a data-tools.",
+      "invalidated": "Il risultato di plenora-data-tools non e' interpretabile in nessuna delle due direzioni. Undici dei dodici fallimenti sono CRS_BACKEND_UNAVAILABLE, prodotti dall'assenza del flag `--features proj-backend` in questo manifesto e non da un difetto della libreria. E l'unico caso superato, `conflicting_crs`, era un falso positivo: il runner accettava qualunque uscita diversa da zero come `respinto come previsto`, quindi un componente che respinge ogni dataset per un backend non abilitato superava proprio il caso piu' importante del corpus. Corretto: le fixture `fail_closed` dichiarano ora la causa attesa e quelle che la squalificano, e il rifiuto viene conservato nel report. Va rieseguito.",
       "genuine_findings": [
         {
           "component": "plenora-IO-tools",
@@ -131,6 +131,14 @@
           "rule": "R4.3.1",
           "rule_state": "proposta",
           "note": "R4.3.1 non e' ratificata: e' un gap verso una regola proposta, non la violazione di un vincolo in vigore."
+        },
+        {
+          "component": "plenora-database-tools",
+          "case": "conflicting_crs",
+          "observed": "rileva il conflitto e respinge con ErrorCategory::Crs, `identificatore CRS e SRID numerico divergenti`",
+          "rule": "R4.3.1",
+          "rule_state": "proposta",
+          "note": "Verificato staticamente in plenora-database-core/src/field_contract.rs: validate_crs risolve l'autorita' da crs_id e la confronta con srid. E' l'unico dei tre che rileva il conflitto, e lo fa per la ragione giusta. Non e' un finding: e' il riferimento con cui confrontare gli altri due."
         },
         {
           "component": "plenora-data-tools",

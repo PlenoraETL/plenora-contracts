@@ -66,6 +66,22 @@ def diff(before: dict[str, dict[str, str]], after: dict[str, dict[str, str]]) ->
     return losses
 
 
+def judge_rejection(expected: dict, detail: str) -> tuple[bool, str]:
+    """Un rifiuto vale solo se e' il rifiuto giusto. Vedi run_roundtrip.py."""
+    signature = expected.get("expected_error") or {}
+    hints = [h.lower() for h in signature.get("cause_hints", [])]
+    disqualifying = [d.lower() for d in signature.get("disqualifying", [])]
+    lowered = detail.lower()
+    for marker in disqualifying:
+        if marker in lowered:
+            return False, (f"respinto per una ragione estranea al caso "
+                           f"({marker!r} nel messaggio)")
+    if hints and not any(hint in lowered for hint in hints):
+        return False, ("respinto senza citare la causa attesa "
+                       f"({', '.join(hints)}): rifiuto non attribuibile")
+    return True, "respinto per la causa attesa"
+
+
 def run_stage(stage: dict, repo: Path, substitutions: dict[str, str]) -> tuple[bool, str]:
     command = [part.format(**substitutions) for part in stage["invocation"]]
     completed = subprocess.run(
@@ -157,9 +173,19 @@ def main() -> int:
             losses = [loss for s in record["stages"] for loss in s.get("losses", [])]
 
             if fail_closed:
-                record["verdict"] = "pass" if errored else "fail"
-                record["reason"] = ("respinto come previsto" if errored else
-                                    "conflitto accettato in silenzio invece di fallire chiuso")
+                # Un rifiuto vale solo se e' il rifiuto giusto: vedi
+                # judge_rejection in run_roundtrip.py e la nota su
+                # `expected_error` nel corpus.
+                if not errored:
+                    record["verdict"] = "fail"
+                    record["reason"] = ("conflitto accettato in silenzio invece "
+                                        "di fallire chiuso")
+                else:
+                    detail = record["stages"][-1].get("detail", "")
+                    record["rejection"] = detail[-600:]
+                    right, why = judge_rejection(expected, detail)
+                    record["verdict"] = "pass" if right else "fail"
+                    record["reason"] = why
             elif errored:
                 record["verdict"] = "fail"
                 record["reason"] = "errore in " + record["stages"][-1]["stage"]

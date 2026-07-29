@@ -298,8 +298,23 @@ def case_conflicting_crs() -> tuple[pa.Table, dict]:
         schema=pa.schema([field, pa.field("id", pa.int64())],
                          metadata={"plenora.contract.version": CONTRACT_VERSION}),
     )
-    return table, {"expect": "fail_closed", "conflict": "crs_id=EPSG:4326 vs srid=3003",
-                   "rule": "R4.3", "gate_fixture": "conflicting_crs_representations"}
+    return table, {
+        "expect": "fail_closed",
+        "conflict": "crs_id=EPSG:4326 vs srid=3003",
+        "rule": "R4.3",
+        "gate_fixture": "conflicting_crs_representations",
+        # Un rifiuto non basta: deve essere il rifiuto giusto. Senza queste due
+        # liste un componente che respinge tutto per una ragione estranea
+        # supererebbe il caso, ed e' esattamente cio' che e' successo nella
+        # prima esecuzione della matrice.
+        "expected_error": {
+            "cause_hints": ["srid", "crs_id", "identificatore crs",
+                            "rappresentazioni", "divergent", "conflict"],
+            "disqualifying": ["backend_unavailable", "crs_backend",
+                              "proj", "feature", "not implemented",
+                              "unsupported operation"],
+        },
+    }
 
 
 CASES = {
