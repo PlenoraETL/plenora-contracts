@@ -50,10 +50,12 @@
       "status": "available",
       "invocation": [
         "cargo", "run", "--locked", "--quiet", "-p", "plenora-cli",
+        "--features", "proj-backend",
         "--", "run", "--plan", "{plan}", "--inputs", "{input}", "--output", "{output}"
       ],
       "plan_schema_version": 4,
-      "note": "Il piano filtra su una condizione sempre vera: ogni differenza osservata è propagazione mancata, non trasformazione."
+      "required_features": ["proj-backend"],
+      "note": "Il piano filtra su una condizione sempre vera: ogni differenza osservata è propagazione mancata, non trasformazione. `proj-backend` e' obbligatorio: senza di esso plenora-cli respinge ogni dataset con CRS_BACKEND_UNAVAILABLE, e la prima esecuzione della matrice ne attribui' undici fallimenti alla libreria mentre erano un difetto di questo manifesto, che aveva perso il flag."
     },
     {
       "id": "database",
@@ -95,6 +97,7 @@
       "status": "available",
       "invocation": [
         "cargo", "run", "--locked", "--quiet", "-p", "plenora-cli",
+        "--features", "proj-backend",
         "--", "run", "--plan", "{plan}", "--inputs", "{input}", "--output", "{output}"
       ],
       "plan_schema_version": 4
@@ -108,8 +111,37 @@
     }
   ],
   "system_qualification": {
-    "status": "not_run",
-    "note": "Nessuna qualifica di sistema e' stata eseguita su questo perimetro. Le tre revisioni fissate sopra sono quelle su cui va eseguita, non quelle su cui e' stata superata.",
+    "status": "run_not_satisfied",
+    "result": "26/39 verifiche conformi",
+    "run": {
+      "date": "2026-07-30",
+      "report": "plenora-pinned-roundtrip-report.json",
+      "per_component": {
+        "plenora-IO-tools": "12/13",
+        "plenora-data-tools": "1/13",
+        "plenora-database-tools": "13/13"
+      },
+      "invalidated": "Il risultato di plenora-data-tools non e' interpretabile: undici dei dodici fallimenti sono CRS_BACKEND_UNAVAILABLE, prodotti dall'assenza del flag `--features proj-backend` in questo manifesto e non da un difetto della libreria. Va rieseguito con l'invocazione corretta prima di attribuire un punteggio a data-tools.",
+      "genuine_findings": [
+        {
+          "component": "plenora-IO-tools",
+          "case": "conflicting_crs",
+          "observed": "conflitto crs_id=EPSG:4326 contro srid=3003 accettato in silenzio invece di fallire chiuso",
+          "rule": "R4.3.1",
+          "rule_state": "proposta",
+          "note": "R4.3.1 non e' ratificata: e' un gap verso una regola proposta, non la violazione di un vincolo in vigore."
+        },
+        {
+          "component": "plenora-data-tools",
+          "case": "crs_missing",
+          "observed": "respinge il dataset: `colonna geometria geometry senza metadato geo: impossibile determinare il CRS`",
+          "rule": "R4.1, R4.4",
+          "rule_state": "ratificata",
+          "note": "Ambiguita' del contratto, non difetto accertato. Nessuna regola impone di accettare `crs_resolution=missing`, e nessuna autorizza a respingerlo quando il piano non richiede riproiezione. Il piano usato e' un filtro puro. Da dirimere dall'owner prima di chiedere una modifica a data-tools."
+        }
+      ]
+    },
+    "note": "Prima esecuzione reale della matrice, sulle revisioni fissate. Il risultato non soddisfa il gate. Le due direzioni richieste non sono entrambe coperte: la matrice esegue solo i roundtrip per componente.",
     "historical_observation": {
       "source": "plenora-IO-tools:release/system-rc-gate.json",
       "release_tag": "v0.1.0-rc.2",

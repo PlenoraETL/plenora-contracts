@@ -1,0 +1,361 @@
+{
+  "icd": {
+    "revision": "62b12e3496466d2c908dac3cc098640b99b52e21",
+    "tag": "v2.0-rc8"
+  },
+  "manifest_version": 1,
+  "roundtrips_skipped": [],
+  "verifications": [
+    {
+      "case": "axis_lat_lon",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs",
+      "component": "plenora-IO-tools",
+      "expect": "fail_closed",
+      "kind": "arrow_to_arrow",
+      "reason": "conflitto accettato in silenzio invece di fallire chiuso",
+      "roundtrip": "io",
+      "verdict": "fail"
+    },
+    {
+      "case": "crs_missing",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key",
+      "component": "plenora-IO-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "losses": [],
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "axis_lat_lon",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: CRS error: input `main` (/repos/plenora-contracts/conformance/cases/axis_lat_lon.arrow): CRS_BACKEND_UNAVAILABLE: la validazione CRS richiede il backend PROJ",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "conflicting_crs",
+      "component": "plenora-data-tools",
+      "expect": "fail_closed",
+      "kind": "arrow_to_arrow",
+      "reason": "respinto come previsto",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: contract violation: input `main` (/repos/plenora-contracts/conformance/cases/crs_missing.arrow): colonna geometria `geometry` senza metadato `geo`: impossibile determinare il CRS",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "crs_unresolved",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: CRS error: input `main` (/repos/plenora-contracts/conformance/cases/crs_unresolved.arrow): CRS_BACKEND_UNAVAILABLE: la validazione CRS richiede il backend PROJ",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "dimensions_unknown",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: CRS error: input `main` (/repos/plenora-contracts/conformance/cases/dimensions_unknown.arrow): CRS_BACKEND_UNAVAILABLE: la validazione CRS richiede il backend PROJ",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "geography_semantics",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: CRS error: input `main` (/repos/plenora-contracts/conformance/cases/geography_semantics.arrow): CRS_BACKEND_UNAVAILABLE: la validazione CRS richiede il backend PROJ",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "int64_beyond_2_53",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: CRS error: input `main` (/repos/plenora-contracts/conformance/cases/int64_beyond_2_53.arrow): CRS_BACKEND_UNAVAILABLE: la validazione CRS richiede il backend PROJ",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "multipolygon_xyzm_srid",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: CRS error: input `main` (/repos/plenora-contracts/conformance/cases/multipolygon_xyzm_srid.arrow): CRS_BACKEND_UNAVAILABLE: la validazione CRS richiede il backend PROJ",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "point_z",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: CRS error: input `main` (/repos/plenora-contracts/conformance/cases/point_z.arrow): CRS_BACKEND_UNAVAILABLE: la validazione CRS richiede il backend PROJ",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "point_zm",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: CRS error: input `main` (/repos/plenora-contracts/conformance/cases/point_zm.arrow): CRS_BACKEND_UNAVAILABLE: la validazione CRS richiede il backend PROJ",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "types_mixed",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: CRS error: input `main` (/repos/plenora-contracts/conformance/cases/types_mixed.arrow): CRS_BACKEND_UNAVAILABLE: la validazione CRS richiede il backend PROJ",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "uint64_ordering",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: CRS error: input `main` (/repos/plenora-contracts/conformance/cases/uint64_ordering.arrow): CRS_BACKEND_UNAVAILABLE: la validazione CRS richiede il backend PROJ",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "unknown_key",
+      "component": "plenora-data-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "errore: plenora-data-tools: CRS error: input `main` (/repos/plenora-contracts/conformance/cases/unknown_key.arrow): CRS_BACKEND_UNAVAILABLE: la validazione CRS richiede il backend PROJ",
+      "roundtrip": "data",
+      "verdict": "fail"
+    },
+    {
+      "case": "axis_lat_lon",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs",
+      "component": "plenora-database-tools",
+      "expect": "fail_closed",
+      "kind": "arrow_to_contract",
+      "reason": "respinto come previsto",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "roundtrip": "database",
+      "verdict": "pass"
+    }
+  ]
+}
