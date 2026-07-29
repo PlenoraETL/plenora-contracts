@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc9 · 30 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc10 · 30 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -71,34 +71,6 @@ qui contenute prevalgono sulla documentazione locale dei singoli repository.
 | **plenora-IO-tools** | Bordo verso i formati file | `plenora-IO-tools` |
 | **plenora-data-tools** | Motore di trasformazione (centro) | `plenora-data-tools` |
 | **plenora-database-tools** | Bordo verso i database | `plenora-database-tools` |
-
----
-
-## Indice
-
-- §0 Come si usa questo documento
-- §1 R1 — Versione Arrow
-- §2 R2 — Chiavi dei metadati Arrow
-- §3 R3 — Modello geometrico
-- §4 R4 — Sistema di riferimento (CRS)
-- §5 R5 — Perdita di informazione
-- §6 R6 — Fallimento invece di panic
-- §7 R7 — Limiti di risorsa
-- §8 R8 — Identità dei crate e delle colonne
-- §9 R9 — Modello di errore attraverso i confini
-- §10 R10 — Capability e negoziazione
-- §11 R11 — Cancellazione
-- §12 R12 — Determinismo e riproducibilità dei risultati
-- §13 R13 — Toolchain e baseline
-- §14 R14 — Esiti di scrittura e pubblicazione
-- §15 Crate condiviso e migrazione (§15.1 autorità · §15.2 distribuzione · §15.3 contenuto · §15.4 piano)
-- §16 Deroghe e modifiche
-- §17 Definizione di componente conforme
-- Appendice A — Riepilogo di conformità
-- Appendice B — Hazard di riferimento
-- Appendice C — Tabelle di rinomina
-- Appendice D — Glossario
-- Appendice E — Matrice minima di verifica
 
 ---
 
@@ -901,10 +873,8 @@ vanno citate separatamente.
 > **R15.1.3** Una collocazione provvisoria altrove è ammessa solo se dichiarata
 > tale secondo §16, con condizione di rientro esplicita.
 
-**Perché non `docs/` di uno dei tre.** Un contratto che vincola tre team non può
-essere ospitato da uno di essi: chi lo ospita ne controlla di fatto il merge, e
-§15.4 assegna già a IO-tools il ruolo di riferimento per i tipi. Concentrare
-anche la sede del documento sbilancerebbe la governance.
+**Perché non in uno dei tre.** Chi ospita un contratto ne controlla di fatto il
+merge, e un componente non può essere giudice di sé stesso.
 
 ### §15.2 — Distribuzione e immutabilità del riferimento
 
@@ -945,47 +915,28 @@ anche la sede del documento sbilancerebbe la governance.
 | Contenuto — capability | descrizione dichiarativa interrogabile prima dell'esecuzione (§10), inclusa la capability di pushdown della riproiezione (R4.5) |
 | Vincoli di dipendenza | `serde` e `arrow-schema`; `cancelled()` usa `core::future::Future` e `core::task::Waker`. **Né `futures-core` né runtime asincroni.** Nessun `unsafe`, nessuna primitiva di panic |
 
-**Stato.** L'elenco è ora completo: la 2.0 recepisce il rilievo che aveva portato
-alla sospensione. Il crate può essere creato quando §15.3 torna `ratificata`.
+### §15.4 — Migrazione
 
-### §15.4 — Piano di migrazione
+> **R15.4.1** La convergenza avviene per passi verificabili e indipendenti, in
+> quest'ordine: allineamento delle chiavi §2; estrazione del crate a semantica
+> zero dai tipi di confine di `plenora-io-model`; adozione da parte di
+> data-tools e database-tools, una per volta con la propria change impact
+> analysis; allargamento del modello geometrico solo quando i tre dipendono
+> dallo stesso crate.
+>
+> **R15.4.2** Prima della ratifica di §2 la doppia lettura è sempre consentita.
+> L'**emissione** canonica richiede una deroga registrata nel repository che la
+> pratica, con l'hazard per i consumatori non allineati e la condizione di
+> rientro. Tutti e tre sono oggi in questa condizione: vedi DER-ICD-002.
 
-La convergenza avviene in quattro passi, in quest'ordine. Ogni passo è
-verificabile e non richiede il successivo per essere utile.
+**Perché l'estrazione parte da `plenora-io-model`.** Non per maturità, ma perché
+i vincoli dei formati file non sono negoziabili: `unknown`,
+`declared_unresolved` e l'ordine degli assi non canonicalizzato sono scoperte
+fatte contro dati reali, non scelte rifacibili a tavolino. L'eccezione è il
+modello d'errore di §9, dove il riferimento è `plenora-database-core`.
 
-**Passo 1 — Chiavi metadata (§2).** Non dipende da nessun refactoring: sono
-costanti stringa. Ogni componente allinea i propri nomi alla tabella §2, con un
-periodo di doppia lettura (accettare vecchio e nuovo, emettere solo il vecchio)
-se serve compatibilità all'indietro. Vedi Appendice C.
-
-*(emendato 2.0-rc5)* Prima della ratifica di §2 la doppia lettura è sempre
-consentita. L'**emissione** canonica è ammessa solo con deroga registrata nel
-repository che la pratica, che dichiari l'hazard per i consumatori non allineati
-e la condizione di rientro. Tutti e tre i componenti sono oggi in questa
-condizione: vedi DER-ICD-002.
-
-**Passo 2 — Estrazione a semantica zero.** Nasce il crate condiviso, come pura
-estrazione dei tipi di confine oggi in
-`plenora-IO-tools/crates/plenora-io-model`.
-IO-tools ci dipende e re-esporta; nessun cambiamento di comportamento, nessuno
-stato di tracciabilità si muove. Subordinato a §15.3.
-
-**Passo 3 — Adozione.** data-tools e database-tools adottano il crate condiviso,
-uno per volta, ciascuno con la propria change impact analysis.
-
-**Passo 4 — Allargamento del modello.** Solo quando i tre dipendono dallo stesso
-crate si estende il modello geometrico (curve, XYZM ovunque) con una CIA che
-copre i tre insieme.
-
-**Perché IO-tools è il punto di partenza del passo 2.** Non per maturità, ma
-perché i suoi vincoli non sono negoziabili: i formati file esistono e dettano
-cosa deve essere rappresentabile. Gli stati `unknown`, `declared_unresolved` e
-l'axis order non canonicalizzato sono scoperte fatte contro dati reali, non
-scelte di design che si possano rifare a tavolino. I sedici tipi geometrici di
-database-tools, al contrario, si aggiungono in un pomeriggio. L'eccezione è il
-modello d'errore (§9), dove il punto di partenza è database-tools.
-
----
+Il piano operativo dei passi vivrà nel README del crate, non qui: un documento
+normativo dice cosa deve valere, non come si organizza il lavoro.
 
 ## §16 Deroghe e modifiche
 
@@ -1052,51 +1003,27 @@ Il registro in testa al documento dice quali sezioni sono ratificate. Nessun ele
 
 ---
 
-## Appendice A — Riepilogo di conformità
+## Appendice A — Dove sta lo stato di fatto
 
-Stato al 28 luglio 2026.
+Lo stato di conformità **non** vive in questo documento. Le versioni precedenti
+ne tenevano qui una fotografia scritta a mano, e invecchiava da sola: dichiarava
+ancoraggi superati, conteggi sbagliati e un lavoro «da fare» che era già fatto.
+Una tabella che nessun controllo può smentire diventa falsa senza che nessuno se
+ne accorga.
 
-Rilevata per ispezione del codice, non per esecuzione dei test. Ancoraggi:
-IO-tools `59369fd`, data-tools `40771de`, database-tools `f7cc5b1`.
+Le fonti autorevoli, tutte leggibili da macchina e verificabili:
 
-### Sezioni vincolanti
+| Cosa | Dove |
+|---|---|
+| Revisioni su cui la qualifica va eseguita | `conformance/components.json`, `components[]` |
+| Esito della qualifica di sistema | `conformance/components.json`, `system_qualification` |
+| Evidenza di un'esecuzione | `conformance/evidence-<data>-roundtrip.json` |
+| Stato di rilascio di un componente | i manifesti in `release/` del componente, secondo `PLENORA-CRITERI-RC.md` |
+| Stato normativo di ogni sezione | il registro di ratifica in testa a questo documento |
 
-| Regola | IO-tools | data-tools | database-tools |
-|---|---|---|---|
-| §1 Arrow pinnato `=59.1.0` | ✅ | ✅ | ✅ |
-| §3.1 Tipi geometrici, forma canonica | ✅ 7/16 | ✅ | ✅ 16/16 |
-| §3.2 Rifiuto esplicito | ✅ | ✅ | ✅ |
-| §3.3 Cinque dimensioni | ✅ | ✅ | ✅ |
-| §3.5 Encoding come enum | ✅ | ✅ | ✅ |
-| §4 Modello CRS | ✅ chiavi complete | ✅ | ✅ |
-| §5 Perdita non silenziosa | ⚠ 88 fallback censiti e classificati | ✅ | ⚠ nessun `LossReport` uniforme |
-| §6 Nessun panic nei `lib` | ✅ 0, gate | ✅ 0, gate | ✅ 0, gate |
-| §8 Identità di crate e colonne | ✅ | ✅ | ✅ |
-| §13 Toolchain e pin | ✅ | ✅ | ✅ |
-| §15.1 Repository autorevole | ✅ | ✅ | ✅ |
-
-### Sezioni non ancora vincolanti, già adottate
-
-| Regola | IO-tools | data-tools | database-tools |
-|---|---|---|---|
-| §2 Chiavi canoniche | ✅ 13 | ✅ 14 | ✅ 14 |
-| §9 Errore a quattro assi | ✅ | ✅ | ✅ riferimento |
-| §11 Cancellazione | ✅ token, deadline, figli | ✅ | ✅ |
-| §7 Budget ceduto | ⚠ parziale | ✅ lease | ✅ lease |
-| §12 Determinismo dichiarato | ❌ non testato | ✅ oracolo spill | ⚠ differenziale encoder |
-| §10 Capability interrogabili | ⚠ per driver | ❌ | ⚠ per provider |
-| §14 Esiti di scrittura | ✅ | n/a | ✅ |
-| §15.3 Crate condiviso | ❌ non esiste | ❌ | ❌ |
-
-### Cosa manca alla catena
-
-I tre emettono e leggono lo stesso vocabolario, ma **nessuno verifica la catena
-completa**: un dataset con Z, M, CRS irrisolto e ordine assi lat/lon che entri da
-un bordo, attraversi il centro ed esca dall'altro bordo non è oggi oggetto di
-alcun test. È il primo contenuto eseguibile che questo repository dovrebbe
-ospitare.
-
----
+Nessuna affermazione altrove sostituisce queste fonti. Un componente che si
+ritiene conforme a una regola lo dimostra con l'esito della qualifica sulla
+propria revisione, non con una riga in una tabella.
 
 ## Appendice B — Hazard di riferimento
 
@@ -1114,51 +1041,6 @@ documento controllano gli hazard indicati.
 | H-07 | Artefatto non riproducibile o dipendenza non controllata | R1, R12, R13 |
 | H-08 | Difetto non rilevato dalla strategia di verifica | R12.4, §17 |
 | H-09 | Regressione introdotta senza change impact analysis | R13.5, §16 |
-
----
-
-## Appendice C — Tabelle di rinomina
-
-### Mappatura delle categorie d'errore dai modelli locali
-
-| Categoria locale | Categoria canonica |
-|---|---|
-| `Contract` | `InvalidPlan` |
-| `Schema` | `Schema` |
-| `Crs` | `Crs` |
-| `Wkb` | `DataMapping` |
-| `LimitExceeded` | `ResourceLimit` |
-| `OutputExists` | `Conflict` |
-| `Unsupported`, `UnsupportedPublishTarget` | `Unsupported` |
-| `Io` | `Io` |
-| `Json`, `Arrow` | `DataMapping` |
-| `Step` | `Execution` |
-| `Cancelled` | `Cancelled` |
-
-Migrazione delle chiavi al namespace canonico (§2, passo 1 di §15.4). Stato al
-28 luglio 2026, alle revisioni dichiarate in Appendice A.
-
-### plenora-IO-tools
-
-Emette l'insieme canonico completo. Resta da verificare `plenora.geometry.native.*`,
-che secondo R2.3 dovrebbe usare un sotto-namespace per formato.
-
-### plenora-data-tools
-
-Emetteva un'unica chiave `plenora.contract`, che R2.2 vieta. Dalla milestone B
-emette le chiavi canoniche separate. Resta da dismettere la chiave legacy quando
-§2 sarà ratificata.
-
-### plenora-database-tools
-
-Emette l'insieme canonico completo e mantiene in parallelo le chiavi legacy —
-`plenora.dimensions`, `plenora.srid`, `plenora.geometry_type`,
-`plenora.spatial_semantics`, `plenora.native_type`, `plenora.native_declaration`,
-`plenora.postgres_type_kind` — in doppia emissione. Le estensioni proprie usano
-già il sotto-namespace `plenora.postgres.*` conforme a R2.3.
-
-Le legacy vanno dismesse alla ratifica di §2, non prima: finché la forma canonica
-è `proposta`, la doppia emissione è la sola compatibile con DER-ICD-002.
 
 ---
 
@@ -1198,6 +1080,12 @@ documenti normativi a cui una CIA si riferisce.
 Questa matrice definisce l'evidenza minima comune richiesta da R0. Non sostituisce
 i piani di verifica dei componenti e non trasforma una regola `proposta` in una
 regola vincolante.
+
+Il corpus di `conformance/` scarica **in parte** le righe R2, R3, R4 e R5: copre
+il trasporto e la propagazione delle chiavi attraverso i tre componenti, non il
+fuzzing dei decoder né la matrice completa degli ordini d'asse. Una riga resta
+scoperta finché la sua evidenza minima non è tutta prodotta: il corpus riduce il
+lavoro residuo, non lo chiude.
 
 | Regole | Metodo minimo | Evidenza minima |
 |---|---|---|

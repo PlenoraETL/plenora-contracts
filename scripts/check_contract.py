@@ -31,9 +31,8 @@ REQUIREMENT_DEFINITION_RE = re.compile(
 )
 ALLOWED_REGISTRY_STATES = ("ratificata", "proposta")
 REQUIRED_APPENDICES = (
-    "## Appendice A — Riepilogo di conformità",
+    "## Appendice A — Dove sta lo stato di fatto",
     "## Appendice B — Hazard di riferimento",
-    "## Appendice C — Tabelle di rinomina",
     "## Appendice D — Glossario",
     "## Appendice E — Matrice minima di verifica",
 )
@@ -157,8 +156,9 @@ def validate_document(
             f" {ratified_rows} righe ratificate, ma la baseline ne dichiara 11"
         )
 
-    appendix_a = document.find("## Appendice A")
-    body = document[:appendix_a] if appendix_a > 0 else document
+    # Appendice A non contiene piu' una fotografia di stato: rinvia alle fonti
+    # leggibili da macchina. Il divieto vale quindi sul documento intero.
+    body = document
     for marker in (
         "Stato oggi",
         "situazione attuale",
@@ -171,7 +171,7 @@ def validate_document(
         if marker.lower() in body.lower():
             errors.append(
                 f"corpo normativo: fotografia di stato vietata, marcatore {marker!r}."
-                " Lo stato di fatto sta solo in Appendice A"
+                " Lo stato di fatto sta nelle fonti citate in Appendice A"
             )
 
     for line_number, line in enumerate(body.splitlines(), start=1):

@@ -8,6 +8,10 @@ Baseline dei contratti trasversali fra i tre componenti Plenora:
 - [`docs/PLENORA-CONTRATTI-TRASVERSALI.md`](docs/PLENORA-CONTRATTI-TRASVERSALI.md)
   — documento normativo di interfaccia (ICD). È la fonte autorevole: in caso di
   conflitto prevale sulla documentazione dei singoli repository.
+- [`docs/RATIFICA-DECISIONI-APERTE.md`](docs/RATIFICA-DECISIONI-APERTE.md) — le
+  tredici voci del registro ancora `proposta`, con l'adozione già in atto nei tre
+  componenti e cosa comporta ratificare ciascuna. Serve a decidere voce per voce
+  senza rileggere l'ICD; non è normativo, prevale il registro.
 - [`docs/PLENORA-CRITERI-RC.md`](docs/PLENORA-CRITERI-RC.md) — criteri di release
   candidate. Documento di **processo**, non di interfaccia: fissa solo ciò che
   deve essere confrontabile fra i tre componenti, non quali test eseguire. Non
@@ -36,7 +40,7 @@ Owner: Marco Bonamente.
 
 ## Come citarlo
 
-La proposta §15.2 della 2.0-rc9 richiede che ogni change impact analysis nei tre
+La proposta §15.2 della 2.0-rc10 richiede che ogni change impact analysis nei tre
 repository si riferisca a un tag annotato e firmato e alla revisione esatta
 corrispondente, non al contenuto del file in un dato momento. Dopo la ratifica,
 le dipendenze dal crate useranno la revisione registrata nel `Cargo.lock` e la CI
@@ -44,7 +48,7 @@ userà `--locked`.
 
 ## Come proporre una modifica
 
-La proposta §16 della 2.0-rc9 richiede di indicare regole e hazard toccati,
+La proposta §16 della 2.0-rc10 richiede di indicare regole e hazard toccati,
 impatto sui tre componenti, piano di migrazione e retrocompatibilità. I tre team
 registrano la propria posizione tecnica; l'owner ratifica solo in assenza di
 rilievi bloccanti e dopo la revisione indipendente richiesta. La ratifica rende
