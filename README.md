@@ -8,6 +8,15 @@ Baseline dei contratti trasversali fra i tre componenti Plenora:
 - [`docs/PLENORA-CONTRATTI-TRASVERSALI.md`](docs/PLENORA-CONTRATTI-TRASVERSALI.md)
   — documento normativo di interfaccia (ICD). È la fonte autorevole: in caso di
   conflitto prevale sulla documentazione dei singoli repository.
+- [`docs/PLENORA-INTEGRAZIONE-TRE-LIBRERIE.pdf`](docs/PLENORA-INTEGRAZIONE-TRE-LIBRERIE.pdf)
+  — documento divulgativo su come i tre componenti si dividono il lavoro e cosa
+  mettono a disposizione. Non è normativo: in caso di conflitto prevale l'ICD.
+  Si rigenera con `python scripts/build_integration_pdf.py`; conteggi e tabelle
+  vanno rilevati dal codice, non copiati dalla documentazione dei componenti.
+- `conformance/` — corpus neutro e runner che verificano il contratto sui tre
+  componenti. Perimetro della qualifica di sistema `plenora-system-contract-roundtrip-v1`,
+  di cui questo repository è proprietario. Vedi
+  [`conformance/README.md`](conformance/README.md).
 - `src/` — il futuro crate `plenora-contracts` con i tipi di confine. **Non
   ancora creato**: la sua estrazione è il passo 2 di §15 dell'ICD ed è in
   attesa della ratifica di §15.3.
