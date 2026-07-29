@@ -44,7 +44,17 @@
         "cargo", "run", "--locked", "--quiet", "-p", "plenora-io-cli",
         "--", "convert", "{input}", "{output}"
       ],
-      "note": "L'estensione .arrow seleziona driver-ipc su entrambi i lati: lettura e riscrittura del confine file, senza altri componenti."
+      "note": "L'estensione .arrow seleziona driver-ipc su entrambi i lati: lettura e riscrittura del confine file, senza altri componenti.",
+      "required_capability": {
+        "id": "reader_loss_report_in_convert_output",
+        "why": "R4.6.1 impone due obblighi al bordo di lettura: preservare e dichiarare. Il runner verifica il primo confrontando i metadati; il secondo non e' verificabile perche' `plenora-io-cli convert` pubblica `published.loss.counts`, cioe' il LossReport del writer, piu' `read_fidelity`, che e' una FidelityAssessment e non un LossReport (main.rs:497). Il conteggio dei reader non esce dal processo. Finche' manca, un esito positivo su conflicting_crs non e' evidenza che l'incoerenza sia stata dichiarata, e il record lo riporta come unverified_obligation.",
+        "expected_output": {
+          "location": "il documento JSON di `convert`, accanto a `loss`",
+          "shape": "un oggetto `read_loss` con almeno `counts`, mappa da categoria a conteggio, nella stessa forma di `loss.counts`; `inconsistent_crs_representations` vi compare quando il reader la registra",
+          "alternative": "in luogo dell'estensione della CLI, un comando o un flag che emetta il LossReport dei reader in JSON. Il runner legge una mappa `counts`: qualunque forma la contenga va bene, purche' stabile e dichiarata qui."
+        },
+        "status": "not_available"
+      }
     },
     {
       "id": "data",
