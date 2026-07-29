@@ -8,6 +8,9 @@ Baseline dei contratti trasversali fra i tre componenti Plenora:
 - [`docs/PLENORA-CONTRATTI-TRASVERSALI.md`](docs/PLENORA-CONTRATTI-TRASVERSALI.md)
   — documento normativo di interfaccia (ICD). È la fonte autorevole: in caso di
   conflitto prevale sulla documentazione dei singoli repository.
+- [`docs/PIANO-DI-LAVORO.md`](docs/PIANO-DI-LAVORO.md) — coordinamento fra i tre
+  team: chi fa cosa, in che ordine, e cosa sblocca cosa. Istantanea datata e non
+  normativa; lo stato autorevole sta nelle fonti citate in Appendice A dell'ICD.
 - [`docs/RATIFICA-DECISIONI-APERTE.md`](docs/RATIFICA-DECISIONI-APERTE.md) — le
   tredici voci del registro ancora `proposta`, con l'adozione già in atto nei tre
   componenti e cosa comporta ratificare ciascuna. Serve a decidere voce per voce
