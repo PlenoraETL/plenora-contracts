@@ -1,2 +1,4 @@
 target/
 Cargo.lock
+conformance/cases/
+__pycache__/
