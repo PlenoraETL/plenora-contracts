@@ -25,6 +25,53 @@
       "remote": "https://github.com/PlenoraETL/plenora-database-tools.git"
     }
   ],
+  "roundtrips": [
+    {
+      "id": "io",
+      "component": "plenora-IO-tools",
+      "kind": "arrow_to_arrow",
+      "status": "available",
+      "invocation": [
+        "cargo", "run", "--locked", "--quiet", "-p", "plenora-io-cli",
+        "--", "convert", "{input}", "{output}"
+      ],
+      "note": "L'estensione .arrow seleziona driver-ipc su entrambi i lati: lettura e riscrittura del confine file, senza altri componenti."
+    },
+    {
+      "id": "data",
+      "component": "plenora-data-tools",
+      "kind": "arrow_to_arrow",
+      "status": "available",
+      "invocation": [
+        "cargo", "run", "--locked", "--quiet", "-p", "plenora-cli",
+        "--", "run", "--plan", "{plan}", "--inputs", "{input}", "--output", "{output}"
+      ],
+      "plan_schema_version": 4,
+      "note": "Il piano filtra su una condizione sempre vera: ogni differenza osservata è propagazione mancata, non trasformazione."
+    },
+    {
+      "id": "database",
+      "component": "plenora-database-tools",
+      "kind": "arrow_to_contract",
+      "status": "expected",
+      "invocation": [
+        "cargo", "run", "--locked", "--quiet", "-p", "plenora-database-cli",
+        "--", "inspect-dataset", "{input}"
+      ],
+      "expected_output": {
+        "medium": "stdout",
+        "format": "json",
+        "required_fields": {
+          "schema_version": "intero",
+          "status": "\"ok\" in caso di contratto coerente",
+          "contract_version": "valore di plenora.contract.version osservato",
+          "fields": "un elemento per campo, con field_id e i metadati canonici osservati; per i campi geometrici anche l'esito del parser EWKB su ogni cella"
+        },
+        "failure": "Su contratto incoerente il comando deve terminare con codice diverso da zero ed emettere l'errore secondo i quattro assi di §7. Non deve conciliare in silenzio: vedi il caso conflicting_crs."
+      },
+      "note": "Forma attesa dichiarata prima dell'implementazione. La logica esiste già: FieldContract::parse in plenora-db-postgres/src/field_contract.rs e inspect_ewkb_detailed in plenora-database-core. Se il comando reale differisce, si corregge questo file, non il runner."
+    }
+  ],
   "stages": [
     {
       "id": "io",

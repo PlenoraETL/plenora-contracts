@@ -178,8 +178,10 @@ def case_int64_beyond_2_53() -> tuple[pa.Table, dict]:
     geoms = [_wkb_point(9.19, 45.46), _wkb_point(12.49, 41.90)]
     table = pa.table(
         {"geometry": pa.array(geoms, type=pa.binary()),
+         "id": pa.array([1, 2], pa.int64()),
          "asset_id": pa.array([b, a], pa.int64())},
         schema=pa.schema([_geometry_field("geometry", _canonical("xy")),
+                          pa.field("id", pa.int64()),
                           pa.field("asset_id", pa.int64())],
                          metadata={"plenora.contract.version": CONTRACT_VERSION}),
     )
@@ -193,8 +195,10 @@ def case_uint64_ordering() -> tuple[pa.Table, dict]:
     geoms = [_wkb_point(9.0 + i, 45.0) for i in range(len(values))]
     table = pa.table(
         {"geometry": pa.array(geoms, type=pa.binary()),
+         "id": pa.array(list(range(1, len(values) + 1)), pa.int64()),
          "code": pa.array(values, pa.uint64())},
         schema=pa.schema([_geometry_field("geometry", _canonical("xy")),
+                          pa.field("id", pa.int64()),
                           pa.field("code", pa.uint64())],
                          metadata={"plenora.contract.version": CONTRACT_VERSION}),
     )
