@@ -100,6 +100,23 @@ def contract_from_stdout(payload: str) -> dict[str, str]:
     return observed
 
 
+def expectation_for(expected: dict, role: str | None) -> str:
+    """L'attesa dipende dal ruolo del componente: R4.6 colloca il fail-closed.
+
+    Un bordo di lettura dichiara l'incoerenza e non rifiuta (R4.6.1); un bordo
+    di scrittura rifiuta (R4.6.2); il centro decide e in assenza di decisione
+    propaga (R4.6.3). Un'attesa unica chiederebbe a due dei tre il contrario
+    del proprio ruolo.
+    """
+    declared = expected.get("expect", "preserve")
+    if declared != "by_role":
+        return declared
+    by_role = expected.get("expect_by_role") or {}
+    if role is None or role not in by_role:
+        return "preserve"
+    return by_role[role]
+
+
 def judge_rejection(expected: dict, detail: str) -> tuple[bool, str]:
     """Un rifiuto vale solo se e' il rifiuto giusto.
 
@@ -142,6 +159,7 @@ def main() -> int:
     arguments = parser.parse_args()
 
     manifest = json.loads(arguments.components.read_text(encoding="utf-8"))
+    roles = {c["name"]: c.get("role") for c in manifest.get("components", [])}
     roundtrips = manifest["roundtrips"]
     if arguments.component:
         roundtrips = [r for r in roundtrips if r["id"] in arguments.component]
@@ -183,14 +201,17 @@ def main() -> int:
                 expected = json.loads(
                     (arguments.cases / f"{case}.json").read_text(encoding="utf-8")
                 )
-                fail_closed = expected.get("expect") == "fail_closed"
+                role = roles.get(entry["component"])
+                expectation = expectation_for(expected, role)
+                fail_closed = expectation == "fail_closed"
                 target = workspace / f"{entry['id']}.{case}.arrow"
                 completed = run(entry["invocation"], repo,
                                 {"input": str(source), "output": str(target),
                                  "plan": str(plan)})
                 record = {"roundtrip": entry["id"], "component": entry["component"],
                           "case": case, "kind": entry["kind"],
-                          "expect": "fail_closed" if fail_closed else "preserve"}
+                          "expect": expectation,
+                          "role": role}
 
                 if completed.returncode != 0:
                     detail = (completed.stderr or completed.stdout or "").strip()
@@ -221,6 +242,13 @@ def main() -> int:
                         losses = diff(observe(source), observe(target))
                         record["verdict"] = "fail" if losses else "pass"
                         record["losses"] = losses
+                        if expected.get("expect") == "by_role"                                 and expectation == "preserve":
+                            record["unverified_obligation"] = (
+                                "R4.6.1 impone di preservare *e* di dichiarare "
+                                "l'incoerenza nel LossReport o FidelityAssessment. "
+                                "Questo runner verifica solo la preservazione: un "
+                                "esito positivo non e' evidenza che l'incoerenza sia "
+                                "stata dichiarata.")
                 else:
                     declared = flatten(observe(source))
                     try:

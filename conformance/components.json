@@ -151,6 +151,7 @@
       ]
     },
     "note": "Prima esecuzione reale della matrice, sulle revisioni fissate. Il risultato non soddisfa il gate. Le due direzioni richieste non sono entrambe coperte: la matrice esegue solo i roundtrip per componente.",
+    "supersedes_pending": "Il risultato e' anteriore a R4.6 e all'attesa per ruolo. Il caso conflicting_crs chiedeva a tutti e tre di rifiutare, cioe' il contrario di R4.6.1 per il bordo di lettura: il fallimento registrato a carico di IO-tools non era un difetto della libreria. Va rieseguito. Alla rieseguzione il caso non e' piu' un finding contro IO-tools, ma resta parzialmente non verificato: R4.6.1 impone di preservare *e* di dichiarare l'incoerenza, e il runner verifica solo la preservazione.",
     "historical_observation": {
       "source": "plenora-IO-tools:release/system-rc-gate.json",
       "release_tag": "v0.1.0-rc.2",

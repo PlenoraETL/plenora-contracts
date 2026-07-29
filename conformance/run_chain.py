@@ -66,6 +66,15 @@ def diff(before: dict[str, dict[str, str]], after: dict[str, dict[str, str]]) ->
     return losses
 
 
+def expectation_for(expected: dict, role: str | None) -> str:
+    """L'attesa dipende dal ruolo: R4.6 colloca il fail-closed. Vedi run_roundtrip.py."""
+    declared = expected.get("expect", "preserve")
+    if declared != "by_role":
+        return declared
+    by_role = expected.get("expect_by_role") or {}
+    return by_role.get(role, "preserve") if role else "preserve"
+
+
 def judge_rejection(expected: dict, detail: str) -> tuple[bool, str]:
     """Un rifiuto vale solo se e' il rifiuto giusto. Vedi run_roundtrip.py."""
     signature = expected.get("expected_error") or {}
@@ -144,10 +153,14 @@ def main() -> int:
 
         for case in cases:
             expected = json.loads((arguments.cases / f"{case}.json").read_text(encoding="utf-8"))
-            fail_closed = expected.get("expect") == "fail_closed"
+            roles = {c["name"]: c.get("role") for c in manifest.get("components", [])}
+            terminal_role = roles.get(runnable[-1]["component"])
+            expectation = expectation_for(expected, terminal_role)
+            fail_closed = expectation == "fail_closed"
             current = arguments.cases / f"{case}.arrow"
             observed = observe(current)
-            record = {"case": case, "expect": expected.get("expect", "preserve"),
+            record = {"case": case, "expect": expectation,
+                      "terminal_role": terminal_role,
                       "rule": expected.get("rule"), "stages": []}
 
             for index, stage in enumerate(runnable):

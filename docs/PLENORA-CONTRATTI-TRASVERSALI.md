@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc8 · 28 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc9 · 30 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -30,6 +30,7 @@
 > | §4.1–§4.4 | CRS: tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | dal 27 lug, testo 1.x |
 > | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | `proposta` | nuove 2.0, dentro una sezione ratificata |
 > | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | `proposta` | emendata 2.0 |
+> | §4.6 | Collocazione del fail-closed: rapporto in lettura, rifiuto in scrittura, decisione al centro | `proposta` | nuova 2.0-rc9 |
 > | §5 | Perdita di informazione mai silenziosa | **ratificata** | dal 27 lug |
 > | §6 | Nessun panic nei crate `lib` | **ratificata** | dal 27 lug; R6.6-R6.7 sul gate minimo attendono ratifica |
 > | §7 | Limiti pre-allocazione e budget ceduto lungo la catena | `proposta` | emendata 2.0 |
@@ -392,10 +393,45 @@ end-to-end XYZM attraverso i tre componenti; grep di assegnazioni che portano a
 > **R4.5.1** *(testo 1.x, tuttora in vigore: resta la formulazione valida finché
 > l'emendamento R4.5 non è ratificato)* La riproiezione è responsabilità esclusiva del componente centrale. I
 > bordi **NON DEVONO** riproiettare: preservano il CRS sorgente e lo dichiarano.
+>
+> **R4.6** *(nuova 2.0-rc9)* Le regole di coerenza del CRS — in particolare
+> R4.1, R4.3.1 e R4.3.2 — stabiliscono **cosa** è incoerente, non **dove** un
+> componente deve rifiutare. La collocazione è la seguente:
+>
+> **R4.6.1** Un **bordo di lettura** che incontra un dato incoerente **NON DEVE**
+> rifiutarlo per la sola incoerenza. **DEVE** leggerlo, preservare ogni
+> rappresentazione così come si presenta senza conciliarla né sceglierne una, e
+> **DEVE** dichiarare l'incoerenza nel proprio `LossReport` o
+> `FidelityAssessment`. Rifiutare in lettura rende inservibile la funzione stessa
+> del bordo: i file dei terzi vanno aperti come sono, non come dovrebbero essere.
+>
+> **R4.6.2** Un **bordo di scrittura** che sta per rendere permanente un dato
+> incoerente **DEVE** fallire chiuso, con la semantica dei quattro assi di §7 e
+> categoria `Crs`. Qui l'incoerenza non è più un'osservazione: è una scelta di
+> sistema di riferimento fatta al posto dell'utente su un archivio che resterà.
+>
+> **R4.6.3** Il **componente centrale** è l'unico che **PUÒ decidere** come
+> risolvere un'incoerenza, e la decisione **DEVE** essere esplicita nel piano.
+> In assenza di una decisione nel piano il centro **DEVE** propagare
+> l'incoerenza dichiarata senza risolverla. Il centro **NON DEVE** pretendere un
+> CRS risolvibile per un'operazione che non lo richiede: un filtro tabellare su
+> una colonna non geometrica non ha bisogno di alcun CRS, e rifiutarlo è più
+> restrittivo del ruolo.
+>
+> **R4.6.4** Un'incoerenza dichiarata da un bordo di lettura e non risolta dal
+> centro **DEVE** arrivare al bordo di scrittura, dove R4.6.2 la ferma. Nessun
+> componente **DEVE** silenziarla lungo il percorso: propagarla non è tollerarla.
 
 **Perché.** L'inversione lat/lon è il fallimento geospaziale più costoso e più
 silenzioso che esista: produce coordinate plausibili in un punto sbagliato del
 pianeta, senza alcun errore (H-06).
+
+**Perché R4.6.** Senza collocazione, «il componente DEVE fallire» si legge come
+«tutti e tre devono fallire», e produce due difetti opposti: un lettore che non
+apre i file malfatti che è nato per aprire, e un archivio scritto con un sistema
+di riferimento scelto da qualcuno che non aveva l'autorità per scegliere. Il
+rifiuto va dove la conseguenza è permanente; la dichiarazione va dove
+l'informazione nasce; la decisione va dove c'è un piano che la registra.
 
 **Verifica.** `[ispezione]` più matrice di test axis-order per componente.
 

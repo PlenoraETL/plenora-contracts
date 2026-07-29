@@ -299,9 +299,17 @@ def case_conflicting_crs() -> tuple[pa.Table, dict]:
                          metadata={"plenora.contract.version": CONTRACT_VERSION}),
     )
     return table, {
-        "expect": "fail_closed",
+        # R4.6 colloca il fail-closed: il bordo di lettura dichiara, il bordo di
+        # scrittura rifiuta, il centro decide. Un'attesa unica per tutti e tre
+        # chiedeva a IO-tools il contrario di R4.6.1.
+        "expect": "by_role",
+        "expect_by_role": {
+            "file_boundary": "preserve",
+            "transformation_core": "preserve",
+            "database_boundary": "fail_closed",
+        },
         "conflict": "crs_id=EPSG:4326 vs srid=3003",
-        "rule": "R4.3",
+        "rule": "R4.3.1, R4.6",
         "gate_fixture": "conflicting_crs_representations",
         # Un rifiuto non basta: deve essere il rifiuto giusto. Senza queste due
         # liste un componente che respinge tutto per una ragione estranea
