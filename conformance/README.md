@@ -85,6 +85,20 @@ concilia il conflitto in silenzio, sceglie un sistema di riferimento per conto
 dell'utente su dati patrimoniali. Gli ultimi tre corrispondono a difetti
 realmente trovati durante la revisione iniziale: restano come regressione.
 
+### Le fixture positive devono essere conformi
+
+Il generatore rifiuta una fixture che dovrebbe attraversare la catena intatta ma
+viola una regola dell'ICD. Una fixture del genere fa dipendere il corpus dal
+fatto che quella regola **non** sia implementata: un componente conforme la
+respinge, e il caso fallisce per la ragione sbagliata puntando al posto
+sbagliato. Solo i casi dichiarati `fail_closed` possono essere incoerenti, ed è
+esattamente ciò che verificano.
+
+I controlli coprono R4.3.3 (`axis_order` obbligatorio in presenza di `crs_id` o
+`crs_definition`), R4.3 (definizione e formato sono una coppia), R4.1
+(`missing` non convive con un `crs_id`) e gli insiemi ammessi di `axis_order`,
+`crs_resolution`, `dimensions` e `types_declaration`.
+
 Le fixture del gate `plenora-system-contract-roundtrip-v1` dichiarato in
 `plenora-IO-tools/release/system-rc-gate.json` sono coperte, con il nome del
 gate riportato nel campo `gate_fixture` del contratto atteso. Il corpus aggiunge
@@ -93,25 +107,25 @@ gate non elenca.
 
 ## Il terzo componente
 
-`plenora-database-cli` non espone ancora un comando che accetti un dataset Arrow
-IPC e riporti il contratto geometrico che ne deriverebbe: ha `validate-plan`,
-che valida un piano di scrittura e non un dataset, e i comandi `postgres-*`, che
-richiedono un server attivo. La capacità è in corso di recepimento in
-plenora-database-tools.
+`plenora-database-cli inspect-dataset <file.arrow>` esiste dalla PR #17 di
+plenora-database-tools: legge un dataset Arrow IPC, senza connessione, e riporta
+il contratto che ne deriva secondo `plenora-database-core`, con l'ispezione
+EWKB di ogni cella. La forma del comando era dichiarata qui in
+`roundtrips[database].expected_output` **prima** dell'implementazione, e quella
+consegnata vi coincide: il comparatore la legge senza modifiche.
 
-La forma attesa del comando è dichiarata in `components.json` sotto
-`roundtrips[database].expected_output`, prima dell'implementazione: è il
-repository dei contratti a specificare l'interfaccia, e se il comando reale
-differirà si correggerà quel file, non i runner.
+Il terzo è di genere `arrow_to_contract`, non `arrow_to_arrow`: osserva il
+dataset invece di riscriverlo. Per questo la catena di `run_chain.py` si esaurisce
+in `io → data`, e il contratto in uscita è giudicato dal roundtrip del terzo.
 
-Finché non c'è, entrambi i runner riportano il terzo come non eseguito e **non
-lo contano come superato**: con un roundtrip o uno stadio saltato l'esito
-complessivo non è mai `0`.
+La revisione fissata vive sul ramo della PR e non ancora su `main`: finché non è
+unita, il roundtrip `database` richiede quel checkout. `components.json` lo
+registra sotto `pending_merge`.
 
-Fino ad allora nessuna verifica indipendente del terzo anello esiste. L'oracolo
-che ne copriva parzialmente il ruolo — `three-component-chain` in IO-tools — è
-stato rimosso dalla baseline RC3: generava anche il dataset di partenza, quindi
-il primo anello scriveva ciò su cui veniva giudicato.
+L'oracolo che copriva parzialmente questo ruolo — `three-component-chain` in
+IO-tools — è stato rimosso dalla baseline RC3: generava anche il dataset di
+partenza, quindi il primo anello scriveva ciò su cui veniva giudicato. Il
+comando attuale non ha quel difetto, perché il dataset lo genera PyArrow.
 
 ## Chi possiede la qualifica di sistema
 

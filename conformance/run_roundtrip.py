@@ -85,7 +85,10 @@ def contract_from_stdout(payload: str) -> dict[str, str]:
     for key, value in document.items():
         if key.startswith("plenora."):
             observed[key] = str(value)
-    if "contract_version" in document:
+    for key, value in (document.get("schema_metadata") or {}).items():
+        if key.startswith("plenora."):
+            observed[key] = str(value)
+    if document.get("contract_version") is not None:
         observed["plenora.contract.version"] = str(document["contract_version"])
     for entry in document.get("fields", []):
         for key, value in entry.items():

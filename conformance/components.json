@@ -26,7 +26,8 @@
     {
       "name": "plenora-database-tools",
       "role": "database_boundary",
-      "revision": "589072dacaf800a973222c8a72840e5dc7373995",
+      "revision": "eecb3a33b52601ee6cc9e8855855e9d9cb294144",
+      "pending_merge": "PR #17 — https://github.com/PlenoraETL/plenora-database-tools/pull/17. La revisione fissata vive sul ramo feat/core-field-contract-arrow-ipc e non ancora su main: il roundtrip `database` richiede questo checkout finche' la PR non e' unita.",
       "remote": "https://github.com/PlenoraETL/plenora-database-tools.git"
     }
   ],
@@ -58,7 +59,7 @@
       "id": "database",
       "component": "plenora-database-tools",
       "kind": "arrow_to_contract",
-      "status": "expected",
+      "status": "available",
       "invocation": [
         "cargo", "run", "--locked", "--quiet", "-p", "plenora-database-cli",
         "--", "inspect-dataset", "{input}"
@@ -74,7 +75,7 @@
         },
         "failure": "Su contratto incoerente il comando deve terminare con codice diverso da zero ed emettere l'errore secondo i quattro assi di §7. Non deve conciliare in silenzio: vedi il caso conflicting_crs."
       },
-      "note": "Forma attesa dichiarata prima dell'implementazione. La logica esiste già: FieldContract::parse in plenora-db-postgres/src/field_contract.rs e inspect_ewkb_detailed in plenora-database-core. Se il comando reale differisce, si corregge questo file, non il runner."
+      "note": "Implementato nella PR #17. FieldContract e' stato spostato in plenora-database-core/src/field_contract.rs e serve entrambi i provider; PostgreSQL conserva solo l'adattatore per i metadati nativi. Il comando emette schema_version, status, contract_version, schema_metadata, batches, rows e fields[] con field_id e metadata, piu' geometry_cells per i campi geometrici: coincide con la forma dichiarata qui prima dell'implementazione, e il comparatore la legge senza modifiche."
     }
   ],
   "stages": [
@@ -101,10 +102,9 @@
     {
       "id": "database",
       "component": "plenora-database-tools",
-      "status": "not_available",
+      "status": "not_applicable",
       "invocation": null,
-      "blocker": "plenora-database-cli non espone ancora un comando che accetti un dataset Arrow IPC e riporti il contratto geometrico che ne deriverebbe. I comandi disponibili sono validate-plan, che valida un piano di scrittura e non un dataset, e postgres-probe/describe/read-summary, che richiedono un server attivo. La capacita' e' in corso di recepimento in plenora-database-tools.",
-      "required_capability": "Il comando dichiarato in roundtrips[database]: offline, senza connessione, legge Arrow IPC e produce su stdout il contratto geometrico osservato secondo plenora-database-core, incluso l'esito del parser EWKB su ogni cella. Fino ad allora nessuna verifica indipendente del terzo anello esiste: l'oracolo che copriva parzialmente il ruolo e' stato rimosso dalla baseline RC3 di IO-tools."
+      "blocker": "Il terzo anello osserva il dataset e non lo riscrive: non e' uno stadio di una catena arrow-to-arrow. La sua verifica avviene in roundtrips[database], di genere arrow_to_contract. La catena si esaurisce quindi in io -> data, e il contratto in uscita e' giudicato dal roundtrip del terzo."
     }
   ],
   "system_qualification": {

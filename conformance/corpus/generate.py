@@ -128,7 +128,11 @@ def case_crs_unresolved() -> tuple[pa.Table, dict]:
     meta = _canonical("xy")
     meta["plenora.geometry.crs_resolution"] = "declared_unresolved"
     meta["plenora.geometry.crs_id"] = "EPSG:99999"
-    meta.pop("plenora.geometry.axis_order")
+    # R4.3.3 richiede axis_order in presenza di crs_id. Il CRS non si risolve,
+    # quindi l'ordine degli assi non e' noto: `unknown` e' il valore onesto, ed
+    # e' nell'insieme ammesso. Ometterlo farebbe verificare al caso R4.3.3
+    # invece della proprieta' che gli compete.
+    meta["plenora.geometry.axis_order"] = "unknown"
     field = _geometry_field("geometry", meta)
     table = pa.table(
         {"geometry": pa.array(geoms, type=pa.binary()), "id": pa.array([1], pa.int64())},
@@ -315,6 +319,55 @@ CASES = {
 }
 
 
+AXIS_ORDERS = ("lon_lat", "lat_lon", "easting_northing",
+               "northing_easting", "other", "unknown")
+CRS_RESOLUTIONS = ("resolved", "declared_unresolved", "missing")
+DIMENSIONS = ("xy", "xyz", "xym", "xyzm", "unknown")
+TYPES_DECLARATIONS = ("exact", "mixed", "unresolved")
+
+
+def check_coherence(name: str, metadata: dict[str, str], expected: dict) -> None:
+    """Rifiuta una fixture positiva incoerente con l'ICD.
+
+    Una fixture che dovrebbe attraversare la catena intatta ma viola una regola
+    fa dipendere il corpus dal fatto che quella regola *non* sia implementata:
+    un componente conforme la respinge e il caso fallisce per la ragione
+    sbagliata. Solo i casi dichiarati `fail_closed` possono essere incoerenti,
+    ed e' esattamente cio' che verificano.
+    """
+    if expected.get("expect") == "fail_closed":
+        return
+
+    problems: list[str] = []
+    get = metadata.get
+
+    # R4.3.3: axis_order obbligatorio se c'e' crs_id oppure crs_definition.
+    if (get("plenora.geometry.crs_id") or get("plenora.geometry.crs_definition")) \
+            and "plenora.geometry.axis_order" not in metadata:
+        problems.append("R4.3.3: crs_id o crs_definition presenti senza axis_order")
+
+    # R4.3: una definizione senza discriminatore non e' interpretabile.
+    if bool(get("plenora.geometry.crs_definition")) != \
+            bool(get("plenora.geometry.crs_definition_format")):
+        problems.append("R4.3: crs_definition e crs_definition_format non sono una coppia")
+
+    # R4.1: `missing` significa assenza, non un identificativo taciuto.
+    if get("plenora.geometry.crs_resolution") == "missing" and get("plenora.geometry.crs_id"):
+        problems.append("R4.1: crs_resolution=missing con un crs_id presente")
+
+    for key, allowed in (("plenora.geometry.axis_order", AXIS_ORDERS),
+                         ("plenora.geometry.crs_resolution", CRS_RESOLUTIONS),
+                         ("plenora.geometry.dimensions", DIMENSIONS),
+                         ("plenora.geometry.types_declaration", TYPES_DECLARATIONS)):
+        value = get(key)
+        if value is not None and value not in allowed:
+            problems.append(f"{key}: valore {value!r} fuori dall'insieme ammesso")
+
+    if problems:
+        raise SystemExit(f"fixture '{name}' incoerente con l'ICD:\n  "
+                         + "\n  ".join(problems))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path)
@@ -338,6 +391,7 @@ def main() -> int:
             key.decode(): value.decode()
             for key, value in (table.schema.field("geometry").metadata or {}).items()
         }
+        check_coherence(name, expected["field_metadata"], expected)
         (arguments.out / f"{name}.json").write_text(
             json.dumps(expected, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
