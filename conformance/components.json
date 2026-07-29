@@ -14,7 +14,9 @@
     {
       "name": "plenora-IO-tools",
       "role": "file_boundary",
-      "revision": "f8a89170785c938a9105deae6cc479576abb969a",
+      "revision": "2f5684424af4e2ab9c0f07f0c7f02f80d05a92fe",
+      "tested_revision": "f8a89170785c938a9105deae6cc479576abb969a",
+      "tested_revision_note": "Fra f8a8917 e 2f56844 l'albero di crates/, Cargo.toml e Cargo.lock e' identico (tree c4325a1832): i tre commit intermedi toccano solo assurance, manifesti di rilascio e gate. L'esito della qualifica sul codice resta valido; la rieseguzione serve per il flag proj-backend e per R4.6, non per questo avanzamento.",
       "remote": "https://github.com/PlenoraETL/plenora-IO-tools.git"
     },
     {
