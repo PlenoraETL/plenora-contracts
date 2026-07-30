@@ -1,0 +1,3 @@
+# Gli script di shell devono avere terminatori LF su qualunque piattaforma:
+# bash rifiuta `set -euo pipefail` con "invalid option name".
+*.sh text eol=lf

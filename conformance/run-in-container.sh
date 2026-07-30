@@ -10,7 +10,11 @@ set -euo pipefail
 
 ROOT=${ROOT:-/work}
 CONTRACTS="${ROOT}/plenora-contracts"
-MANIFEST="${CONTRACTS}/conformance/components.json"
+# Il manifesto e' sovrascrivibile perche' servono due esecuzioni diverse: la
+# qualifica, che gira su revisioni fissate e immutabili ed e' evidenza, e la
+# verifica esplorativa, che gira sul codice corrente e dice se una correzione
+# funziona. Confonderle produce un numero che non descrive ne' l'una ne' l'altra.
+MANIFEST=${MANIFEST:-"${CONTRACTS}/conformance/components.json"}
 PINNED="${ROOT}/pinned"
 REPORT=${REPORT:-${CONTRACTS}/conformance/roundtrip.json}
 
