@@ -73,7 +73,7 @@ geospaziale si degrada senza errori.
 | `crs_unresolved` | `declared_unresolved` distinto da `missing` | R4.1 |
 | `crs_missing` | `missing` distinto da `declared_unresolved` | R4.1 |
 | `axis_lat_lon` | `EPSG:4326` lat/lon non confuso con `OGC:CRS84` | R4.2 |
-| `conflicting_crs` | `crs_id` e `srid` in conflitto: **fallisce chiuso** | R4.3 |
+| `conflicting_crs` | `crs_id` e `srid` in conflitto: tre esiti per ruolo | R4.3.1, R4.6 |
 | `geography_semantics` | `geography` non degradato a `geometry` | R4.4 |
 | `types_mixed` | `types_declaration=mixed` distinto da `unresolved` | R3.4.1 |
 | `int64_beyond_2_53` | interi oltre 2⁵³ non collassati | R5.3 |
@@ -97,7 +97,9 @@ scopre una menzogna, ed è esattamente ciò che quello stato significa. Le
 rappresentazioni restano invariate: si corregge lo stato, non il dato.
 
 Rilievo del team data-tools contro la formulazione precedente di questa fixture,
-che pretendeva la conservazione dell'etichetta falsa. Accolto dall'owner. Gli ultimi tre corrispondono a difetti
+che pretendeva la conservazione dell'etichetta falsa. Accolto dall'owner.
+
+`int64_beyond_2_53`, `uint64_ordering` e `unknown_key` corrispondono a difetti
 realmente trovati durante la revisione iniziale: restano come regressione.
 
 ### Le fixture positive devono essere conformi
@@ -132,10 +134,6 @@ consegnata vi coincide: il comparatore la legge senza modifiche.
 Il terzo è di genere `arrow_to_contract`, non `arrow_to_arrow`: osserva il
 dataset invece di riscriverlo. Per questo la catena di `run_chain.py` si esaurisce
 in `io → data`, e il contratto in uscita è giudicato dal roundtrip del terzo.
-
-La revisione fissata vive sul ramo della PR e non ancora su `main`: finché non è
-unita, il roundtrip `database` richiede quel checkout. `components.json` lo
-registra sotto `pending_merge`.
 
 L'oracolo che copriva parzialmente questo ruolo — `three-component-chain` in
 IO-tools — è stato rimosso dalla baseline RC3: generava anche il dataset di
