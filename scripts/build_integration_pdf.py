@@ -472,20 +472,22 @@ story += [
     Paragraph("Cosa funziona e cosa manca", S["h1"]),
     rule(),
     Paragraph(
-        "Le tre librerie sono complete come singoli componenti. Quello che non è ancora "
-        "dimostrato è che funzionino <i>insieme</i> su tutti i casi difficili.", S["body"]),
+        "Le tre librerie sono complete come singoli componenti, e che funzionino "
+        "insieme non è più una deduzione: è stato eseguito e osservato.", S["body"]),
 ]
 
 state = [
     ["", "Stato", "Nota"],
-    ["<b>Le tre librerie, prese una per una</b>", "Verificate internamente",
-     "Test propri e analisi in ogni repository"],
+    ["<b>Le tre librerie, prese una per una</b>", "Release candidate",
+     "Tutte e tre con un riferimento immutabile e uno stato dichiarato"],
+    ["<b>I casi difficili</b>", "Superati",
+     "39 verifiche su 39: quote, ordine degli assi, riferimenti in conflitto"],
+    ["<b>La catena completa</b>", "Verificata",
+     "I casi attraversano i tre; l'ultimo apre ogni geometria e giudica"],
+    ["<b>Dati reali sporchi</b>", "Provati",
+     "3.000 particelle catastali da uno shapefile malfatto, fino in fondo"],
     ["<b>Revisione indipendente</b>", "Non svolta",
      "Nessuna delle tre è stata revisionata da chi non l'ha scritta"],
-    ["<b>La catena completa</b>", "Una prova sola",
-     "Un caso semplice, su Linux, con un verificatore non terzo — poi rimosso"],
-    ["<b>I casi difficili</b>", "Mai provati",
-     "Quote, ordine degli assi, sistemi di riferimento in conflitto"],
     ["<b>Il percorso inverso</b>", "Mai provato",
      "Dal database verso i file non è mai stato eseguito"],
 ]
@@ -494,35 +496,52 @@ story += [grid(state, [58 * mm, 32 * mm, W - 90 * mm])]
 story += [
     Paragraph("Che cosa sono «i casi difficili»", S["h2"]),
     Paragraph(
-        "Sono le situazioni in cui un dato si degrada senza che nessuno se ne accorga. "
-        "Una geometria con la quota che esce senza quota. Un sistema di riferimento con "
-        "latitudine e longitudine invertite. Un identificativo numerico grande che perde "
-        "precisione. Nessuno di questi produce un errore: producono un archivio "
-        "plausibile e sbagliato.", S["body"]),
+        "Sono le situazioni in cui un dato si degrada senza che nessuno se ne accorga: "
+        "una geometria con la quota che esce senza quota, un sistema di riferimento con "
+        "latitudine e longitudine invertite, un identificativo grande che perde "
+        "precisione. Nessuno produce un errore: producono un archivio plausibile e "
+        "sbagliato.", S["body"]),
     Paragraph(
-        "Su dati patrimoniali è la categoria di guasto che costa di più, perché si "
-        "scopre tardi e non si sa da quando. Per questo esiste un quarto repository, "
-        "<b>plenora-contracts</b>, che contiene le regole che tutte e tre devono "
-        "rispettare e una batteria di tredici casi costruiti apposta per farle "
-        "sbagliare. I dati di prova sono generati da uno strumento esterno alle tre "
-        "librerie: se li producesse una di loro, un suo difetto potrebbe annullarsi con "
-        "il difetto speculare e la prova passerebbe lo stesso.", S["body"]),
+        "Su dati patrimoniali è il guasto che costa di più, perché si scopre tardi e non "
+        "si sa da quando. Per questo esiste un quarto repository, "
+        "<b>plenora-contracts</b>: contiene le regole che tutte e tre devono rispettare "
+        "e una batteria di casi costruiti per farle sbagliare. I dati di prova li genera "
+        "uno strumento esterno alle tre librerie — se li producesse una di loro, un suo "
+        "difetto potrebbe annullarsi con il difetto speculare e la prova passerebbe lo "
+        "stesso.", S["body"]),
+    Paragraph(
+        "Tutti superati, e la catena intera è stata percorsa: i casi entrano dal confine "
+        "con i file, attraversano il motore, e il confine con i database apre ogni "
+        "geometria una per una prima di dire che va bene. Su un caso i tre si comportano "
+        "in tre modi diversi e tutti e tre corretti — chi legge dichiara l'anomalia, il "
+        "motore corregge l'etichetta sbagliata senza toccare il dato, chi scrive "
+        "rifiuta.", S["body"]),
 ]
 
 story.append(callout(
-    "Il pezzo che manca per chiudere",
-    "Due delle tre librerie possono essere verificate oggi. La terza deve prima esporre "
-    "un comando che, letta una tabella, dichiari che cosa ci ha capito — senza bisogno di "
-    "un database acceso. È un lavoro contenuto, in corso, e sblocca l'intera verifica."))
+    "Quello che i casi costruiti non potevano trovare",
+    "Superata la batteria, sono stati generati dati sporchi come quelli veri: 3.000 "
+    "particelle catastali in shapefile, con nomi di campo che si troncano fino a "
+    "collidere, accenti nella codifica sbagliata, poligoni con buchi avvolti al "
+    "contrario. In un pomeriggio hanno trovato un difetto che nessuna prova costruita "
+    "aveva sfiorato: ogni sistema di riferimento proiettato veniva classificato come "
+    "geografico, e l'ordine degli assi ne usciva sconosciuto. Corretto in giornata. È "
+    "la ragione per cui le prove sintetiche non bastano mai da sole."))
 
 story += [
     Paragraph("Cosa significa, in pratica", S["h2"]),
     Paragraph(
-        "Le tre librerie si parlano: la prova che passino dati dall'una all'altra "
-        "conservando il contratto esiste. Quello che manca è la conferma che reggano "
-        "anche quando i dati sono scomodi. Non è un dubbio sul disegno, che è già "
-        "quello giusto: è la differenza fra «funziona» e «è dimostrato che funziona», "
-        "e su un archivio patrimoniale la seconda è quella che conta.", S["body"]),
+        "Le tre librerie si parlano, e non è più una deduzione: è stato visto succedere, "
+        "sui casi costruiti e su dati sporchi realistici, con il confine finale che "
+        "controlla una geometria alla volta. Ciascuna ha un riferimento immutabile e "
+        "dichiara cosa copre e cosa no.", S["body"]),
+    Paragraph(
+        "Restano due cose fuori, ed è utile saperle. Il percorso inverso — dal database "
+        "verso i file — non è mai stato eseguito. E nessuna delle tre è stata letta da "
+        "qualcuno che non l'ha scritta: è l'unica voce che nessun lavoro tecnico può "
+        "chiudere, e finché resta aperta le librerie dichiarano di essere verificate "
+        "al proprio interno, non da terzi. Lo dichiarano loro, non questo documento.",
+        S["body"]),
 ]
 
 story += [
@@ -530,10 +549,10 @@ story += [
     rule(space_after=6),
     Paragraph(
         "Le funzioni e i conteggi riportati sono stati rilevati leggendo il codice delle "
-        "tre librerie, non la loro documentazione. Le affermazioni sullo stato "
-        "corrispondono a quanto le librerie stesse dichiarano nei propri registri di "
-        "rilascio. Nessuna prova è stata eseguita per redigere questo documento.",
-        S["note"]),
+        "tre librerie, non la loro documentazione. Lo stato di rilascio è quello che le "
+        "librerie dichiarano nei propri registri. Le righe sui casi difficili, sulla "
+        "catena e sui dati sporchi corrispondono invece a prove eseguite, in un ambiente "
+        "ricostruibile e sulle revisioni dichiarate.", S["note"]),
 ]
 
 # ---------------------------------------------------------------- build
