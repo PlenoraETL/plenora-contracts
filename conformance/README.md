@@ -80,9 +80,24 @@ geospaziale si degrada senza errori.
 | `uint64_ordering` | `u64` ordinati per valore, non come stringa | R5.3 |
 | `unknown_key` | chiave non canonica propagata invariata | R2.4 |
 
-`conflicting_crs` è l'unico caso il cui esito atteso è un errore: se un anello
-concilia il conflitto in silenzio, sceglie un sistema di riferimento per conto
-dell'utente su dati patrimoniali. Gli ultimi tre corrispondono a difetti
+`conflicting_crs` non ha un'attesa unica: ha tre comportamenti diversi e tutti
+corretti sullo stesso dato, secondo R4.6.
+
+| Ruolo | Atteso |
+|---|---|
+| bordo di lettura | preserva le rappresentazioni e dichiara l'incoerenza nel `LossReport` |
+| centro | preserva le rappresentazioni **e** transita a `declared_unresolved` |
+| bordo di scrittura | fallisce chiuso con categoria `Crs` |
+
+La transizione al centro è **richiesta, non tollerata**. L'etichetta `resolved`
+in ingresso afferma una risoluzione che il contenuto smentisce — `crs_id` e
+`srid` si contraddicono — quindi un centro che la conserva rivendica una
+risoluzione inesistente. Passare a `declared_unresolved` non cambia una verità:
+scopre una menzogna, ed è esattamente ciò che quello stato significa. Le
+rappresentazioni restano invariate: si corregge lo stato, non il dato.
+
+Rilievo del team data-tools contro la formulazione precedente di questa fixture,
+che pretendeva la conservazione dell'etichetta falsa. Accolto dall'owner. Gli ultimi tre corrispondono a difetti
 realmente trovati durante la revisione iniziale: restano come regressione.
 
 ### Le fixture positive devono essere conformi

@@ -117,6 +117,34 @@ def expectation_for(expected: dict, role: str | None) -> str:
     return by_role[role]
 
 
+def judge_transition(expected: dict, role: str | None,
+                     losses: list[str]) -> tuple[bool, str, list[str]]:
+    """`preserve_with_transition`: una transizione richiesta, e nient'altro.
+
+    Un'etichetta che afferma cio' che il contenuto smentisce non va conservata:
+    conservarla e' rivendicare una risoluzione inesistente. La transizione e'
+    quindi obbligatoria — se manca il caso fallisce — e ogni altra differenza
+    resta una perdita.
+    """
+    required = (expected.get("required_transitions") or {}).get(role or "", {})
+    problems: list[str] = []
+    remaining = list(losses)
+
+    for key, change in required.items():
+        atteso = f"{key}: {change['from']!r} -> {change['to']!r}"
+        if atteso in remaining:
+            remaining.remove(atteso)
+        else:
+            problems.append(f"transizione richiesta assente: {atteso}. "
+                            "Conservare lo stato in ingresso significa "
+                            "rivendicare una risoluzione che il contenuto smentisce")
+    problems.extend(remaining)
+    if problems:
+        return False, "; ".join(problems), problems
+    return True, ("transizione di stato richiesta osservata, "
+                  "rappresentazioni invariate"), []
+
+
 def judge_rejection(expected: dict, detail: str) -> tuple[bool, str]:
     """Un rifiuto vale solo se e' il rifiuto giusto.
 
@@ -238,6 +266,13 @@ def main() -> int:
                     if not target.is_file():
                         record["verdict"] = "fail"
                         record["reason"] = "nessun file prodotto"
+                    elif expectation == "preserve_with_transition":
+                        losses = diff(observe(source), observe(target))
+                        ok, why, residual = judge_transition(expected, role, losses)
+                        record["verdict"] = "pass" if ok else "fail"
+                        record["reason"] = why
+                        record["losses"] = residual
+                        record["observed_changes"] = losses
                     else:
                         losses = diff(observe(source), observe(target))
                         record["verdict"] = "fail" if losses else "pass"

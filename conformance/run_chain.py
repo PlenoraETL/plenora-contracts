@@ -75,6 +75,24 @@ def expectation_for(expected: dict, role: str | None) -> str:
     return by_role.get(role, "preserve") if role else "preserve"
 
 
+def judge_transition(expected: dict, role: str | None,
+                     losses: list[str]) -> tuple[bool, str, list[str]]:
+    """`preserve_with_transition`: una transizione richiesta, e nient'altro.
+    Vedi run_roundtrip.py."""
+    required = (expected.get("required_transitions") or {}).get(role or "", {})
+    problems, remaining = [], list(losses)
+    for key, change in required.items():
+        atteso = f"{key}: {change['from']!r} -> {change['to']!r}"
+        if atteso in remaining:
+            remaining.remove(atteso)
+        else:
+            problems.append(f"transizione richiesta assente: {atteso}")
+    problems.extend(remaining)
+    if problems:
+        return False, "; ".join(problems), problems
+    return True, "transizione richiesta osservata, rappresentazioni invariate", []
+
+
 def judge_rejection(expected: dict, detail: str) -> tuple[bool, str]:
     """Un rifiuto vale solo se e' il rifiuto giusto. Vedi run_roundtrip.py."""
     signature = expected.get("expected_error") or {}
@@ -204,6 +222,11 @@ def main() -> int:
                 record["reason"] = "errore in " + record["stages"][-1]["stage"]
             elif not reached_end:
                 record["verdict"] = "incomplete"
+            elif expectation == "preserve_with_transition":
+                ok, why, residual = judge_transition(expected, terminal_role, losses)
+                record["verdict"] = "pass" if ok else "fail"
+                record["reason"] = why
+                record["observed_changes"] = losses
             elif losses:
                 record["verdict"] = "fail"
                 record["reason"] = "; ".join(losses)

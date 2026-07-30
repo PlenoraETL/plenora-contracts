@@ -305,8 +305,24 @@ def case_conflicting_crs() -> tuple[pa.Table, dict]:
         "expect": "by_role",
         "expect_by_role": {
             "file_boundary": "preserve",
-            "transformation_core": "preserve",
+            "transformation_core": "preserve_with_transition",
             "database_boundary": "fail_closed",
+        },
+        # L'etichetta `resolved` in ingresso afferma una risoluzione che il
+        # contenuto smentisce: crs_id e srid si contraddicono. Il centro che la
+        # lascia intatta rivendica una risoluzione inesistente; quello che passa
+        # a `declared_unresolved` non cambia una verita', scopre una menzogna —
+        # ed e' esattamente cio' che quello stato significa. La transizione e'
+        # quindi **richiesta**, non tollerata, e tutto il resto deve restare
+        # invariato: le rappresentazioni non si toccano (R4.6.3), lo stato si
+        # corregge. Rilievo del team data-tools, accolto dall'owner.
+        "required_transitions": {
+            "transformation_core": {
+                "plenora.geometry.crs_resolution": {
+                    "from": "resolved",
+                    "to": "declared_unresolved",
+                },
+            },
         },
         "conflict": "crs_id=EPSG:4326 vs srid=3003",
         "rule": "R4.3.1, R4.6",
