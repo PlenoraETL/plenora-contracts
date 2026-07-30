@@ -75,7 +75,20 @@ outcome=$?
 set -e
 
 echo
-echo "rapporto: ${REPORT}"
+echo "== catena ============================================================="
+# Il roundtrip verifica ogni componente da solo; la catena verifica la
+# composizione, con il bordo di scrittura come giudice terminale. Sono due
+# domande diverse e la seconda non segue dalla prima per verifica, solo per
+# ragionamento.
+set +e
+python3 "${CONTRACTS}/conformance/run_chain.py"         --cases "${CONTRACTS}/conformance/cases"         --components "${MANIFEST}"         --checkouts "${PINNED}"         --report "${REPORT%.json}-chain.json"
+chain=$?
+set -e
+
+echo
+echo "rapporto roundtrip: ${REPORT}"
+echo "rapporto catena:    ${REPORT%.json}-chain.json"
 # Un roundtrip non eseguito non e' un successo: run_roundtrip.py restituisce
 # gia' 1 in quel caso, e qui non lo si addolcisce.
-exit ${outcome}
+if [ ${outcome} -ne 0 ] || [ ${chain} -ne 0 ]; then exit 1; fi
+exit 0

@@ -18,9 +18,9 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import subprocess
 import sys
 import tempfile
+import subprocess
 from pathlib import Path
 
 import pyarrow.ipc as ipc
@@ -73,6 +73,25 @@ def expectation_for(expected: dict, role: str | None) -> str:
         return declared
     by_role = expected.get("expect_by_role") or {}
     return by_role.get(role, "preserve") if role else "preserve"
+
+
+def contract_from_stdout(payload: str) -> dict[str, str]:
+    """Chiavi canoniche dal JSON del giudice. Vedi run_roundtrip.py."""
+    document = json.loads(payload)
+    observed: dict[str, str] = {}
+    for key, value in document.items():
+        if key.startswith("plenora."):
+            observed[key] = str(value)
+    for key, value in (document.get("schema_metadata") or {}).items():
+        if key.startswith("plenora."):
+            observed[key] = str(value)
+    if document.get("contract_version") is not None:
+        observed["plenora.contract.version"] = str(document["contract_version"])
+    for entry in document.get("fields", []):
+        for key, value in (entry.get("metadata") or {}).items():
+            if key.startswith("plenora."):
+                observed[key] = str(value)
+    return observed
 
 
 def judge_transition(expected: dict, role: str | None,
@@ -156,6 +175,13 @@ def main() -> int:
         print("cargo non disponibile nel PATH", file=sys.stderr)
         return 2
 
+    roles = {c["name"]: c.get("role") for c in manifest.get("components", [])}
+    # Il giudice terminale e' il roundtrip `arrow_to_contract`: osserva il
+    # contratto arrivato in fondo invece di riscriverlo.
+    judge = next((r for r in manifest.get("roundtrips", [])
+                  if r.get("kind") == "arrow_to_contract"
+                  and r.get("status") == "available"), None)
+
     cases = sorted(p.stem for p in arguments.cases.glob("*.arrow"))
     if arguments.only:
         cases = [c for c in cases if c in arguments.only]
@@ -171,7 +197,6 @@ def main() -> int:
 
         for case in cases:
             expected = json.loads((arguments.cases / f"{case}.json").read_text(encoding="utf-8"))
-            roles = {c["name"]: c.get("role") for c in manifest.get("components", [])}
             terminal_role = roles.get(runnable[-1]["component"])
             expectation = expectation_for(expected, terminal_role)
             fail_closed = expectation == "fail_closed"
@@ -199,6 +224,50 @@ def main() -> int:
                 )
                 observed, current = after, target
 
+            # Stadio terminale: il bordo di scrittura non riscrive, osserva. Fa
+            # da giudice del contratto arrivato in fondo alla catena — che e'
+            # il punto della catena, e cio' che la distingue da tre roundtrip
+            # separati.
+            if judge and not any(s["outcome"] == "error" for s in record["stages"]):
+                completed = subprocess.run(
+                    [part.format(input=str(current)) for part in judge["invocation"]],
+                    cwd=arguments.checkouts / judge["component"],
+                    capture_output=True, text=True, check=False,
+                )
+                judge_expectation = expectation_for(expected, roles.get(judge["component"]))
+                if completed.returncode != 0:
+                    detail = (completed.stderr or completed.stdout or "").strip()
+                    if judge_expectation == "fail_closed":
+                        right, why = judge_rejection(expected, detail)
+                        record["judge"] = {"outcome": "rejected", "accepted": right,
+                                           "reason": why, "detail": detail[-500:]}
+                    else:
+                        record["judge"] = {"outcome": "rejected", "accepted": False,
+                                           "reason": "il bordo di scrittura ha respinto "
+                                                     "un contratto che doveva accettare",
+                                           "detail": detail[-500:]}
+                else:
+                    try:
+                        seen = contract_from_stdout(completed.stdout)
+                    except (json.JSONDecodeError, AttributeError):
+                        record["judge"] = {"outcome": "unreadable", "accepted": False,
+                                           "reason": "uscita del giudice non e' JSON conforme"}
+                    else:
+                        declared = {**observed["schema"], **observed["field"]}
+                        divergent = [f"{k}: catena {v!r}, giudice "
+                                     f"{seen.get(k, '<assente>')!r}"
+                                     for k, v in declared.items() if seen.get(k) != v]
+                        accepted = not divergent and judge_expectation != "fail_closed"
+                        record["judge"] = {
+                            "outcome": "accepted", "accepted": accepted,
+                            "divergences": divergent,
+                            "reason": ("il bordo di scrittura ha accettato un contratto "
+                                       "che doveva respingere" if judge_expectation
+                                       == "fail_closed" else
+                                       "; ".join(divergent) if divergent else
+                                       "contratto in fondo alla catena confermato"),
+                        }
+
             errored = any(s["outcome"] == "error" for s in record["stages"])
             reached_end = len(record["stages"]) == len(runnable) and not errored
             losses = [loss for s in record["stages"] for loss in s.get("losses", [])]
@@ -222,6 +291,9 @@ def main() -> int:
                 record["reason"] = "errore in " + record["stages"][-1]["stage"]
             elif not reached_end:
                 record["verdict"] = "incomplete"
+            elif record.get("judge") and not record["judge"]["accepted"]:
+                record["verdict"] = "fail"
+                record["reason"] = "giudice terminale: " + record["judge"]["reason"]
             elif expectation == "preserve_with_transition":
                 ok, why, residual = judge_transition(expected, terminal_role, losses)
                 record["verdict"] = "pass" if ok else "fail"
@@ -237,11 +309,19 @@ def main() -> int:
     for record in results:
         marker = {"pass": "  ok", "fail": "FAIL", "incomplete": "  ??"}[record["verdict"]]
         print(f"{marker}  {record['case']:<26} {record.get('reason', '')}")
+        required = set()
+        for changes in (json.loads((arguments.cases / f"{record['case']}.json")
+                        .read_text(encoding="utf-8")).get("required_transitions") or {}).values():
+            for key, change in changes.items():
+                required.add(f"{key}: {change['from']!r} -> {change['to']!r}")
         for entry in record["stages"]:
             for loss in entry.get("losses", []):
-                print(f"          perso nello stadio '{entry['stage']}': {loss}")
+                etichetta = "transizione richiesta" if loss in required else "perso"
+                print(f"          {etichetta} nello stadio '{entry['stage']}': {loss}")
 
-    skipped = [s["id"] for s in stages if s["status"] != "available"]
+    judged = sum(1 for r in results if r.get("judge"))
+    skipped = [s["id"] for s in stages
+               if s["status"] != "available" and not (judge and s["id"] == judge["id"])]
     failed = [r["case"] for r in results if r["verdict"] != "pass"]
     print(f"\n{len(results) - len(failed)}/{len(results)} casi conformi"
           + (f", stadi non eseguiti: {', '.join(skipped)}" if skipped else ""))

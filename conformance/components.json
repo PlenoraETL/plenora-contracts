@@ -44,8 +44,16 @@
       "kind": "arrow_to_arrow",
       "status": "available",
       "invocation": [
-        "cargo", "run", "--locked", "--quiet", "-p", "plenora-io-cli",
-        "--", "convert", "{input}", "{output}"
+        "cargo",
+        "run",
+        "--locked",
+        "--quiet",
+        "-p",
+        "plenora-io-cli",
+        "--",
+        "convert",
+        "{input}",
+        "{output}"
       ],
       "note": "L'estensione .arrow seleziona driver-ipc su entrambi i lati: lettura e riscrittura del confine file, senza altri componenti.",
       "required_capability": {
@@ -65,12 +73,27 @@
       "kind": "arrow_to_arrow",
       "status": "available",
       "invocation": [
-        "cargo", "run", "--locked", "--quiet", "-p", "plenora-cli",
-        "--features", "proj-backend",
-        "--", "run", "--plan", "{plan}", "--inputs", "{input}", "--output", "{output}"
+        "cargo",
+        "run",
+        "--locked",
+        "--quiet",
+        "-p",
+        "plenora-cli",
+        "--features",
+        "proj-backend",
+        "--",
+        "run",
+        "--plan",
+        "{plan}",
+        "--inputs",
+        "{input}",
+        "--output",
+        "{output}"
       ],
       "plan_schema_version": 4,
-      "required_features": ["proj-backend"],
+      "required_features": [
+        "proj-backend"
+      ],
       "note": "Il piano filtra su una condizione sempre vera: ogni differenza osservata è propagazione mancata, non trasformazione. `proj-backend` e' obbligatorio: senza di esso plenora-cli respinge ogni dataset con CRS_BACKEND_UNAVAILABLE, e la prima esecuzione della matrice ne attribui' undici fallimenti alla libreria mentre erano un difetto di questo manifesto, che aveva perso il flag."
     },
     {
@@ -79,8 +102,15 @@
       "kind": "arrow_to_contract",
       "status": "available",
       "invocation": [
-        "cargo", "run", "--locked", "--quiet", "-p", "plenora-database-cli",
-        "--", "inspect-dataset", "{input}"
+        "cargo",
+        "run",
+        "--locked",
+        "--quiet",
+        "-p",
+        "plenora-database-cli",
+        "--",
+        "inspect-dataset",
+        "{input}"
       ],
       "expected_output": {
         "medium": "stdout",
@@ -102,8 +132,16 @@
       "component": "plenora-IO-tools",
       "status": "available",
       "invocation": [
-        "cargo", "run", "--locked", "--quiet", "-p", "plenora-io-cli",
-        "--", "convert", "{input}", "{output}"
+        "cargo",
+        "run",
+        "--locked",
+        "--quiet",
+        "-p",
+        "plenora-io-cli",
+        "--",
+        "convert",
+        "{input}",
+        "{output}"
       ],
       "note": "L'estensione .arrow seleziona driver-ipc su entrambi i lati: il caso attraversa lettura e riscrittura del confine file."
     },
@@ -112,9 +150,22 @@
       "component": "plenora-data-tools",
       "status": "available",
       "invocation": [
-        "cargo", "run", "--locked", "--quiet", "-p", "plenora-cli",
-        "--features", "proj-backend",
-        "--", "run", "--plan", "{plan}", "--inputs", "{input}", "--output", "{output}"
+        "cargo",
+        "run",
+        "--locked",
+        "--quiet",
+        "-p",
+        "plenora-cli",
+        "--features",
+        "proj-backend",
+        "--",
+        "run",
+        "--plan",
+        "{plan}",
+        "--inputs",
+        "{input}",
+        "--output",
+        "{output}"
       ],
       "plan_schema_version": 4
     },
@@ -123,7 +174,7 @@
       "component": "plenora-database-tools",
       "status": "not_applicable",
       "invocation": null,
-      "blocker": "Il terzo anello osserva il dataset e non lo riscrive: non e' uno stadio di una catena arrow-to-arrow. La sua verifica avviene in roundtrips[database], di genere arrow_to_contract. La catena si esaurisce quindi in io -> data, e il contratto in uscita e' giudicato dal roundtrip del terzo."
+      "blocker": "Il terzo anello osserva il dataset e non lo riscrive: non e' uno stadio arrow-to-arrow. run_chain.py lo usa come giudice terminale, leggendo l'invocazione da roundtrips[database]: la catena arriva in fondo e il bordo di scrittura giudica il contratto che ne esce. E' cio' che distingue la catena da tre roundtrip separati."
     }
   ],
   "system_qualification": {
