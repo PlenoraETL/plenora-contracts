@@ -341,6 +341,51 @@ def case_conflicting_crs() -> tuple[pa.Table, dict]:
     }
 
 
+def case_polygon_xy_projected() -> tuple[pa.Table, dict]:
+    """Poligoni XY in CRS proiettato: l'unico ingresso che i kernel geo accettano.
+
+    ADR-0008 di data-tools decide due vie a compile-plan: le op tabellari
+    propagano i byte per qualunque dimensionalita', i kernel geo rifiutano
+    `dimensions != xy` — incluso `unknown` — perche' decodificano in XY e
+    accettarlo equivarrebbe a mapparlo a `xy`. Diverse operazioni richiedono in
+    piu' un CRS proiettato, perche' calcolano aree e distanze.
+
+    Nessun altro caso del corpus soddisfa entrambe le condizioni: serve per
+    esercitare le trasformazioni, non per verificare una proprieta' del
+    contratto.
+    """
+    ring = [(1_500_000.0, 5_030_000.0), (1_500_040.0, 5_030_000.0),
+            (1_500_040.0, 5_030_030.0), (1_500_000.0, 5_030_030.0),
+            (1_500_000.0, 5_030_000.0)]
+    def polygon(offset: float) -> bytes:
+        out = struct.pack("<BII", 1, 3, 1) + struct.pack("<I", len(ring))
+        for x, y in ring:
+            out += struct.pack("<2d", x + offset, y)
+        return out
+
+    meta = _canonical("xy")
+    meta["plenora.geometry.types"] = "polygon"
+    meta["plenora.geometry.crs_id"] = "EPSG:3003"
+    meta["plenora.geometry.srid"] = "3003"
+    meta["plenora.geometry.axis_order"] = "easting_northing"
+    # I kernel geo di data-tools pretendono l'estensione GeoArrow oltre alle
+    # chiavi canoniche di §2. La discovery riconosce una colonna geometrica
+    # dalle sole chiavi canoniche — lo dichiara il commento in
+    # `discover_input_contract` — ma l'esecuzione no. Questo caso porta
+    # entrambe, cosi' esercita le trasformazioni invece di fermarsi sul
+    # disallineamento; il disallineamento resta una domanda per l'ICD.
+    meta["ARROW:extension:name"] = "geoarrow.wkb"
+    field = _geometry_field("geometry", meta)
+    table = pa.table(
+        {"geometry": pa.array([polygon(0.0), polygon(60.0)], type=pa.binary()),
+         "id": pa.array([1, 2], pa.int64())},
+        schema=pa.schema([field, pa.field("id", pa.int64())],
+                         metadata={"plenora.contract.version": CONTRACT_VERSION}),
+    )
+    return table, {"dimensions": "xy", "crs_id": "EPSG:3003", "types": "polygon",
+                   "rule": "R3.3", "purpose": "ingresso per le trasformazioni geo"}
+
+
 CASES = {
     "point_z": case_point_z,
     "point_zm": case_point_zm,
@@ -355,6 +400,7 @@ CASES = {
     "crs_missing": case_crs_missing,
     "geography_semantics": case_geography_semantics,
     "conflicting_crs": case_conflicting_crs,
+    "polygon_xy_projected": case_polygon_xy_projected,
 }
 
 

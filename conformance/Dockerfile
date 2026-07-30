@@ -24,6 +24,10 @@ FROM rust:1.92.0-bookworm
 # configurazione fallisce con `sqlite3 binary not found`. `libtiff` e `libcurl`
 # servono alle griglie di trasformazione; `libclang` a bindgen, che `proj-sys`
 # usa per generare i binding.
+#
+# `libgeos` serve alle operazioni topologiche di data-tools dietro la feature
+# `geos-backend`: senza, `make_valid` e le altre che riparano geometrie non
+# valide rifiutano con `richiede la capability geos, non compilata`.
 RUN apt-get update \
  && apt-get install --yes --no-install-recommends \
       build-essential \
@@ -33,6 +37,7 @@ RUN apt-get update \
       libsqlite3-dev \
       libtiff-dev \
       libcurl4-openssl-dev \
+      libgeos-dev \
       libclang-dev \
       clang \
       python3 \
