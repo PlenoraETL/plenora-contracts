@@ -1,127 +1,86 @@
-# Piano di lavoro — 30 luglio 2026
+# Piano di lavoro — 30 luglio 2026, sera
 
 Istantanea di coordinamento, **non normativa** e con data di scadenza breve. Lo
 stato autorevole sta nelle fonti leggibili da macchina citate in Appendice A
 dell'ICD. Se questa pagina e quelle divergono, prevalgono quelle.
 
-## Il collo di bottiglia
+Sostituisce la versione del mattino, che dopo una giornata era sbagliata in ogni
+riga.
 
-Un'azione sola sblocca tutto il resto: **rieseguire la matrice di conformità con
-il manifesto corretto**. Il risultato del 30 luglio, 26/39, non è utilizzabile
-per decidere:
+## Il collo di bottiglia è uno, e non è tecnico
 
-- undici fallimenti di data-tools erano l'assenza di `--features proj-backend`
-  nel manifesto, non un difetto della libreria;
-- l'unico caso superato da data-tools era un falso positivo: il runner accettava
-  qualunque uscita diversa da zero come rifiuto corretto;
-- il fallimento a carico di IO-tools era una fixture che chiedeva a un bordo di
-  lettura di rifiutare, cioè il contrario di R4.6.1.
+**La revisione indipendente.** Tutti e tre i componenti la portano, e per uno è
+l'unico ostacolo rimasto:
 
-Tutte e tre le cause sono corrette in `conformance/`. Finché la matrice non è
-rieseguita **non sappiamo dove siamo**, e ogni intervento sui componenti rischia
-di inseguire un numero sbagliato.
+| Componente | Come la registra |
+|---|---|
+| `plenora-database-tools` | `PLN-DB-REVIEW`, **unico blocker** dell'RC1. Nessun tag autorizzato finché non è registrata |
+| `plenora-IO-tools` | `independent_review: assurance_attribute_open_non_blocking` |
+| `plenora-data-tools` | dichiarata nel manifesto, `independent_review: false` |
 
-Serve una toolchain Rust e i tre checkout alle revisioni di
-`conformance/components.json`. Chi ha `cargo` esegue:
+L'owner è eleggibile per il codice di tutti e tre: è proprietario e non autore.
+Non lo è per l'ICD chi lo ha co-redatto.
 
-```
-python conformance/corpus/generate.py --out conformance/cases
-python conformance/run_roundtrip.py --checkouts .. --report roundtrip.json
-```
+Non serve farla su tutti e tre. Una sola libreria revisionata sblocca un RC1,
+sposta la scala dei claim da `verified_internally` a `verified_independently` per
+quella, e dimostra che il percorso esiste. La condizione d'uscita più precisa è
+quella di database-tools: identità e indipendenza del revisore, baseline esatta,
+comandi, rilievi, loro chiusura, esito finale.
 
-## Owner
-
-Due decisioni, entrambe economiche, entrambe sbloccanti.
-
-**1. Ratificare le quattro voci a costo nullo.** §2, §3.4, §9 e §11.5–§11.10 sono
-già adottate da tutti e tre i componenti: ratificarle non apre un solo gap e
-porta il registro da 11 a 15 voci su 24. Vedi
+**La seconda decisione dell'owner** sono le ratifiche. Quattro voci sono già
+adottate da tutti e tre e ratificarle non apre un solo gap — porta il registro da
+11 a 15 su 25. E R4.6 sblocca `PLN-DB-R46` in database-tools e l'estrazione del
+crate condiviso in IO-tools. Vedi
 [`RATIFICA-DECISIONI-APERTE.md`](RATIFICA-DECISIONI-APERTE.md).
 
-Perché conta: `icd_ratification_alignment` è elencato fra i prerequisiti esterni
-di IO-tools, e non è esterno. È una mattinata di lettura.
+## Stato per componente
 
-**2. Decidere sulla revisione indipendente.** È l'unica voce che nessun lavoro
-tecnico chiude, ed è ferma su tutti e tre con
-`no_eligible_reviewer_recorded`. L'owner è eleggibile per il codice delle tre
-librerie, in quanto non autore. Non lo è per l'ICD chi lo ha co-redatto.
+**`plenora-IO-tools` — `v0.1.0-rc.3` taggato, `component_rc: true`.**
+Primo componente con un RC che include la dichiarazione dell'incoerenza CRS.
+Lavora su rc4: streaming KML/DXF/XLSX, pushdown OpenFileGDB, matrice
+GDAL/Windows. Un difetto aperto trovato con dati reali — `crs_kind` classifica
+come geografico ogni CRS proiettato definito via WKT, perché controlla `GEOGCS[`
+prima di `PROJCS[` e ogni WKT proiettato contiene un `GEOGCS` annidato. Riguarda
+R4.2. Aperto anche un rilievo R5: perdita di precisione sui numerici DBF
+riportata come `lossless: true`.
 
-Non serve farla su tutto: una sola libreria revisionata sposta la scala dei claim
-da `verified_internally` a `verified_independently` per quella, e dimostra che il
-percorso esiste.
+**`plenora-data-tools` — `1bee830`, M3 chiuso, manifesto che passa il gate.**
+R4.6.3 attuato: il requisito di CRS è condizionato alle operazioni che lo usano.
+Cinque blocchi aperti dichiarati, fra cui la copertura di `plenora-cli` al 59,5%.
+Nessun RC dichiarato.
 
-## IO-tools
+**`plenora-database-tools` — `245be06`, RC1 bloccata solo dalla review.**
+Capability di scrittura complete, staging e swap transazionale inclusi. Manifesto
+con riduzioni di ambito dichiarate e `runtime_policy` per area. Repository
+congelato per scelta: nessun lavoro sul codice finché non arriva la review, la
+ratifica di R4.6, o un rilievo critico.
 
-Stato: `2f56844`, cinque flussi rc3 aperti su sette, `component_rc: false`. La
-baseline rc2 resta un RC di componente taggato.
+## Qualifica di sistema
 
-**1. Gap R4.6.1 — dichiarare l'incoerenza del CRS.** `driver.rs:579` confronta
-l'SRID incorporato con quello dichiarato, ma solo per payload EWKB (R4.3.2). Su
-WKB nessun confronto avviene: `crs_id=EPSG:4326` contro `srid=3003` passa in
-silenzio. Manca la risoluzione del codice di autorità da `crs_id` e il confronto
-con `plenora.geometry.srid`, con l'esito registrato nel `LossReport`.
+Eseguita due volte il 30 luglio, mai soddisfatta. L'ultima:
+IO-tools 13/13, database-tools 13/13, data-tools 0/13 — e quello zero era il
+container, non la libreria: mancavano `sqlite3` e le dipendenze di `bundled_proj`.
+Corretto; la rieseguzione è la prima cosa da rifare quando serve un numero.
 
-Il meccanismo esiste (`plenora-io-core/src/loss.rs:155`) e la logica esiste
-altrove (`authority_srid` in `plenora-database-core/src/field_contract.rs`): è da
-sollevare, non da inventare. Non dipende dalla ratifica di R4.6 — un lettore che
-vede due rappresentazioni discordanti e non lo dichiara perde informazione, e
-R5 è ratificata.
+L'ambiente esiste ed è riproducibile: `conformance/Dockerfile` e
+`conformance/run-in-container.sh`, un container solo, nessun database, nessuna
+GDAL.
 
-**2. Riconsiderare lo scopo di rc3.** Streaming, pushdown FileGDB e ambiente GDAL
-Windows sono tre lavori grossi e indipendenti; la via del bundling è chiusa dal
-veto prestazionale, quindi il terzo è diventato più difficile. Un RC che aspetta
-cinque cose non arriva; uno che ne aspetta due arriva e dichiara cosa non copre.
+## Cosa resta a `plenora-contracts`
 
-## data-tools
+1. **Rieseguire la matrice** con il container corretto. È l'unica cosa che
+   produce un numero di cui fidarsi.
+2. **Verificare il secondo obbligo di R4.6.1.** Il roundtrip controlla che i
+   metadati sopravvivano, non che l'incoerenza sia dichiarata: il `LossReport`
+   dei reader non esce dalla CLI di IO-tools. Capacità richiesta già dichiarata
+   in `components.json`.
+3. **Direzione inversa `database → data → IO`.** Mai eseguita. Richiede un
+   PostgreSQL vivo e uno schema nuovo per ogni caso.
+4. **CI della conformità**, dopo che la matrice è verde e non prima: un gate
+   rosso permanente insegna a ignorarlo.
 
-Stato: `e6f3f92`, **zero manifesti di rilascio**, ADR-0012 M2 chiuso con −16,2%
-sulla catena completa.
+## Cosa non fare
 
-**1. Manifesto di rilascio (C1).** È l'unico dei tre senza alcuna definizione di
-RC: la distanza da un RC non è misurabile, non perché sia indietro. La forma
-minima è in [`PLENORA-CRITERI-RC.md`](PLENORA-CRITERI-RC.md) e i tre manifesti di
-IO-tools sono un esempio funzionante. Il gate
-`scripts/check_release_manifest.py` lo verifica.
-
-**2. Attendere la rieseguzione** prima di qualunque intervento sul contratto.
-Oggi nessuna delle sue tredici verifiche è interpretabile.
-
-## database-tools
-
-Stato: `1292089`, 13/13 alla qualifica, **zero manifesti di rilascio**.
-
-**1. Manifesto di rilascio (C1).** Stessa lacuna di data-tools, con un merito in
-più da registrare: è l'unico componente con un esito di qualifica di sistema.
-
-**2. Fissare l'immagine SQL Server.** `docker-compose.sqlserver.yml` usa
-`mcr.microsoft.com/mssql/server:2022-latest`, un tag mobile: un aggiornamento a
-monte cambia il risultato senza che nessuno abbia toccato niente. PostGIS è già
-fissato bene. Cinque minuti, e chiude un residuo di C2.2.
-
-## plenora-contracts
-
-**1. Verificare il secondo obbligo di R4.6.1.** Il roundtrip controlla che i
-metadati sopravvivano, non che l'incoerenza sia dichiarata. Dove l'attesa è
-`preserve`, il record riporta `unverified_obligation` — è onesto, ma resta un
-obbligo non verificato. Richiede di leggere il `LossReport` in forma leggibile da
-macchina.
-
-**2. Direzione inversa `database → data → IO`.** Dichiarata obbligatoria dal
-gate, mai eseguita. Richiede un PostgreSQL vivo e un disegno che risolva lo stato
-fra un caso e l'altro — schema nuovo per ogni caso. I due container esistono già
-in database-tools.
-
-**3. CI della conformità.** Un'esecuzione che avviene una volta è un aneddoto. Da
-fare dopo che la matrice è verde, non prima: un gate rosso permanente su `main`
-non aggiunge informazione.
-
-## Ordine
-
-1. Rieseguire la matrice. Cambia ciò che sappiamo di due componenti su tre.
-2. In parallelo, senza dipendenze: le quattro ratifiche a costo nullo; il gap
-   R4.6.1 su IO-tools; i due manifesti di rilascio; il pin di SQL Server.
-3. Poi: §4.6 e §4.3.1–§4.3.3 ratificate insieme — sono la stessa materia, e
-   separarle lascerebbe scoperto il punto che si è voluto chiarire.
-4. Poi: §15.3 e l'estrazione del crate condiviso, con `field_contract.rs` come
-   implementazione candidata.
-5. Quando la matrice è verde: la CI della conformità, poi la direzione inversa.
+Aprire altro lavoro sul codice mentre tre componenti aspettano una decisione che
+non è tecnica. Il progetto non è fermo per mancanza di cose da scrivere: è fermo
+su due atti dell'owner che insieme valgono una mattinata.
