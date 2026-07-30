@@ -14,9 +14,10 @@
     {
       "name": "plenora-IO-tools",
       "role": "file_boundary",
-      "revision": "3f3562a4707995549ff5eb8dc03f9e37f2cde355",
+      "revision": "ea0de79677e8fc794d96ac3d95c5bc2c6e30358c",
+      "tag": "v0.1.0-rc.3",
       "tested_revision": "f8a89170785c938a9105deae6cc479576abb969a",
-      "tested_revision_note": "La qualifica del 30 luglio ha girato su f8a8917. Da allora a28e5ae ha modificato il codice: il bordo di lettura dichiara ora l'incoerenza fra crs_id EPSG e srid nel LossReport, senza rifiutare (R4.6.1). L'esito precedente non copre questo comportamento e la rieseguzione e' necessaria. Residuo dichiarato in CHANGE_IMPACT_2026-07-30_RC3_CRS_SCOPE.md: crs_definition contro SRID resta fuori da rc3, quindi R4.3.1 non e' completa.",
+      "tested_revision_note": "Fissato al tag v0.1.0-rc.3, non a main: IO-tools lavora ora su rc4 e il ramo si muove. L'albero di crates/ del tag e' identico a quello di 3f3562a (tree c985c35a): i tre commit di rilascio toccano solo manifesti e gate. La qualifica del 30 luglio ha girato su f8a8917. Da allora a28e5ae ha modificato il codice: il bordo di lettura dichiara ora l'incoerenza fra crs_id EPSG e srid nel LossReport, senza rifiutare (R4.6.1). L'esito precedente non copre questo comportamento e la rieseguzione e' necessaria. Residuo dichiarato in CHANGE_IMPACT_2026-07-30_RC3_CRS_SCOPE.md: crs_definition contro SRID resta fuori da rc3, quindi R4.3.1 non e' completa.",
       "remote": "https://github.com/PlenoraETL/plenora-IO-tools.git"
     },
     {
