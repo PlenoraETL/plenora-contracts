@@ -20,9 +20,13 @@ ed è da lì che conviene cominciare.
 
 ## Costo quasi nullo — già adottata dai tre
 
+*(§9 era in questo gruppo fino al 31 luglio 2026: rimossa dopo aver verificato
+che l'adozione vale dentro le librerie e non al confine degli eseguibili, che è
+il confine da cui Plenora le userà.)*
+
 | Voce | Oggetto | Adozione | Cosa comporta ratificare |
 |---|---|---|---|
-| §9 | Errore a quattro assi | tutti e tre, `plenora-database-core` è il riferimento | Nulla di tecnico. Rende esigibile la forma dell'errore attraverso i confini, che è la premessa di R14 e di ogni decisione di retry |
+
 | §11.5–§11.10 | Cancellazione: token, attesa race-free, deadline, propagazione | tutti e tre | Nulla di tecnico. Vincola la forma del token, che il crate condiviso di §15.3 deve esportare |
 | §2 | Chiavi metadata canoniche, versione del protocollo, lineage | tutti e tre, sotto deroga DER-ICD-002 | Chiude la deroga o le dà una condizione di rientro. È la voce più a valle di tutte: il corpus di conformità verifica queste chiavi |
 | §3.4 | `unknown` non degradabile, tre stati di dichiarazione | tutti e tre | Nulla di tecnico. Rende esigibili due casi del corpus (`dimensions_unknown`, `types_mixed`) |
@@ -31,6 +35,7 @@ ed è da lì che conviene cominciare.
 
 | Voce | Oggetto | Adozione | Cosa comporta ratificare |
 |---|---|---|---|
+| §9 | Errore a quattro assi | **solo dentro le librerie**, non al confine CLI | Apre un gap su tutti e tre. I tipi Rust esistono, ma i tre eseguibili espongono gli assi in tre modi diversi: uno in JSON con gli assi dentro la prosa, uno in testo semplice, uno senza assi. R9.2 vieta di dedurre la ritentabilità dal messaggio, e un chiamante Python oggi non può fare altro |
 | §7 | Limiti pre-allocazione, budget ceduto lungo la catena | IO-tools parziale, gli altri due con lease | Un gap dichiarato a carico di IO-tools, oppure una deroga con rientro |
 | §12 | Determinismo su quattro livelli | dichiarato da tutti, verificato in modo disuguale | Obbliga a produrre l'evidenza del livello dichiarato. È la voce che costa più lavoro di verifica |
 | §10 | Capability dichiarative interrogabili | per driver e per provider, non uniforme | Obbliga a un'interfaccia comune di interrogazione. Tocca tutti e tre |
@@ -49,7 +54,7 @@ ed è da lì che conviene cominciare.
 
 ## Ordine suggerito
 
-Le quattro voci a costo quasi nullo prima: portano il registro da 11 a 15
+Le tre voci a costo quasi nullo prima: portano il registro da 11 a 14
 ratificate su 25 senza aprire un solo gap, e rendono esigibile ciò che i tre già
 fanno. Poi §4.6 e §4.3.1–§4.3.3 insieme, perché sono la stessa materia e
 ratificarle separatamente lascerebbe scoperto proprio il punto che si è voluto
