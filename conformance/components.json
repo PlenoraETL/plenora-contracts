@@ -22,7 +22,8 @@
     {
       "name": "plenora-data-tools",
       "role": "transformation_core",
-      "revision": "2826ece45f0d2c86f03177e3300d526d8cf12233",
+      "revision": "1bee8303c47970e96ab269f12cbe5d2bcdc32837",
+      "tested_revision_note": "Commit di chiusura M3, scelto dal team data-tools: 2826ece era a meta' cantiere e senza oracolo. Comprende R4.6.3 attuato — il requisito di CRS risolvibile e' condizionato alle operazioni che lo usano, quindi il filtro tabellare del piano identita' passa e crs_resolution=missing e' propagato alle chiavi di uscita (R4.6.4). Il caso crs_missing dovrebbe quindi cambiare esito.",
       "remote": "https://github.com/PlenoraETL/plenora-data-tools.git"
     },
     {
@@ -124,7 +125,17 @@
     }
   ],
   "system_qualification": {
-    "status": "run_not_satisfied",
+    "status": "run_not_satisfied_rerun_pending",
+    "rerun_ready": {
+      "date": "2026-07-30",
+      "note": "Le tre revisioni fissate sono ora tutte scelte dai rispettivi team come punti di qualifica, e tutte e tre cambiano il comportamento verificato rispetto all'esecuzione precedente: IO-tools dichiara l'incoerenza CRS nel LossReport (a28e5ae), data-tools condiziona il requisito di CRS alle operazioni (711f93a), database-tools e' invariato nel codice. Anche il corpus e i runner sono cambiati: flag proj-backend ripristinato, attese per ruolo secondo R4.6, rifiuto giudicato per causa e non per codice di uscita. Nessun elemento della prima esecuzione e' confrontabile: e' una prima esecuzione, non una ripetizione.",
+      "expected_changes": [
+        "conflicting_crs su IO-tools: da fail a pass, ma con unverified_obligation — la dichiarazione nel LossReport non e' visibile dalla CLI",
+        "crs_missing su data-tools: da fail a pass, R4.6.3 attuato",
+        "gli undici CRS_BACKEND_UNAVAILABLE su data-tools: spariti, era il flag mancante",
+        "conflicting_crs su data-tools: non piu' un pass automatico, il rifiuto viene giudicato per causa"
+      ]
+    },
     "result": "26/39 verifiche conformi",
     "run": {
       "date": "2026-07-30",
