@@ -295,5 +295,16 @@
       },
       "note": "Tutti e tre emettono `retry` come oggetto taggato. I campi in piu' sono contesto del componente e non ostacolano un lettore che cerca i cinque canonici. database-tools li emette come null invece di ometterli: irrilevante oggi, sarebbe un campo `context` opzionale quando nascera' il crate condiviso."
     }
+  },
+  "qualification_caveat": {
+    "id": "geoarrow_extension_required_for_recognition",
+    "discovered": "2026-07-31",
+    "severity": "invalida parzialmente il risultato di plenora-IO-tools",
+    "observation": "Il driver IPC di plenora-IO-tools riconosce una colonna come geometrica solo in presenza di `ARROW:extension:name`. Con le sole chiavi canoniche di §2 la colonna e' letta come binario opaco: `inspect` riporta `geometry: false` e il layer non ha contratto geometrico. Verificato eseguendo su tre casi del corpus.",
+    "consequence": "Tredici dei quattordici casi del corpus portano solo le chiavi canoniche. Per quei tredici il roundtrip di IO-tools misura la conservazione di byte e metadati opachi — proprieta' reale e richiesta da R2.4 — non la conservazione di un contratto compreso. Il 13/13 va letto cosi'. Spiega anche perche' `conflicting_crs` passava: nessun conflitto era rilevabile perche' nessun CRS era stato letto.",
+    "why_the_chain_still_works": "IO-tools **emette** l'estensione: un dataset che esce da IO-tools e rientra in IO-tools o entra in data-tools e' riconosciuto. Il divario si manifesta solo con Arrow prodotto altrove — questo corpus, oppure il backend Python di Plenora che costruisse una tabella dalle sole chiavi canoniche.",
+    "contract_question": "§2 elenca le chiavi canoniche come obbligatorie per una colonna geometrica e non richiede l'estensione; R2.6 la dichiara «ammessa ed esente», e ammessa non e' richiesta. La discovery di plenora-data-tools riconosce una colonna geometrica dalle sole chiavi canoniche e lo dichiara nel commento di `discover_input_contract`. Due componenti si comportano quindi diversamente sullo stesso ingresso. Da dirimere dall'owner: le chiavi canoniche sono autosufficienti per il riconoscimento, oppure l'estensione e' richiesta e §2 va emendata.",
+    "corpus_defect": "Il corpus e' complice: avrei dovuto portare l'estensione come fa l'uscita reale di IO-tools, oppure avere casi con e senza per verificare proprio questo. Con le sole chiavi canoniche ho costruito tredici casi che un componente puo' superare senza leggerli.",
+    "action": "Generare ogni caso in due varianti, con e senza estensione, e verificare che il riconoscimento e la propagazione siano gli stessi. Fino ad allora il risultato di IO-tools sui casi canonici non e' evidenza di comprensione del contratto."
   }
 }
