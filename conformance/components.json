@@ -257,5 +257,34 @@
     "plenora.geometry.axis_order",
     "plenora.geometry.spatial_semantics",
     "plenora.geometry.precision"
-  ]
+  ],
+  "required_capability_shared": {
+    "id": "error_envelope_json",
+    "why": "R9.2 vieta di dedurre la ritentabilita' dal messaggio: «un chiamante non deve interpretare del testo per decidere se riprovare». Al confine CLI i tre espongono oggi tre superfici diverse — IO-tools JSON con gli assi in prosa italiana, database-tools testo con gli assi in prosa inglese, data-tools testo senza assi. Un wrapper Python dovrebbe ricostruire con espressioni regolari cio' che R9.2 vieta di ricostruire, e su data-tools non ci riuscirebbe. La forma e' dichiarata qui prima dell'implementazione, come fu per inspect-dataset, perche' tre implementazioni indipendenti convergerebbero *quasi* sulla stessa busta e divergerebbero nei dettagli.",
+    "applies_to": [
+      "plenora-IO-tools",
+      "plenora-data-tools",
+      "plenora-database-tools"
+    ],
+    "shape": {
+      "medium": "stdout",
+      "format": "json",
+      "envelope": {
+        "status": "\"error\"",
+        "protocol_version": "intero",
+        "error": {
+          "category": "una di: invalid_plan, invalid_configuration, schema, data_mapping, crs, unsupported, not_found, conflict, authentication, authorization, timeout, cancelled, resource_limit, io, protocol, transient, execution, internal",
+          "phase": "una di: validate, connect, probe, prepare, read, write, finalize, commit, rollback, cleanup",
+          "remote_effect": "una di: none, rolled_back, partial, committed, unknown",
+          "retry": "oggetto con `kind` fra never, safe, requires_idempotency_key, requires_recovery, after; con `delay_ms` intero quando kind = after",
+          "message": "testo per chi legge, senza gli assi ripetuti dentro"
+        }
+      }
+    },
+    "note": "I valori non sono proposti da qui: sono la serializzazione gia' definita dai tipi in plenora-database-core/src/error.rs — snake_case per i primi tre assi, e RetryDisposition con `#[serde(tag = \"kind\", content = \"delay_ms\")]`, quindi un oggetto e non una stringa. E' il dettaglio su cui tre implementazioni indipendenti divergerebbero. DatabaseError deriva gia' Serialize: la correzione e' stampare la serializzazione invece del Display, non scrivere una struttura nuova.",
+    "reference": "plenora-database-tools:crates/plenora-database-core/src/error.rs",
+    "status": "not_available",
+    "rule": "R9.1, R9.2",
+    "rule_state": "proposta"
+  }
 }
