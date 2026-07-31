@@ -7,7 +7,34 @@ Pipeline: shapefile catastale `EPSG:3003` → filtro sugli attributi →
 riproiezione a `EPSG:4326`. Stack di riferimento: GeoPandas/Shapely, che è
 quello che Plenora usa oggi. Stack nuovo: i tre componenti.
 
-## Cosa è emerso alla prima esecuzione
+## Esito della prima esecuzione, e cosa è stato chiuso
+
+**Tre reperti su tre chiusi da `plenora-IO-tools` in giornata** (`95fc4eb`):
+
+```
+                    prima            dopo
+ID_PARTICE          double           int64
+identificativi      1501 / 3000      3000 / 3000
+colonne             8                9
+lettura, Linux fs   0.81 s           0.0117 s   (GeoPandas 0.0120 s)
+lettura, mount 9p   —                0.0139 s   (GeoPandas 0.0508 s)
+```
+
+Il divario di prestazioni non era il costo della validazione: era una doppia
+scansione geometrica, rimossa. Dopo la correzione i due stack sono **alla pari**
+su filesystem normale, e i tre sono più veloci sul mount.
+
+Il caso delle colonne omonime era un difetto **del generatore**: scriveva due
+campi DBF con lo stesso nome, un file che nella realtà non esiste perché gli
+strumenti deduplicano in scrittura. Corretto — ora scrive `DENOMINAZI` e
+`DENOMINAZ1` — e `plenora-IO-tools` nel frattempo rifiuta i nomi duplicati
+invece di perdere una colonna in silenzio, che è la risposta giusta a un file
+malformato.
+
+Resta aperto il declassamento del CRS operato da `table.filter`, segnalato a
+`plenora-data-tools`.
+
+## Cosa era emerso alla prima esecuzione
 
 **3.000 particelle, 12 aspetti divergenti su 14.**
 

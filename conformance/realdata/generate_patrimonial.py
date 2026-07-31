@@ -243,8 +243,24 @@ def _write_dbf(path: Path, rows: list[dict]) -> None:
     head += struct.pack("<IHH", len(rows), header_length, record_length)
     head += b"\x00" * 20
 
-    for name, kind, size, decimals in FIELDS:
-        truncated = name[:10].upper().encode("ascii")
+    # Deduplica come fanno gli strumenti veri: ArcGIS scrive `DENOMINAZ1`
+    # quando due nomi troncano sullo stesso. La prima versione scriveva due
+    # campi omonimi — un file che nella realta' non esiste, e che
+    # plenora-IO-tools rifiuta correttamente per non perdere una colonna.
+    # La collisione resta nel corpus come *quasi* collisione: e' il caso reale.
+    visti: dict[str, int] = {}
+    nomi: list[str] = []
+    for name, _k, _s, _d in FIELDS:
+        base = name[:10].upper()
+        if base in visti:
+            visti[base] += 1
+            base = base[:9] + str(visti[base])
+        else:
+            visti[base] = 0
+        nomi.append(base)
+
+    for (name, kind, size, decimals), troncato in zip(FIELDS, nomi):
+        truncated = troncato.encode("ascii")
         head += truncated.ljust(11, b"\x00")
         head += kind.encode("ascii")
         head += b"\x00" * 4
