@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc12 · 31 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc13 · 31 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -28,6 +28,7 @@
 > | §3.4 | `unknown` non degradabile; tre stati di dichiarazione | `proposta` | emendata 2.0 |
 > | §3.5 | Encoding come enumerazione chiusa | **ratificata** | dal 27 lug |
 > | §4.1–§4.4 | CRS: tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | dal 27 lug, testo 1.x |
+> | §4.1.1 | `declared_unresolved` non richiede una definizione testuale | `proposta` | nuova 2.0-rc13 |
 > | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | `proposta` | nuove 2.0, dentro una sezione ratificata |
 > | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | `proposta` | emendata 2.0 |
 > | §4.6 | Collocazione del fail-closed: rapporto in lettura, rifiuto in scrittura, decisione al centro; propagare contro scegliere quando i bordi coincidono | `proposta` | nuova 2.0-rc9, R4.6.5 in rc12 |
@@ -344,6 +345,20 @@ end-to-end XYZM attraverso i tre componenti; grep di assegnazioni che portano a
 > `resolved`, `declared_unresolved`, `missing`. Un componente **NON DEVE**
 > collassarne due su una stessa rappresentazione, né nel modello interno né nei
 > metadati che emette.
+>
+> **R4.1.1** *(nuova 2.0-rc13)* `declared_unresolved` **NON DEVE** richiedere la
+> presenza di `plenora.geometry.crs_definition`. Un identificativo dichiarato e
+> non risolvibile — `crs_id` senza definizione testuale — è sufficiente a entrare
+> in quello stato.
+>
+> I tre stati di R4.1 **DEVONO** coprire lo spazio: una sorgente che dichiara un
+> solo identificativo irrisolvibile non è `resolved`, perché non si risolve, e
+> non è `missing`, perché qualcosa è stato dichiarato. Se `declared_unresolved`
+> le fosse precluso, resterebbero due sole strade — forzarla su `missing`, che
+> collassa due stati contro R4.1, oppure rifiutare il dato. La seconda è
+> fail-closed e conforme, ma rende illeggibile una classe di file frequente:
+> un codice EPSG errato o ritirato in un `.prj` è fra le anomalie più comuni dei
+> dati di produzione.
 >
 > **R4.2** L'ordine degli assi **DEVE** essere trasportato esplicitamente e **NON
 > DEVE** essere canonicalizzato. `EPSG:4326` (lat/lon) e `OGC:CRS84` (lon/lat)

@@ -1,6 +1,6 @@
-# Quattordici decisioni di ratifica aperte
+# Quindici decisioni di ratifica aperte
 
-Il registro dell'ICD ha 25 voci: 11 ratificate, 14 `proposta`. Questa pagina
+Il registro dell'ICD ha 26 voci: 11 ratificate, 15 `proposta`. Questa pagina
 serve a decidere voce per voce senza rileggere il documento.
 
 **Perché conta.** Una regola `proposta` non vincola nessuno. Alla data di questa
@@ -47,6 +47,7 @@ il confine da cui Plenora le userà.)*
 |---|---|---|
 | §4.6 | Collocazione del fail-closed, e da rc12 propagare contro scegliere quando i bordi coincidono (R4.6.5) | R4.6.1 è ora implementata da IO-tools. R4.6.5 risponde alla domanda che blocca `1.0.0-rc.1` di IO-tools: un comando che legge e scrive rifiuta solo quando la destinazione non può rappresentare l'incoerenza, cioè quando scrivere impone una scelta. Ratificarla sblocca quella RC |
 | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | Solo `plenora-database-core` le rispetta. Ratificarle apre un gap su IO-tools — è il conflitto CRS accettato in silenzio |
+| §4.1.1 | `declared_unresolved` non richiede una `crs_definition` | Trovata dal corpus a due varianti: IO-tools respinge un caso con `crs_id` irrisolvibile e nessuna definizione, perché `RawCrs.definition` è `String` e non `Option`. §2 dichiara la chiave facoltativa. Ratificarla apre un gap dichiarato su IO-tools e zero sugli altri due |
 | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | Emendamento di una regola 1.x che resta in vigore (R4.5.1). Finché non è ratificata vale la formulazione più restrittiva: nessun pushdown |
 | §15.2 | Distribuzione: tag firmato e revisione esatta | Nessun tag di questo repository è firmato. Ratificarla richiede una baseline firmata prima di poterla rispettare |
 | §15.3 | Contenuto e API del crate condiviso | Il crate non esiste. È il blocco del passo 2 di §15.4, e ora esiste un'implementazione candidata da estrarre: `field_contract.rs` di `plenora-database-core` |
