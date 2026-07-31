@@ -177,65 +177,42 @@
     }
   ],
   "system_qualification": {
-    "status": "run_not_satisfied_rerun_pending",
-    "rerun_ready": {
-      "date": "2026-07-30",
-      "note": "Le tre revisioni fissate sono ora tutte scelte dai rispettivi team come punti di qualifica, e tutte e tre cambiano il comportamento verificato rispetto all'esecuzione precedente: IO-tools dichiara l'incoerenza CRS nel LossReport (a28e5ae), data-tools condiziona il requisito di CRS alle operazioni (711f93a), database-tools e' invariato nel codice. Anche il corpus e i runner sono cambiati: flag proj-backend ripristinato, attese per ruolo secondo R4.6, rifiuto giudicato per causa e non per codice di uscita. Nessun elemento della prima esecuzione e' confrontabile: e' una prima esecuzione, non una ripetizione.",
-      "expected_changes": [
-        "conflicting_crs su IO-tools: da fail a pass, ma con unverified_obligation — la dichiarazione nel LossReport non e' visibile dalla CLI",
-        "crs_missing su data-tools: da fail a pass, R4.6.3 attuato",
-        "gli undici CRS_BACKEND_UNAVAILABLE su data-tools: spariti, era il flag mancante",
-        "conflicting_crs su data-tools: non piu' un pass automatico, il rifiuto viene giudicato per causa"
-      ]
+    "status": "run_not_satisfied",
+    "date": "2026-07-31",
+    "note": "Prima qualifica eseguita su tre riferimenti immutabili. Le esecuzioni precedenti erano esplorative, su teste di ramo, e non erano evidenza.",
+    "revisions": {
+      "plenora-IO-tools": "v1.0.0-rc.1 (6e3a942dfd607c8bf4bdbe0075c8e8f5f3761842)",
+      "plenora-data-tools": "v0.1.0-rc1 (7d530318760c…)",
+      "plenora-database-tools": "v0.1.0-rc.1 (b541c61dd1c2…)"
     },
-    "result": "26/39 verifiche conformi",
-    "run": {
-      "date": "2026-07-30",
-      "report": "plenora-pinned-roundtrip-report.json",
-      "per_component": {
-        "plenora-IO-tools": "12/13",
-        "plenora-data-tools": "1/13",
-        "plenora-database-tools": "13/13"
-      },
-      "invalidated": "Il risultato di plenora-data-tools non e' interpretabile in nessuna delle due direzioni. Undici dei dodici fallimenti sono CRS_BACKEND_UNAVAILABLE, prodotti dall'assenza del flag `--features proj-backend` in questo manifesto e non da un difetto della libreria. E l'unico caso superato, `conflicting_crs`, era un falso positivo: il runner accettava qualunque uscita diversa da zero come `respinto come previsto`, quindi un componente che respinge ogni dataset per un backend non abilitato superava proprio il caso piu' importante del corpus. Corretto: le fixture `fail_closed` dichiarano ora la causa attesa e quelle che la squalificano, e il rifiuto viene conservato nel report. Va rieseguito.",
-      "genuine_findings": [
-        {
-          "component": "plenora-IO-tools",
-          "case": "conflicting_crs",
-          "observed": "conflitto crs_id=EPSG:4326 contro srid=3003 accettato in silenzio",
-          "rule": "R4.3.1, R4.6.1",
-          "rule_state": "proposta",
-          "status": "chiuso il 30 luglio 2026",
-          "note": "Rilievo superato due volte. Non era un difetto nella forma in cui l'avevo registrato: la fixture chiedeva a un bordo di lettura di rifiutare, cioe' il contrario di R4.6.1. Il gap vero era il secondo obbligo di R4.6.1, dichiarare l'incoerenza: chiuso in a28e5ae, che confronta l'autorita' EPSG risolta da crs_id con srid e registra `inconsistent_crs_representations` nel LossReport senza rifiutare ne' conciliare. Residuo dichiarato: crs_definition contro SRID non e' confrontata, quindi R4.3.1 non e' completa."
-        },
-        {
-          "component": "plenora-database-tools",
-          "case": "conflicting_crs",
-          "observed": "rileva il conflitto e respinge con ErrorCategory::Crs, `identificatore CRS e SRID numerico divergenti`",
-          "rule": "R4.3.1",
-          "rule_state": "proposta",
-          "note": "Verificato staticamente in plenora-database-core/src/field_contract.rs: validate_crs risolve l'autorita' da crs_id e la confronta con srid. E' l'unico dei tre che rileva il conflitto, e lo fa per la ragione giusta. Non e' un finding: e' il riferimento con cui confrontare gli altri due."
-        },
-        {
-          "component": "plenora-data-tools",
-          "case": "crs_missing",
-          "observed": "respinge il dataset: `colonna geometria geometry senza metadato geo: impossibile determinare il CRS`",
-          "rule": "R4.1, R4.4",
-          "rule_state": "ratificata",
-          "note": "Ambiguita' del contratto, non difetto accertato. Nessuna regola impone di accettare `crs_resolution=missing`, e nessuna autorizza a respingerlo quando il piano non richiede riproiezione. Il piano usato e' un filtro puro. Da dirimere dall'owner prima di chiedere una modifica a data-tools."
-        }
-      ]
+    "environment": "conformance/Dockerfile — rust 1.92.0, pyarrow 23.0.1, PROJ e GEOS dai sorgenti. Nessun database: il terzo roundtrip e' arrow_to_contract e lavora offline.",
+    "result": {
+      "roundtrip": "83/84",
+      "chain": "27/28, con giudizio del bordo di scrittura su 27 casi",
+      "per_variant": {
+        "canonica": "42/42 — conservazione delle chiavi, senza che siano necessariamente lette",
+        "geoarrow": "41/42 — comprensione del contratto dopo il riconoscimento"
+      }
     },
-    "note": "Prima esecuzione reale della matrice, sulle revisioni fissate. Il risultato non soddisfa il gate. Le due direzioni richieste non sono entrambe coperte: la matrice esegue solo i roundtrip per componente.",
-    "supersedes_pending": "Il risultato e' anteriore a R4.6 e all'attesa per ruolo. Il caso conflicting_crs chiedeva a tutti e tre di rifiutare, cioe' il contrario di R4.6.1 per il bordo di lettura: il fallimento registrato a carico di IO-tools non era un difetto della libreria. Va rieseguito. Alla rieseguzione il caso non e' piu' un finding contro IO-tools, ma resta parzialmente non verificato: R4.6.1 impone di preservare *e* di dichiarare l'incoerenza, e il runner verifica solo la preservazione.",
-    "historical_observation": {
-      "source": "plenora-IO-tools:release/system-rc-gate.json",
-      "release_tag": "v0.1.0-rc.2",
-      "fixture": "exact_point_xyz_resolved_crs",
-      "platform": "linux_x86_64",
-      "result": "pass",
-      "note": "Osservazione conservata dal tag immutabile v0.1.0-rc.2. L'harness che la produsse e' stato rimosso dalla baseline RC3 di IO-tools e generava anche il dataset di partenza: non era terzo rispetto al primo anello. Non e' evidenza della baseline corrente e non contribuisce al superamento del gate."
-    }
+    "single_finding": {
+      "component": "plenora-IO-tools",
+      "case": "crs_unresolved__geoarrow",
+      "observed": "invalid_plan: `metadato plenora.geometry.crs_definition non valido`. `RawCrs.definition` e' String e non Option<String>, quindi `declared_unresolved` senza definizione non e' rappresentabile.",
+      "rule": "R4.1.1",
+      "rule_state": "proposta",
+      "note": "Dichiarato in anticipo dal componente stesso: il manifesto di v1.0.0-rc.1 registra R4.1.1 come proposta non implementata. Non e' una sorpresa e non e' un'infrazione — nessuna regola ratificata lo vieta."
+    },
+    "why_not_satisfied": [
+      "Il gate `plenora-system-contract-roundtrip-v1` richiede entrambe le direzioni: `database -> data -> IO` non e' mai stata eseguita.",
+      "Richiede anche l'esecuzione su Windows nativo: l'ambiente e' Linux in container.",
+      "Un caso non conforme resta aperto (R4.1.1, proposta).",
+      "Le sezioni candidate dell'ICD usate dal contratto non sono tutte ratificate: 15 voci su 26 sono `proposta`."
+    ],
+    "what_it_does_establish": "I tre componenti, alle revisioni dichiarate, si passano il contratto senza perderlo in una direzione, su casi sintetici, con il bordo di scrittura che apre ogni geometria in fondo alla catena. E' riproducibile: stessi tag, stesso container, stesso numero.",
+    "evidence": [
+      "conformance/evidence-2026-07-31-qualifica-roundtrip.json",
+      "conformance/evidence-2026-07-31-qualifica-chain.json"
+    ]
   },
   "required_directions": [
     "io_to_data_to_database",
