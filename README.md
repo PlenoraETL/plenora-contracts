@@ -8,6 +8,9 @@ Baseline dei contratti trasversali fra i tre componenti Plenora:
 - [`docs/PLENORA-CONTRATTI-TRASVERSALI.md`](docs/PLENORA-CONTRATTI-TRASVERSALI.md)
   — documento normativo di interfaccia (ICD). È la fonte autorevole: in caso di
   conflitto prevale sulla documentazione dei singoli repository.
+- [`docs/PIANO-INTEGRAZIONE.md`](docs/PIANO-INTEGRAZIONE.md) — come i tre
+  componenti entrano nel backend di Plenora, in che ordine e chi fa cosa. Non è
+  normativo: cambia quando i fatti lo smentiscono.
 - [`docs/PIANO-DI-LAVORO.md`](docs/PIANO-DI-LAVORO.md) — coordinamento fra i tre
   team: chi fa cosa, in che ordine, e cosa sblocca cosa. Istantanea datata e non
   normativa; lo stato autorevole sta nelle fonti citate in Appendice A dell'ICD.

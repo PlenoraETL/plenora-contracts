@@ -14,10 +14,10 @@
     {
       "name": "plenora-IO-tools",
       "role": "file_boundary",
-      "revision": "6e3a942dfd607c8bf4bdbe0075c8e8f5f3761842",
-      "tag": "v1.0.0-rc.1",
+      "revision": "9804d775d0d46df9137d44cf0c6963d66a563753",
+      "tag": "v1.0.0-rc.2",
       "remote": "https://github.com/PlenoraETL/plenora-IO-tools.git",
-      "pin_note": "Prima release candidate sulla linea 1.0 del progetto. Superficie compatibile congelata esplicitamente in release/cli-protocol-v1.json: sei buste JSON della CLI, API Rust dichiarata interna e non soggetta a SemVer. R4.6.5 implementata come proposta, senza claim di conformita' ratificata; R2.8 e R4.1.1 registrate come proposte non implementate."
+      "pin_note": "Include R4.1.1, ratificata il 31 luglio: `declared_unresolved` con il solo `crs_id` e' accettato e conservato, senza sintetizzare definizione, formato o SRID. Chiude l'unico caso non conforme della qualifica precedente."
     },
     {
       "name": "plenora-data-tools",
