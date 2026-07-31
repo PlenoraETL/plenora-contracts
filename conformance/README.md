@@ -58,6 +58,29 @@ Due generi di roundtrip, dichiarati in `components.json` sotto `kind`:
 - `arrow_to_contract` — il componente osserva il dataset e stampa il contratto
   in JSON; si confronta l'osservato con quello dichiarato dal corpus.
 
+## Due varianti per caso
+
+Ogni caso è generato due volte: con le sole chiavi canoniche di §2, e con in più
+l'estensione GeoArrow `ARROW:extension:name`. Il suffisso `__geoarrow` distingue
+la seconda.
+
+Serve a separare due proprietà che il corpus confondeva. Con le sole chiavi
+canoniche il driver IPC di `plenora-IO-tools` non riconosce la colonna come
+geometrica — `inspect` riporta `geometry: false` — quindi propaga byte e
+metadati intatti **senza averli letti**. È conservazione reale, richiesta da
+R2.4, ma non è comprensione del contratto. `plenora-data-tools` e
+`plenora-database-tools` invece le riconoscono.
+
+Fino a rc12 il corpus portava solo la variante canonica, e un esito positivo su
+IO-tools veniva letto come propagazione verificata del contratto: non lo era.
+Le due varianti misurano le due cose separatamente, e verificano in più che i
+due componenti che già riconoscono le canoniche si comportino identicamente
+sulle due — cosa finora assunta da due controlli a campione.
+
+`R2.8` propone che il riconoscimento dalle sole canoniche sia obbligatorio. È
+`proposta`: finché non è ratificata, la variante canonica misura ciò che accade,
+non ciò che deve accadere.
+
 ## Casi coperti
 
 Ogni caso isola una proprietà che si perde in silenzio quando un anello non la

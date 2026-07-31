@@ -368,13 +368,6 @@ def case_polygon_xy_projected() -> tuple[pa.Table, dict]:
     meta["plenora.geometry.crs_id"] = "EPSG:3003"
     meta["plenora.geometry.srid"] = "3003"
     meta["plenora.geometry.axis_order"] = "easting_northing"
-    # I kernel geo di data-tools pretendono l'estensione GeoArrow oltre alle
-    # chiavi canoniche di §2. La discovery riconosce una colonna geometrica
-    # dalle sole chiavi canoniche — lo dichiara il commento in
-    # `discover_input_contract` — ma l'esecuzione no. Questo caso porta
-    # entrambe, cosi' esercita le trasformazioni invece di fermarsi sul
-    # disallineamento; il disallineamento resta una domanda per l'ICD.
-    meta["ARROW:extension:name"] = "geoarrow.wkb"
     field = _geometry_field("geometry", meta)
     table = pa.table(
         {"geometry": pa.array([polygon(0.0), polygon(60.0)], type=pa.binary()),
@@ -462,28 +455,69 @@ def main() -> int:
     arguments.out.mkdir(parents=True, exist_ok=True)
     selected = arguments.only or sorted(CASES)
 
-    for name in selected:
-        table, expected = CASES[name]()
-        target = arguments.out / f"{name}.arrow"
-        with ipc.new_file(target, table.schema) as writer:
-            writer.write_table(table)
-        expected["case"] = name
-        expected["schema_metadata"] = {
-            key.decode(): value.decode()
-            for key, value in (table.schema.metadata or {}).items()
-        }
-        expected["field_metadata"] = {
-            key.decode(): value.decode()
-            for key, value in (table.schema.field("geometry").metadata or {}).items()
-        }
-        check_coherence(name, expected["field_metadata"], expected)
-        (arguments.out / f"{name}.json").write_text(
-            json.dumps(expected, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
-        print(f"{name}: {target.name} ({target.stat().st_size} byte)")
+    # Ogni caso in due varianti. Con le sole chiavi canoniche un componente puo'
+    # superare il caso senza leggerle: il driver IPC di plenora-IO-tools legge la
+    # colonna come binario opaco e propaga tutto intatto — conservazione reale e
+    # richiesta da R2.4, ma non comprensione del contratto. Con l'estensione
+    # GeoArrow la colonna e' riconosciuta e il contratto viene interpretato.
+    #
+    # Le due varianti separano le due proprieta' invece di confonderle, e
+    # verificano in piu' che i componenti che gia' riconoscono le canoniche —
+    # data-tools e database-tools — si comportino identicamente sulle due. R2.8
+    # propone che sia obbligatorio; fino alla ratifica questo lo misura.
+    variants = [("", False), ("__geoarrow", True)]
 
-    print(f"\n{len(selected)} casi in {arguments.out}")
+    for name in selected:
+        for suffix, extension in variants:
+            emit(arguments.out, name, suffix, extension)
+
+    totale = len(selected) * len(variants)
+    print(f"{len(selected)} casi x {len(variants)} varianti = {totale} file")
     return 0
+
+
+def emit(out: Path, name: str, suffix: str, extension: bool) -> None:
+    table, expected = CASES[name]()
+    if extension:
+        field = table.schema.field("geometry")
+        metadata = {k.decode(): v.decode() for k, v in (field.metadata or {}).items()}
+        metadata["ARROW:extension:name"] = "geoarrow.wkb"
+        schema = pa.schema(
+            [pa.field("geometry", field.type, nullable=field.nullable, metadata=metadata)]
+            + [table.schema.field(i) for i in range(1, len(table.schema))],
+            metadata=table.schema.metadata,
+        )
+        table = pa.table(table.columns, schema=schema)
+    expected["variant"] = "geoarrow" if extension else "canonical_only"
+    expected["variant_note"] = (
+        "Estensione GeoArrow presente: la colonna e' riconosciuta da tutti e tre e "
+        "il contratto viene interpretato." if extension else
+        "Solo chiavi canoniche di §2. Un componente che le legge interpreta il "
+        "contratto; uno che richiede l'estensione tratta la colonna come binario "
+        "opaco e propaga senza leggere. L'esito positivo su questa variante non e' "
+        "evidenza di comprensione semantica finche' R2.8 non e' ratificata."
+    )
+    _write(out, f"{name}{suffix}", table, expected)
+
+
+def _write(out: Path, stem: str, table: pa.Table, expected: dict) -> None:
+    target = out / f"{stem}.arrow"
+    with ipc.new_file(target, table.schema) as writer:
+        writer.write_table(table)
+    expected["case"] = stem
+    expected["schema_metadata"] = {
+        key.decode(): value.decode()
+        for key, value in (table.schema.metadata or {}).items()
+    }
+    expected["field_metadata"] = {
+        key.decode(): value.decode()
+        for key, value in (table.schema.field("geometry").metadata or {}).items()
+    }
+    check_coherence(stem, expected["field_metadata"], expected)
+    (out / f"{stem}.json").write_text(
+        json.dumps(expected, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    print(f"  {stem}: {target.stat().st_size} byte")
 
 
 if __name__ == "__main__":
