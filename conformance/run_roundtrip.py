@@ -27,7 +27,13 @@ import sys
 import tempfile
 from pathlib import Path
 
-import pyarrow.ipc as ipc
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _shared import (  # noqa: E402  — le funzioni comuni ai due runner
+    contract_from_stdout, diff, expectation_for, flatten,
+    judge_rejection, judge_transition, observe,
+)
+
 
 # Piano data-tools neutro: filtra su una condizione sempre vera, così ogni
 # differenza osservata è propagazione mancata e non trasformazione.
@@ -44,133 +50,6 @@ IDENTITY_PLAN = {
     ],
     "output": "identity",
 }
-
-
-def observe(path: Path) -> dict[str, dict[str, str]]:
-    """Metadati di schema e del campo geometry, decodificati."""
-    table = ipc.open_file(str(path)).read_all()
-
-    def decode(metadata) -> dict[str, str]:
-        return {k.decode(): v.decode() for k, v in (metadata or {}).items()}
-
-    field_metadata: dict[str, str] = {}
-    if "geometry" in table.schema.names:
-        field_metadata = decode(table.schema.field("geometry").metadata)
-    return {"schema": decode(table.schema.metadata), "field": field_metadata}
-
-
-def diff(before: dict[str, dict[str, str]], after: dict[str, dict[str, str]]) -> list[str]:
-    losses: list[str] = []
-    for scope in ("schema", "field"):
-        for key, value in before[scope].items():
-            if key not in after[scope]:
-                losses.append(f"{key}: perso (era {value!r})")
-            elif after[scope][key] != value:
-                losses.append(f"{key}: {value!r} -> {after[scope][key]!r}")
-    return losses
-
-
-def flatten(observed: dict[str, dict[str, str]]) -> dict[str, str]:
-    return {**observed["schema"], **observed["field"]}
-
-
-def contract_from_stdout(payload: str) -> dict[str, str]:
-    """Estrae le chiavi canoniche dal JSON di un roundtrip arrow_to_contract.
-
-    Accetta sia una mappa piatta di metadati sia la forma dichiarata in
-    components.json, dove i campi stanno sotto `fields`.
-    """
-    document = json.loads(payload)
-    observed: dict[str, str] = {}
-    for key, value in document.items():
-        if key.startswith("plenora."):
-            observed[key] = str(value)
-    for key, value in (document.get("schema_metadata") or {}).items():
-        if key.startswith("plenora."):
-            observed[key] = str(value)
-    if document.get("contract_version") is not None:
-        observed["plenora.contract.version"] = str(document["contract_version"])
-    for entry in document.get("fields", []):
-        for key, value in entry.items():
-            if key.startswith("plenora."):
-                observed[key] = str(value)
-        # I metadati del campo si raccolgono **tutti**, non solo quelli con
-        # prefisso `plenora.`. Il corpus dichiara anche chiavi di standard
-        # esterni — `ARROW:extension:name` — e R2.4 impone di propagare cio' che
-        # non si interpreta: filtrarle qui le faceva risultare sempre assenti,
-        # cioe' faceva fallire il giudice per un difetto del giudice.
-        for key, value in (entry.get("metadata") or {}).items():
-            observed[key] = str(value)
-    return observed
-
-
-def expectation_for(expected: dict, role: str | None) -> str:
-    """L'attesa dipende dal ruolo del componente: R4.6 colloca il fail-closed.
-
-    Un bordo di lettura dichiara l'incoerenza e non rifiuta (R4.6.1); un bordo
-    di scrittura rifiuta (R4.6.2); il centro decide e in assenza di decisione
-    propaga (R4.6.3). Un'attesa unica chiederebbe a due dei tre il contrario
-    del proprio ruolo.
-    """
-    declared = expected.get("expect", "preserve")
-    if declared != "by_role":
-        return declared
-    by_role = expected.get("expect_by_role") or {}
-    if role is None or role not in by_role:
-        return "preserve"
-    return by_role[role]
-
-
-def judge_transition(expected: dict, role: str | None,
-                     losses: list[str]) -> tuple[bool, str, list[str]]:
-    """`preserve_with_transition`: una transizione richiesta, e nient'altro.
-
-    Un'etichetta che afferma cio' che il contenuto smentisce non va conservata:
-    conservarla e' rivendicare una risoluzione inesistente. La transizione e'
-    quindi obbligatoria — se manca il caso fallisce — e ogni altra differenza
-    resta una perdita.
-    """
-    required = (expected.get("required_transitions") or {}).get(role or "", {})
-    problems: list[str] = []
-    remaining = list(losses)
-
-    for key, change in required.items():
-        atteso = f"{key}: {change['from']!r} -> {change['to']!r}"
-        if atteso in remaining:
-            remaining.remove(atteso)
-        else:
-            problems.append(f"transizione richiesta assente: {atteso}. "
-                            "Conservare lo stato in ingresso significa "
-                            "rivendicare una risoluzione che il contenuto smentisce")
-    problems.extend(remaining)
-    if problems:
-        return False, "; ".join(problems), problems
-    return True, ("transizione di stato richiesta osservata, "
-                  "rappresentazioni invariate"), []
-
-
-def judge_rejection(expected: dict, detail: str) -> tuple[bool, str]:
-    """Un rifiuto vale solo se e' il rifiuto giusto.
-
-    Nella prima esecuzione della matrice un componente che respingeva ogni
-    dataset per un backend CRS non abilitato ha superato il caso `fail_closed`:
-    il runner accettava qualunque uscita diversa da zero. Ora la fixture
-    dichiara le tracce della causa attesa e quelle che la squalificano.
-    """
-    signature = expected.get("expected_error") or {}
-    hints = [h.lower() for h in signature.get("cause_hints", [])]
-    disqualifying = [d.lower() for d in signature.get("disqualifying", [])]
-    lowered = detail.lower()
-
-    for marker in disqualifying:
-        if marker in lowered:
-            return False, (f"respinto per una ragione estranea al caso "
-                           f"({marker!r} nel messaggio): non e' evidenza che il "
-                           f"conflitto sia rilevato")
-    if hints and not any(hint in lowered for hint in hints):
-        return False, ("respinto senza citare la causa attesa "
-                       f"({', '.join(hints)}): rifiuto non attribuibile")
-    return True, "respinto per la causa attesa"
 
 
 def run(invocation: list[str], repo: Path, substitutions: dict[str, str]):

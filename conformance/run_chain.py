@@ -23,7 +23,13 @@ import tempfile
 import subprocess
 from pathlib import Path
 
-import pyarrow.ipc as ipc
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _shared import (  # noqa: E402  — le funzioni comuni ai due runner
+    contract_from_stdout, diff, expectation_for, flatten,
+    judge_rejection, judge_transition, observe,
+)
+
 
 # Piano data-tools neutro: filtra su una condizione sempre vera, così ogni
 # perdita osservata dopo questo stadio è propagazione, non trasformazione.
@@ -40,92 +46,6 @@ IDENTITY_PLAN = {
     ],
     "output": "identity",
 }
-
-
-def observe(path: Path) -> dict[str, dict[str, str]]:
-    """Metadati di schema e del campo geometry, decodificati."""
-    table = ipc.open_file(str(path)).read_all()
-
-    def decode(metadata) -> dict[str, str]:
-        return {k.decode(): v.decode() for k, v in (metadata or {}).items()}
-
-    field_metadata: dict[str, str] = {}
-    if "geometry" in table.schema.names:
-        field_metadata = decode(table.schema.field("geometry").metadata)
-    return {"schema": decode(table.schema.metadata), "field": field_metadata}
-
-
-def diff(before: dict[str, dict[str, str]], after: dict[str, dict[str, str]]) -> list[str]:
-    losses: list[str] = []
-    for scope in ("schema", "field"):
-        for key, value in before[scope].items():
-            if key not in after[scope]:
-                losses.append(f"{key}: perso (era {value!r})")
-            elif after[scope][key] != value:
-                losses.append(f"{key}: {value!r} -> {after[scope][key]!r}")
-    return losses
-
-
-def expectation_for(expected: dict, role: str | None) -> str:
-    """L'attesa dipende dal ruolo: R4.6 colloca il fail-closed. Vedi run_roundtrip.py."""
-    declared = expected.get("expect", "preserve")
-    if declared != "by_role":
-        return declared
-    by_role = expected.get("expect_by_role") or {}
-    return by_role.get(role, "preserve") if role else "preserve"
-
-
-def contract_from_stdout(payload: str) -> dict[str, str]:
-    """Chiavi canoniche dal JSON del giudice. Vedi run_roundtrip.py."""
-    document = json.loads(payload)
-    observed: dict[str, str] = {}
-    for key, value in document.items():
-        if key.startswith("plenora."):
-            observed[key] = str(value)
-    for key, value in (document.get("schema_metadata") or {}).items():
-        if key.startswith("plenora."):
-            observed[key] = str(value)
-    if document.get("contract_version") is not None:
-        observed["plenora.contract.version"] = str(document["contract_version"])
-    for entry in document.get("fields", []):
-        for key, value in (entry.get("metadata") or {}).items():
-            if key.startswith("plenora."):
-                observed[key] = str(value)
-    return observed
-
-
-def judge_transition(expected: dict, role: str | None,
-                     losses: list[str]) -> tuple[bool, str, list[str]]:
-    """`preserve_with_transition`: una transizione richiesta, e nient'altro.
-    Vedi run_roundtrip.py."""
-    required = (expected.get("required_transitions") or {}).get(role or "", {})
-    problems, remaining = [], list(losses)
-    for key, change in required.items():
-        atteso = f"{key}: {change['from']!r} -> {change['to']!r}"
-        if atteso in remaining:
-            remaining.remove(atteso)
-        else:
-            problems.append(f"transizione richiesta assente: {atteso}")
-    problems.extend(remaining)
-    if problems:
-        return False, "; ".join(problems), problems
-    return True, "transizione richiesta osservata, rappresentazioni invariate", []
-
-
-def judge_rejection(expected: dict, detail: str) -> tuple[bool, str]:
-    """Un rifiuto vale solo se e' il rifiuto giusto. Vedi run_roundtrip.py."""
-    signature = expected.get("expected_error") or {}
-    hints = [h.lower() for h in signature.get("cause_hints", [])]
-    disqualifying = [d.lower() for d in signature.get("disqualifying", [])]
-    lowered = detail.lower()
-    for marker in disqualifying:
-        if marker in lowered:
-            return False, (f"respinto per una ragione estranea al caso "
-                           f"({marker!r} nel messaggio)")
-    if hints and not any(hint in lowered for hint in hints):
-        return False, ("respinto senza citare la causa attesa "
-                       f"({', '.join(hints)}): rifiuto non attribuibile")
-    return True, "respinto per la causa attesa"
 
 
 def run_stage(stage: dict, repo: Path, substitutions: dict[str, str]) -> tuple[bool, str]:

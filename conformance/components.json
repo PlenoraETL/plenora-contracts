@@ -305,6 +305,20 @@
     "why_the_chain_still_works": "IO-tools **emette** l'estensione: un dataset che esce da IO-tools e rientra in IO-tools o entra in data-tools e' riconosciuto. Il divario si manifesta solo con Arrow prodotto altrove — questo corpus, oppure il backend Python di Plenora che costruisse una tabella dalle sole chiavi canoniche.",
     "contract_question": "§2 elenca le chiavi canoniche come obbligatorie per una colonna geometrica e non richiede l'estensione; R2.6 la dichiara «ammessa ed esente», e ammessa non e' richiesta. La discovery di plenora-data-tools riconosce una colonna geometrica dalle sole chiavi canoniche e lo dichiara nel commento di `discover_input_contract`. Due componenti si comportano quindi diversamente sullo stesso ingresso. Da dirimere dall'owner: le chiavi canoniche sono autosufficienti per il riconoscimento, oppure l'estensione e' richiesta e §2 va emendata.",
     "corpus_defect": "Il corpus e' complice: avrei dovuto portare l'estensione come fa l'uscita reale di IO-tools, oppure avere casi con e senza per verificare proprio questo. Con le sole chiavi canoniche ho costruito tredici casi che un componente puo' superare senza leggerli.",
-    "action": "Generare ogni caso in due varianti, con e senza estensione, e verificare che il riconoscimento e la propagazione siano gli stessi. Fino ad allora il risultato di IO-tools sui casi canonici non e' evidenza di comprensione del contratto."
+    "action": "Generare ogni caso in due varianti, con e senza estensione, e verificare che il riconoscimento e la propagazione siano gli stessi. Fino ad allora il risultato di IO-tools sui casi canonici non e' evidenza di comprensione del contratto.",
+    "resolved_by": {
+      "date": "2026-07-31",
+      "action": "Corpus rigenerato in due varianti per caso: canonica e `__geoarrow`. Il caveat non si applica piu' — le due proprieta' sono misurate da file distinti.",
+      "exploratory_result": {
+        "note": "Teste correnti dei tre, non le revisioni fissate: non e' evidenza di qualifica.",
+        "roundtrip": "83/84",
+        "chain": "27/28",
+        "per_variant": {
+          "canonica": "42/42 — conservazione opaca verificata su tutti e tre",
+          "geoarrow": "41/42 — comprensione dopo il riconoscimento"
+        },
+        "single_finding": "plenora-IO-tools respinge `crs_unresolved__geoarrow`: `RawCrs.definition` e' String e non Option<String>, quindi `declared_unresolved` senza `crs_definition` non e' rappresentabile. §2 dichiara quella chiave facoltativa e R4.1 impone di distinguere i tre stati. Invisibile sulla variante canonica, dove il contratto non veniva letto."
+      }
+    }
   }
 }
