@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc13 · 31 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc14 · 31 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -20,6 +20,7 @@
 >
 > | Sezione | Oggetto | Stato | Nota |
 > |---|---|---|---|
+> | §0 | Disciplina di sviluppo, scala dei claim, revisione indipendente | `proposta` | aggiunta 2.0-rc14: era assente dal registro pur essendo citata come operante |
 > | §1 | Versione Arrow unica e pinnata | **ratificata** | dal 27 lug |
 > | §2 | Chiavi metadata canoniche, versione del protocollo, lineage, riconoscimento | `proposta` | riaperta dopo i rilievi 2.0; R2.8 nuova 2.0-rc12 |
 > | §3.1 | Sedici tipi geometrici, forma `linestring` | **ratificata** | dal 27 lug |
@@ -46,6 +47,7 @@
 > | §15.2 | Distribuzione: tag firmato e revisione | `proposta` | vedi deroga DER-ICD-001 |
 > | §15.3 | Contenuto e API del crate condiviso | `proposta` | il crate non va creato finché non è ratificata |
 > | §15.4 | Passi della migrazione e doppia lettura prima della ratifica di §2 | `proposta` | nuova 2.0-rc11: era prosa fino a rc9, promossa a regola in rc10 senza riga di registro |
+> | §16 | Deroghe, procedura di modifica e di ratifica | `proposta` | aggiunta 2.0-rc14: la procedura che governa la ratifica non aveva a sua volta uno stato |
 >
 > **Effetto pratico.** Una sezione `proposta` non obbliga, ma non vieta: un
 > componente può adottarla per scelta propria, e i tre lo stanno facendo su §9 e

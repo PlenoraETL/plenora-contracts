@@ -1,6 +1,6 @@
-# Quindici decisioni di ratifica aperte
+# Diciassette decisioni di ratifica aperte
 
-Il registro dell'ICD ha 26 voci: 11 ratificate, 15 `proposta`. Questa pagina
+Il registro dell'ICD ha 28 voci: 11 ratificate, 17 `proposta`. Questa pagina
 serve a decidere voce per voce senza rileggere il documento.
 
 **Perché conta.** Una regola `proposta` non vincola nessuno. Alla data di questa
@@ -40,6 +40,17 @@ il confine da cui Plenora le userà.)*
 | §12 | Determinismo su quattro livelli | dichiarato da tutti, verificato in modo disuguale | Obbliga a produrre l'evidenza del livello dichiarato. È la voce che costa più lavoro di verifica |
 | §10 | Capability dichiarative interrogabili | per driver e per provider, non uniforme | Obbliga a un'interfaccia comune di interrogazione. Tocca tutti e tre |
 | §14 | Esiti di scrittura e pubblicazione | IO-tools e database-tools, non applicabile al centro | Basso. Va dichiarato che per data-tools non si applica |
+
+## Le due che governano tutte le altre
+
+| Voce | Oggetto | Nota |
+|---|---|---|
+| §0 | Disciplina di sviluppo, scala dei claim, revisione indipendente | Era assente dal registro fino a 2.0-rc14 pur essendo citata come operante: R0.4 è stata invocata quattro volte per stabilire che la ratifica non serve a un tag di componente, e non aveva uno stato |
+| §16 | Deroghe, procedura di modifica e di ratifica | R16.3 stabilisce che l'owner può ratificare solo con le tre posizioni dei team e la revisione di R0.4. La regola che governa la ratifica non era a sua volta ratificata — un anello che va chiuso prima o insieme al primo atto |
+
+Ratificarle è ricorsivo per costruzione: si ratifica secondo una procedura che
+la ratifica stessa rende vincolante. Non è un paradosso, è il primo atto — e
+vale la pena che sia esplicito invece di implicito.
 
 ## Decisioni di merito ancora aperte
 
