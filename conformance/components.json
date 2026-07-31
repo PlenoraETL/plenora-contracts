@@ -177,42 +177,34 @@
     }
   ],
   "system_qualification": {
-    "status": "run_not_satisfied",
-    "date": "2026-07-31",
+    "status": "run_clean_gate_not_satisfied",
+    "date": "2026-07-31 (seconda esecuzione, dopo la ratifica di R4.1.1)",
     "note": "Prima qualifica eseguita su tre riferimenti immutabili. Le esecuzioni precedenti erano esplorative, su teste di ramo, e non erano evidenza.",
     "revisions": {
-      "plenora-IO-tools": "v1.0.0-rc.1 (6e3a942dfd607c8bf4bdbe0075c8e8f5f3761842)",
+      "plenora-IO-tools": "v1.0.0-rc.2 (9804d775d0d46df9137d44cf0c6963d66a563753)",
       "plenora-data-tools": "v0.1.0-rc1 (7d530318760c…)",
       "plenora-database-tools": "v0.1.0-rc.1 (b541c61dd1c2…)"
     },
     "environment": "conformance/Dockerfile — rust 1.92.0, pyarrow 23.0.1, PROJ e GEOS dai sorgenti. Nessun database: il terzo roundtrip e' arrow_to_contract e lavora offline.",
     "result": {
-      "roundtrip": "83/84",
-      "chain": "27/28, con giudizio del bordo di scrittura su 27 casi",
+      "roundtrip": "84/84",
+      "chain": "28/28, giudizio del bordo di scrittura su tutti e 28",
       "per_variant": {
-        "canonica": "42/42 — conservazione delle chiavi, senza che siano necessariamente lette",
-        "geoarrow": "41/42 — comprensione del contratto dopo il riconoscimento"
+        "canonica": "42/42",
+        "geoarrow": "42/42"
       }
     },
-    "single_finding": {
-      "component": "plenora-IO-tools",
-      "case": "crs_unresolved__geoarrow",
-      "observed": "invalid_plan: `metadato plenora.geometry.crs_definition non valido`. `RawCrs.definition` e' String e non Option<String>, quindi `declared_unresolved` senza definizione non e' rappresentabile.",
-      "rule": "R4.1.1",
-      "rule_state": "proposta",
-      "note": "Dichiarato in anticipo dal componente stesso: il manifesto di v1.0.0-rc.1 registra R4.1.1 come proposta non implementata. Non e' una sorpresa e non e' un'infrazione — nessuna regola ratificata lo vieta."
-    },
     "why_not_satisfied": [
-      "Il gate `plenora-system-contract-roundtrip-v1` richiede entrambe le direzioni: `database -> data -> IO` non e' mai stata eseguita.",
-      "Richiede anche l'esecuzione su Windows nativo: l'ambiente e' Linux in container.",
-      "Un caso non conforme resta aperto (R4.1.1, proposta).",
-      "Le sezioni candidate dell'ICD usate dal contratto non sono tutte ratificate: 15 voci su 26 sono `proposta`."
+      "Il gate richiede entrambe le direzioni: `database -> data -> IO` non e' mai stata eseguita.",
+      "Richiede l'esecuzione su Windows nativo: l'ambiente e' Linux in container.",
+      "Quattordici voci del registro su ventotto sono `proposta`, quindi la conformita' all'ICD non e' affermabile."
     ],
-    "what_it_does_establish": "I tre componenti, alle revisioni dichiarate, si passano il contratto senza perderlo in una direzione, su casi sintetici, con il bordo di scrittura che apre ogni geometria in fondo alla catena. E' riproducibile: stessi tag, stesso container, stesso numero.",
+    "what_it_does_establish": "I tre componenti, alle revisioni taggate, si passano il contratto senza perderne un pezzo in una direzione, su 28 casi sintetici in due varianti, con il bordo di scrittura che apre ogni geometria in fondo alla catena. Nessun caso non conforme. Riproducibile: stessi tag, stesso container.",
     "evidence": [
-      "conformance/evidence-2026-07-31-qualifica-roundtrip.json",
-      "conformance/evidence-2026-07-31-qualifica-chain.json"
-    ]
+      "conformance/evidence-2026-07-31-qualifica-rc2-roundtrip.json",
+      "conformance/evidence-2026-07-31-qualifica-rc2-chain.json"
+    ],
+    "previous": "83/84 e 27/28 sulla stessa matrice con v1.0.0-rc.1: l'unico caso non conforme era `crs_unresolved__geoarrow`, chiuso da R4.1.1."
   },
   "required_directions": [
     "io_to_data_to_database",

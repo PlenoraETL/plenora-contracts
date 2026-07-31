@@ -1,0 +1,722 @@
+{
+  "cases": [
+    {
+      "case": "axis_lat_lon",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.2",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "axis_lat_lon__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.2",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs",
+      "expect": "preserve_with_transition",
+      "judge": {
+        "accepted": true,
+        "detail": "Crs during Validate (effect=None, retry=Never): identificatore CRS e SRID numerico divergenti",
+        "outcome": "rejected",
+        "reason": "respinto per la causa attesa"
+      },
+      "observed_changes": [
+        "plenora.geometry.crs_resolution: 'resolved' -> 'declared_unresolved'"
+      ],
+      "reason": "transizione di stato richiesta osservata, rappresentazioni invariate",
+      "rule": "R4.3.1, R4.6",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [
+            "plenora.geometry.crs_resolution: 'resolved' -> 'declared_unresolved'"
+          ],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs__geoarrow",
+      "expect": "preserve_with_transition",
+      "judge": {
+        "accepted": true,
+        "detail": "Crs during Validate (effect=None, retry=Never): identificatore CRS e SRID numerico divergenti",
+        "outcome": "rejected",
+        "reason": "respinto per la causa attesa"
+      },
+      "observed_changes": [
+        "plenora.geometry.crs_resolution: 'resolved' -> 'declared_unresolved'"
+      ],
+      "reason": "transizione di stato richiesta osservata, rappresentazioni invariate",
+      "rule": "R4.3.1, R4.6",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [
+            "plenora.geometry.crs_resolution: 'resolved' -> 'declared_unresolved'"
+          ],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.1",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.1",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.1",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.1",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.4",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.4",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.4",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.4",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R5.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R5.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.4.1",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.4.1",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R5.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R5.3",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R2.4",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R2.4",
+      "stages": [
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "io"
+        },
+        {
+          "losses": [],
+          "outcome": "ok",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    }
+  ],
+  "icd": {
+    "revision": "62b12e3496466d2c908dac3cc098640b99b52e21",
+    "tag": "v2.0-rc8"
+  },
+  "manifest_version": 1,
+  "stages_skipped": []
+}
