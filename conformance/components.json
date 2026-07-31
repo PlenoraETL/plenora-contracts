@@ -14,27 +14,26 @@
     {
       "name": "plenora-IO-tools",
       "role": "file_boundary",
-      "revision": "ea0de79677e8fc794d96ac3d95c5bc2c6e30358c",
-      "tag": "v0.1.0-rc.3",
-      "tested_revision": "f8a89170785c938a9105deae6cc479576abb969a",
-      "tested_revision_note": "Fissato al tag v0.1.0-rc.3, non a main: IO-tools lavora ora su rc4 e il ramo si muove. L'albero di crates/ del tag e' identico a quello di 3f3562a (tree c985c35a): i tre commit di rilascio toccano solo manifesti e gate. La qualifica del 30 luglio ha girato su f8a8917. Da allora a28e5ae ha modificato il codice: il bordo di lettura dichiara ora l'incoerenza fra crs_id EPSG e srid nel LossReport, senza rifiutare (R4.6.1). L'esito precedente non copre questo comportamento e la rieseguzione e' necessaria. Residuo dichiarato in CHANGE_IMPACT_2026-07-30_RC3_CRS_SCOPE.md: crs_definition contro SRID resta fuori da rc3, quindi R4.3.1 non e' completa.",
-      "remote": "https://github.com/PlenoraETL/plenora-IO-tools.git"
+      "revision": "8d3f25f109f6ea8910da71e098db6924438e481c",
+      "tag": "v0.1.0-rc.4",
+      "remote": "https://github.com/PlenoraETL/plenora-IO-tools.git",
+      "pin_note": "Fissato al tag della release candidate dichiarata dal componente. Tutti e tre puntano ora a riferimenti immutabili: la qualifica e' riproducibile e i team possono lavorare su main senza spostarla."
     },
     {
       "name": "plenora-data-tools",
       "role": "transformation_core",
-      "revision": "1bee8303c47970e96ab269f12cbe5d2bcdc32837",
-      "tested_revision_note": "Commit di chiusura M3, scelto dal team data-tools: 2826ece era a meta' cantiere e senza oracolo. Comprende R4.6.3 attuato — il requisito di CRS risolvibile e' condizionato alle operazioni che lo usano, quindi il filtro tabellare del piano identita' passa e crs_resolution=missing e' propagato alle chiavi di uscita (R4.6.4). Il caso crs_missing dovrebbe quindi cambiare esito.",
-      "remote": "https://github.com/PlenoraETL/plenora-data-tools.git"
+      "revision": "7d530318760ccfa93b2baa2049e181fd57deed1e",
+      "remote": "https://github.com/PlenoraETL/plenora-data-tools.git",
+      "tag": "v0.1.0-rc1",
+      "pin_note": "Fissato al tag della release candidate dichiarata dal componente. Tutti e tre puntano ora a riferimenti immutabili: la qualifica e' riproducibile e i team possono lavorare su main senza spostarla."
     },
     {
       "name": "plenora-database-tools",
       "role": "database_boundary",
-      "revision": "1ca0208b513aace3738b748c9d76619133208b0f",
-      "revision_note": "main e' molto avanti (245be06 al 30 luglio), ma inspect_dataset.rs e field_contract.rs — la sola superficie che questa matrice esercita — sono identici a 1ca0208. Il 13/13 descrive ancora il comportamento corrente. Il pin si sposta quando il team nomina un punto di qualifica, non a ogni avanzamento.",
-      "tested_revision": "eecb3a33b52601ee6cc9e8855855e9d9cb294144",
-      "tested_revision_note": "La qualifica del 30 luglio (13/13) e' stata eseguita su eecb3a3, sul ramo della PR #17. La PR e' ora unita: l'albero di 1ca0208 e' identico byte per byte a quello di eecb3a3, quindi il risultato resta valido sulla revisione di main e non richiede rieseguzione.",
-      "remote": "https://github.com/PlenoraETL/plenora-database-tools.git"
+      "revision": "b541c61dd1c286cdf2e808e17eefd133d7c9ba20",
+      "remote": "https://github.com/PlenoraETL/plenora-database-tools.git",
+      "tag": "v0.1.0-rc.1",
+      "pin_note": "Fissato al tag della release candidate dichiarata dal componente. Tutti e tre puntano ora a riferimenti immutabili: la qualifica e' riproducibile e i team possono lavorare su main senza spostarla."
     }
   ],
   "roundtrips": [
@@ -283,8 +282,18 @@
     },
     "note": "I valori non sono proposti da qui: sono la serializzazione gia' definita dai tipi in plenora-database-core/src/error.rs — snake_case per i primi tre assi, e RetryDisposition con `#[serde(tag = \"kind\", content = \"delay_ms\")]`, quindi un oggetto e non una stringa. E' il dettaglio su cui tre implementazioni indipendenti divergerebbero. DatabaseError deriva gia' Serialize: la correzione e' stampare la serializzazione invece del Display, non scrivere una struttura nuova.",
     "reference": "plenora-database-tools:crates/plenora-database-core/src/error.rs",
-    "status": "not_available",
+    "status": "available",
     "rule": "R9.1, R9.2",
-    "rule_state": "proposta"
+    "rule_state": "proposta",
+    "verified": {
+      "date": "2026-07-31",
+      "method": "esecuzione dei tre CLI su un errore reale, non lettura del codice",
+      "observed": {
+        "plenora-IO-tools": "18bed73 — category, phase, remote_effect, retry{kind}, code, message",
+        "plenora-data-tools": "f0e0aa5 — category, phase, remote_effect, retry{kind}, message",
+        "plenora-database-tools": "ce72f35 — category, phase, remote_effect, retry{kind}, execution_id, provider, message"
+      },
+      "note": "Tutti e tre emettono `retry` come oggetto taggato. I campi in piu' sono contesto del componente e non ostacolano un lettore che cerca i cinque canonici. database-tools li emette come null invece di ometterli: irrilevante oggi, sarebbe un campo `context` opzionale quando nascera' il crate condiviso."
+    }
   }
 }
