@@ -94,9 +94,13 @@ def contract_from_stdout(payload: str) -> dict[str, str]:
         for key, value in entry.items():
             if key.startswith("plenora."):
                 observed[key] = str(value)
+        # I metadati del campo si raccolgono **tutti**, non solo quelli con
+        # prefisso `plenora.`. Il corpus dichiara anche chiavi di standard
+        # esterni — `ARROW:extension:name` — e R2.4 impone di propagare cio' che
+        # non si interpreta: filtrarle qui le faceva risultare sempre assenti,
+        # cioe' faceva fallire il giudice per un difetto del giudice.
         for key, value in (entry.get("metadata") or {}).items():
-            if key.startswith("plenora."):
-                observed[key] = str(value)
+            observed[key] = str(value)
     return observed
 
 
