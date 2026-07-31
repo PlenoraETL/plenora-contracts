@@ -28,7 +28,6 @@ il confine da cui Plenora le userà.)*
 |---|---|---|---|
 
 | §11.5–§11.10 | Cancellazione: token, attesa race-free, deadline, propagazione | tutti e tre | Nulla di tecnico. Vincola la forma del token, che il crate condiviso di §15.3 deve esportare |
-| §2 | Chiavi metadata canoniche, versione del protocollo, lineage | tutti e tre, sotto deroga DER-ICD-002 | Chiude la deroga o le dà una condizione di rientro. È la voce più a valle di tutte: il corpus di conformità verifica queste chiavi |
 | §3.4 | `unknown` non degradabile, tre stati di dichiarazione | tutti e tre | Nulla di tecnico. Rende esigibili due casi del corpus (`dimensions_unknown`, `types_mixed`) |
 
 ## Costo reale — adozione parziale
@@ -36,6 +35,7 @@ il confine da cui Plenora le userà.)*
 | Voce | Oggetto | Adozione | Cosa comporta ratificare |
 |---|---|---|---|
 | §9 | Errore a quattro assi | **solo dentro le librerie**, non al confine CLI | Apre un gap su tutti e tre. I tipi Rust esistono, ma i tre eseguibili espongono gli assi in tre modi diversi: uno in JSON con gli assi dentro la prosa, uno in testo semplice, uno senza assi. R9.2 vieta di dedurre la ritentabilità dal messaggio, e un chiamante Python oggi non può fare altro |
+| §2 | Chiavi metadata canoniche, lineage, e da rc12 il riconoscimento (R2.8) | **due su tre** | R2.8 dice che le chiavi canoniche bastano a riconoscere una colonna geometrica. data-tools e database-tools già lo fanno; il driver IPC di IO-tools richiede `ARROW:extension:name` e legge la colonna come binario opaco senza. Ratificarla apre un gap dichiarato su IO-tools e zero sugli altri due |
 | §7 | Limiti pre-allocazione, budget ceduto lungo la catena | IO-tools parziale, gli altri due con lease | Un gap dichiarato a carico di IO-tools, oppure una deroga con rientro |
 | §12 | Determinismo su quattro livelli | dichiarato da tutti, verificato in modo disuguale | Obbliga a produrre l'evidenza del livello dichiarato. È la voce che costa più lavoro di verifica |
 | §10 | Capability dichiarative interrogabili | per driver e per provider, non uniforme | Obbliga a un'interfaccia comune di interrogazione. Tocca tutti e tre |
@@ -45,7 +45,7 @@ il confine da cui Plenora le userà.)*
 
 | Voce | Oggetto | Nota |
 |---|---|---|
-| §4.6 | Collocazione del fail-closed: rapporto in lettura, rifiuto in scrittura, decisione al centro | Decisa dall'owner il 30 luglio e scritta, non ancora ratificata. Nessuno dei tre la implementa: IO-tools non dichiara l'incoerenza, data-tools è da riesaminare. Ratificarla apre due gap veri |
+| §4.6 | Collocazione del fail-closed, e da rc12 propagare contro scegliere quando i bordi coincidono (R4.6.5) | R4.6.1 è ora implementata da IO-tools. R4.6.5 risponde alla domanda che blocca `1.0.0-rc.1` di IO-tools: un comando che legge e scrive rifiuta solo quando la destinazione non può rappresentare l'incoerenza, cioè quando scrivere impone una scelta. Ratificarla sblocca quella RC |
 | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | Solo `plenora-database-core` le rispetta. Ratificarle apre un gap su IO-tools — è il conflitto CRS accettato in silenzio |
 | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | Emendamento di una regola 1.x che resta in vigore (R4.5.1). Finché non è ratificata vale la formulazione più restrittiva: nessun pushdown |
 | §15.2 | Distribuzione: tag firmato e revisione esatta | Nessun tag di questo repository è firmato. Ratificarla richiede una baseline firmata prima di poterla rispettare |
@@ -54,8 +54,8 @@ il confine da cui Plenora le userà.)*
 
 ## Ordine suggerito
 
-Le tre voci a costo quasi nullo prima: portano il registro da 11 a 14
-ratificate su 25 senza aprire un solo gap, e rendono esigibile ciò che i tre già
+Le due voci a costo quasi nullo prima — §3.4 e §11.5–§11.10 — portano il
+registro da 11 a 13 ratificate su 25 senza aprire un solo gap, e rendono esigibile ciò che i tre già
 fanno. Poi §4.6 e §4.3.1–§4.3.3 insieme, perché sono la stessa materia e
 ratificarle separatamente lascerebbe scoperto proprio il punto che si è voluto
 chiarire. Poi §15.3, che sblocca il crate. Il resto quando l'evidenza esiste.

@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc11 · 30 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc12 · 31 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -21,7 +21,7 @@
 > | Sezione | Oggetto | Stato | Nota |
 > |---|---|---|---|
 > | §1 | Versione Arrow unica e pinnata | **ratificata** | dal 27 lug |
-> | §2 | Chiavi metadata canoniche, versione del protocollo, lineage | `proposta` | riaperta dopo i rilievi 2.0; emendata, attende ratifica |
+> | §2 | Chiavi metadata canoniche, versione del protocollo, lineage, riconoscimento | `proposta` | riaperta dopo i rilievi 2.0; R2.8 nuova 2.0-rc12 |
 > | §3.1 | Sedici tipi geometrici, forma `linestring` | **ratificata** | dal 27 lug |
 > | §3.2 | Rifiuto esplicito dei tipi non supportati | **ratificata** | dal 27 lug |
 > | §3.3 | Cinque dimensioni rappresentabili e propagabili | **ratificata** | dal 27 lug, ambito in R3.3.1 |
@@ -30,7 +30,7 @@
 > | §4.1–§4.4 | CRS: tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | dal 27 lug, testo 1.x |
 > | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | `proposta` | nuove 2.0, dentro una sezione ratificata |
 > | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | `proposta` | emendata 2.0 |
-> | §4.6 | Collocazione del fail-closed: rapporto in lettura, rifiuto in scrittura, decisione al centro | `proposta` | nuova 2.0-rc9 |
+> | §4.6 | Collocazione del fail-closed: rapporto in lettura, rifiuto in scrittura, decisione al centro; propagare contro scegliere quando i bordi coincidono | `proposta` | nuova 2.0-rc9, R4.6.5 in rc12 |
 > | §5 | Perdita di informazione mai silenziosa | **ratificata** | dal 27 lug |
 > | §6 | Nessun panic nei crate `lib` | **ratificata** | dal 27 lug; R6.6-R6.7 sul gate minimo attendono ratifica |
 > | §7 | Limiti pre-allocazione e budget ceduto lungo la catena | `proposta` | emendata 2.0 |
@@ -206,6 +206,23 @@ metadati di campo (`Field::metadata`) dello schema Arrow.
 > divergono, vale R2.6: il componente fallisce, non sceglie. La precedenza è una
 > regola di completamento, non di arbitrato, e **DEVE** essere decidibile senza
 > ispezionare i dati.
+>
+> **R2.8** *(nuova 2.0-rc12)* Le chiavi canoniche sono **sufficienti** al
+> riconoscimento di una colonna geometrica. Un componente **NON DEVE** subordinare
+> il riconoscimento alla presenza di una chiave definita da uno standard esterno:
+> se `ARROW:extension:name` è presente **DEVE** essere coerente con le canoniche
+> secondo R2.6, ma la sua assenza **NON DEVE** rendere la colonna opaca.
+
+**Perché R2.8.** Il riconoscimento non è una questione di ruolo: è una questione
+sul dato. Un bordo e il centro che guardano gli stessi byte devono concordare sul
+fatto che una colonna porti geometria — altrimenti lo stesso dataset è
+geospaziale per un componente e binario opaco per un altro, e il secondo lo
+propaga intatto senza aver letto nulla. È una failure silenziosa di classe: il
+transito riesce e nessuno ha verificato niente.
+
+Se il riconoscimento potesse dipendere dall'estensione, «ammessa» di R2.6
+significherebbe di fatto «richiesta», e le due parole non sarebbero
+distinguibili.
 
 ### Chiavi canoniche
 
@@ -394,10 +411,31 @@ end-to-end XYZM attraverso i tre componenti; grep di assegnazioni che portano a
 > **R4.6.4** Un'incoerenza dichiarata da un bordo di lettura e non risolta dal
 > centro **DEVE** arrivare al bordo di scrittura, dove R4.6.2 la ferma. Nessun
 > componente **DEVE** silenziarla lungo il percorso: propagarla non è tollerarla.
+>
+> **R4.6.5** *(nuova 2.0-rc12)* Quando lettura e scrittura avvengono nello stesso
+> comando — una conversione da formato a formato — il criterio non è il bordo ma
+> l'atto. Il componente **DEVE** distinguere **propagare** da **scegliere**:
+>
+> - se il formato di destinazione può rappresentare tutte le rappresentazioni
+>   discordanti presenti, il componente **DEVE** propagarle invariate e
+>   dichiarare l'incoerenza secondo R4.6.1: non ha scelto nulla;
+> - se il formato di destinazione può rappresentarne una sola, scrivere impone
+>   una scelta che il componente non ha l'autorità di fare, e **DEVE** fallire
+>   chiuso secondo R4.6.2.
+>
+> La capacità di rappresentazione della destinazione **DEVE** essere una
+> proprietà dichiarata del formato, interrogabile prima di scrivere, e non una
+> deduzione fatta caso per caso.
 
 **Perché.** L'inversione lat/lon è il fallimento geospaziale più costoso e più
 silenzioso che esista: produce coordinate plausibili in un punto sbagliato del
 pianeta, senza alcun errore (H-06).
+
+**Perché R4.6.5.** Un comando che legge e scrive è entrambi i bordi, e R4.6 da
+sola lo lascia indeciso: presa alla lettera, R4.6.4 renderebbe impossibile
+convertire un file malfatto, che è il mestiere di quel comando. La distinzione
+fra propagare e scegliere risolve senza indebolire: il rifiuto resta dove la
+scelta sarebbe inevitabile, e sparisce dove non c'è scelta da fare.
 
 **Perché R4.6.** Senza collocazione, «il componente DEVE fallire» si legge come
 «tutti e tre devono fallire», e produce due difetti opposti: un lettore che non
