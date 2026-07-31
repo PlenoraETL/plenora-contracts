@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc14 · 31 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc15 · 31 luglio 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -26,10 +26,10 @@
 > | §3.1 | Sedici tipi geometrici, forma `linestring` | **ratificata** | dal 27 lug |
 > | §3.2 | Rifiuto esplicito dei tipi non supportati | **ratificata** | dal 27 lug |
 > | §3.3 | Cinque dimensioni rappresentabili e propagabili | **ratificata** | dal 27 lug, ambito in R3.3.1 |
-> | §3.4 | `unknown` non degradabile; tre stati di dichiarazione | `proposta` | emendata 2.0 |
+> | §3.4 | `unknown` non degradabile; tre stati di dichiarazione | **ratificata** | dal 31 lug; adottata da tutti e tre, nessun gap aperto |
 > | §3.5 | Encoding come enumerazione chiusa | **ratificata** | dal 27 lug |
 > | §4.1–§4.4 | CRS: tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | dal 27 lug, testo 1.x |
-> | §4.1.1 | `declared_unresolved` non richiede una definizione testuale | `proposta` | nuova 2.0-rc13 |
+> | §4.1.1 | `declared_unresolved` non richiede una definizione testuale | **ratificata** | dal 31 lug; posizione IO-tools `accetta`, nessun gap su data-tools e database-tools |
 > | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | `proposta` | nuove 2.0, dentro una sezione ratificata |
 > | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | `proposta` | emendata 2.0 |
 > | §4.6 | Collocazione del fail-closed: rapporto in lettura, rifiuto in scrittura, decisione al centro; propagare contro scegliere quando i bordi coincidono | `proposta` | nuova 2.0-rc9, R4.6.5 in rc12 |
@@ -39,7 +39,7 @@
 > | §8 | Identità di crate e colonne | **ratificata** | dal 27 lug |
 > | §9 | Errore a quattro assi | `proposta` | emendata 2.0; già adottata dai tre |
 > | §10 | Capability dichiarative interrogabili | `proposta` | forma da definire |
-> | §11.5–§11.10 | Cancellazione: token, attesa asincrona race-free, deadline, token figli | `proposta` | emendata 2.0; già adottata dai tre |
+> | §11.5–§11.10 | Cancellazione: token, attesa asincrona race-free, deadline, token figli | **ratificata** | dal 31 lug; adottata da tutti e tre, nessun gap aperto |
 > | §12 | Determinismo su quattro livelli | `proposta` | emendata 2.0 |
 > | §13 | Toolchain e baseline riproducibile | **ratificata** | dal 27 lug |
 > | §14 | Esiti di scrittura e pubblicazione | `proposta` | emendata 2.0 |
@@ -1011,8 +1011,19 @@ normativo dice cosa deve valere, non come si organizza il lavoro.
 > posizione tecnica (`accetta`, `accetta con deroga`, `rilievo bloccante`) su una
 > revisione esatta. L'owner è l'unica autorità che cambia lo stato nel registro e
 > **PUÒ** ratificare solo quando non esistono rilievi bloccanti aperti e sono
-> disponibili le tre posizioni e la revisione richiesta da R0.4. L'atto di
-> ratifica **DEVE** registrare data, commit e tag firmato della baseline.
+> disponibili le posizioni richieste da R16.3.1 e, quando applicabile, la
+> revisione richiesta da R0.4. L'atto di ratifica **DEVE** registrare data,
+> commit e tag della baseline.
+>
+> **R16.3.1** *(nuova 2.0-rc15)* Le posizioni tecniche sono richieste **solo dai
+> componenti su cui la modifica apre un gap**. Una regola che tutti i componenti
+> già rispettano non ha bisogno di tre firme per diventare vincolante: chiederle
+> produce cerimonia e non informazione, e ritarda una ratifica che non costa
+> nulla a nessuno.
+>
+> Allo stesso modo, la revisione di R0.4 è richiesta quando la modifica cambia
+> un comportamento o la verifica che lo dimostra, non quando registra come
+> vincolante ciò che è già in esercizio.
 >
 > Ratificare un requisito e implementarlo sono atti distinti: la ratifica lo
 > rende vincolante; un componente non ancora conforme registra un gap o una

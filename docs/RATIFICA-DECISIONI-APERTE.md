@@ -1,6 +1,6 @@
-# Diciassette decisioni di ratifica aperte
+# Quattordici decisioni di ratifica aperte
 
-Il registro dell'ICD ha 28 voci: 11 ratificate, 17 `proposta`. Questa pagina
+Il registro dell'ICD ha 28 voci: **14 ratificate**, 14 `proposta`. Questa pagina
 serve a decidere voce per voce senza rileggere il documento.
 
 **Perché conta.** Una regola `proposta` non vincola nessuno. Alla data di questa
@@ -27,8 +27,6 @@ il confine da cui Plenora le userà.)*
 | Voce | Oggetto | Adozione | Cosa comporta ratificare |
 |---|---|---|---|
 
-| §11.5–§11.10 | Cancellazione: token, attesa race-free, deadline, propagazione | tutti e tre | Nulla di tecnico. Vincola la forma del token, che il crate condiviso di §15.3 deve esportare |
-| §3.4 | `unknown` non degradabile, tre stati di dichiarazione | tutti e tre | Nulla di tecnico. Rende esigibili due casi del corpus (`dimensions_unknown`, `types_mixed`) |
 
 ## Costo reale — adozione parziale
 
@@ -58,7 +56,6 @@ vale la pena che sia esplicito invece di implicito.
 |---|---|---|
 | §4.6 | Collocazione del fail-closed, e da rc12 propagare contro scegliere quando i bordi coincidono (R4.6.5) | R4.6.1 è ora implementata da IO-tools. R4.6.5 risponde alla domanda che blocca `1.0.0-rc.1` di IO-tools: un comando che legge e scrive rifiuta solo quando la destinazione non può rappresentare l'incoerenza, cioè quando scrivere impone una scelta. Ratificarla sblocca quella RC |
 | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | Solo `plenora-database-core` le rispetta. Ratificarle apre un gap su IO-tools — è il conflitto CRS accettato in silenzio |
-| §4.1.1 | `declared_unresolved` non richiede una `crs_definition` | Trovata dal corpus a due varianti: IO-tools respinge un caso con `crs_id` irrisolvibile e nessuna definizione, perché `RawCrs.definition` è `String` e non `Option`. §2 dichiara la chiave facoltativa. Ratificarla apre un gap dichiarato su IO-tools e zero sugli altri due |
 | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | Emendamento di una regola 1.x che resta in vigore (R4.5.1). Finché non è ratificata vale la formulazione più restrittiva: nessun pushdown |
 | §15.2 | Distribuzione: tag firmato e revisione esatta | Nessun tag di questo repository è firmato. Ratificarla richiede una baseline firmata prima di poterla rispettare |
 | §15.3 | Contenuto e API del crate condiviso | Il crate non esiste. È il blocco del passo 2 di §15.4, e ora esiste un'implementazione candidata da estrarre: `field_contract.rs` di `plenora-database-core` |
@@ -66,8 +63,15 @@ vale la pena che sia esplicito invece di implicito.
 
 ## Ordine suggerito
 
-Le due voci a costo quasi nullo prima — §3.4 e §11.5–§11.10 — portano il
-registro da 11 a 13 ratificate su 25 senza aprire un solo gap, e rendono esigibile ciò che i tre già
+**Fatto il 31 luglio 2026**: §3.4, §11.5–§11.10 e §4.1.1 sono ratificate, e il
+registro è passato da 11 a 14 su 28. Le prime due non hanno aperto un solo gap
+perché tutti e tre le rispettavano già; la terza ne ha aperto uno solo, su
+IO-tools, che l'aveva chiuso lo stesso giorno.
+
+Nello stesso atto R16.3 è stata alleggerita con R16.3.1: le posizioni tecniche
+servono solo dai componenti su cui la modifica apre un gap, e la revisione di
+R0.4 solo quando la modifica cambia un comportamento. Chiedere tre firme per una
+regola che nessuno deve cambiare produceva cerimonia e non informazione, e rendono esigibile ciò che i tre già
 fanno. Poi §4.6 e §4.3.1–§4.3.3 insieme, perché sono la stessa materia e
 ratificarle separatamente lascerebbe scoperto proprio il punto che si è voluto
 chiarire. Poi §15.3, che sblocca il crate. Il resto quando l'evidenza esiste.

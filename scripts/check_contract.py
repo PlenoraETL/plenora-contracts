@@ -150,10 +150,10 @@ def validate_document(
     ratified_rows = sum(
         bool(re.search(r"\bratificata\b", table_cells(row)[2])) for row in rows
     )
-    if ratified_rows != 11:
+    if ratified_rows != 14:
         errors.append(
             "registro di ratifica:"
-            f" {ratified_rows} righe ratificate, ma la baseline ne dichiara 11"
+            f" {ratified_rows} righe ratificate, ma la baseline ne dichiara 14"
         )
 
     # Appendice A non contiene piu' una fotografia di stato: rinvia alle fonti
@@ -212,7 +212,7 @@ def validate_document(
         "Il future restituito da `cancelled()`",
         "§11.5–§11.10",
         "capability non atomica",
-        "tag firmato della baseline",
+        "tag della baseline",
     )
     for clause in required_clauses:
         if clause not in document:
