@@ -1,0 +1,2208 @@
+{
+  "cases": [
+    {
+      "case": "axis_lat_lon",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [
+                {
+                  "after": "4326",
+                  "before": null,
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.srid']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [
+                {
+                  "after": "4326",
+                  "before": null,
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.srid']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "axis_lat_lon__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [
+                {
+                  "after": "4326",
+                  "before": null,
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.srid']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [
+                {
+                  "after": "4326",
+                  "before": null,
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.srid']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [
+                {
+                  "after": "declared_unresolved",
+                  "before": "resolved",
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.crs_resolution']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "outcome": "rejected",
+            "reason": "respinto per la causa attesa",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [
+                {
+                  "after": "declared_unresolved",
+                  "before": "resolved",
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.crs_resolution']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "outcome": "rejected",
+            "reason": "respinto per la causa attesa",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [
+                {
+                  "after": "declared_unresolved",
+                  "before": "resolved",
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.crs_resolution']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "outcome": "rejected",
+            "reason": "respinto per la causa attesa",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [
+                {
+                  "after": "declared_unresolved",
+                  "before": "resolved",
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.crs_resolution']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "outcome": "rejected",
+            "reason": "respinto per la causa attesa",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_wkt_towgs84",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [
+                {
+                  "after": "3003",
+                  "before": null,
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.srid']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [
+                {
+                  "after": "3003",
+                  "before": null,
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.srid']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_wkt_towgs84__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [
+                {
+                  "after": "3003",
+                  "before": null,
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.srid']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [
+                {
+                  "after": "3003",
+                  "before": null,
+                  "category": "contract",
+                  "path": "fields[0].metadata['plenora.geometry.srid']"
+                }
+              ],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key__geoarrow",
+      "comparisons": [
+        {
+          "differences": [],
+          "left": "data->io",
+          "right": "io->data",
+          "status": "pass"
+        }
+      ],
+      "orders": [
+        {
+          "order": [
+            "io",
+            "data"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        },
+        {
+          "order": [
+            "data",
+            "io"
+          ],
+          "stages": [
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "data"
+            },
+            {
+              "differences": [],
+              "outcome": "accepted",
+              "reason": "semantic contract preserved",
+              "semantic_status": "pass",
+              "stage": "io"
+            }
+          ],
+          "terminal_observer": {
+            "divergences": [],
+            "outcome": "accepted",
+            "status": "pass"
+          },
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    }
+  ],
+  "component_revisions": {
+    "plenora-IO-tools": "ca7f34c6b732700fa79f579f7b003df27ce54b09",
+    "plenora-data-tools": "aab8152902a209955b2ea657dfeaeea10408f866",
+    "plenora-database-tools": "89c82c4c700550decc394bb1e43b22c8a32e44e1"
+  },
+  "icd": {
+    "revision": "e81c3ce7941bacbdb0e083f03c512ae22a6b924a",
+    "version": "2.0-rc16"
+  },
+  "manifest_version": 1,
+  "orders": [
+    [
+      "io",
+      "data"
+    ],
+    [
+      "data",
+      "io"
+    ]
+  ]
+}

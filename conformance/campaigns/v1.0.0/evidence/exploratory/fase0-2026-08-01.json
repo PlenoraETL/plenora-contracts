@@ -1,0 +1,159 @@
+{
+  "kind": "fase0_confronto",
+  "riferimento": {
+    "tempi": {
+      "lettura": 0.0359,
+      "filtro": 0.0017,
+      "riproiezione": 0.0235,
+      "totale": 0.0612
+    },
+    "righe_lette": 3000,
+    "righe_filtrate": 2532,
+    "colonne": [
+      "ID_PARTICE",
+      "CODICE_BEL",
+      "FOGLIO",
+      "DENOMINAZI",
+      "DENOMINAZ1",
+      "SUPERFICIE",
+      "QUOTA_SLM",
+      "NOTE_TECNI",
+      "geometry"
+    ],
+    "tipi_attributi": {
+      "ID_PARTICE": "int64",
+      "CODICE_BEL": "str",
+      "FOGLIO": "str",
+      "DENOMINAZI": "str",
+      "DENOMINAZ1": "str",
+      "SUPERFICIE": "float64",
+      "QUOTA_SLM": "float64",
+      "NOTE_TECNI": "str"
+    },
+    "colonne_omonime": [],
+    "id_distinti": 3000,
+    "tipi_geometrici": {
+      "Polygon": 3000
+    },
+    "geometrie_valide": 3000,
+    "crs_dopo_riproiezione": "EPSG:4326",
+    "primo_id": 9007199254740992,
+    "primo_centroide_4326": [
+      9.05498,
+      45.423328
+    ]
+  },
+  "nuovo": {
+    "tempi": {
+      "lettura": 7.9074,
+      "filtro": 1.3128,
+      "riproiezione": 2.2587,
+      "totale": 11.4789
+    },
+    "righe_lette": 3000,
+    "fedele": false,
+    "perdite": {},
+    "colonne": [
+      "geometry",
+      "ID_PARTICE",
+      "CODICE_BEL",
+      "FOGLIO",
+      "DENOMINAZI",
+      "DENOMINAZ1",
+      "SUPERFICIE",
+      "QUOTA_SLM",
+      "NOTE_TECNI"
+    ],
+    "tipi_attributi": {
+      "ID_PARTICE": "int64",
+      "CODICE_BEL": "string",
+      "FOGLIO": "string",
+      "DENOMINAZI": "string",
+      "DENOMINAZ1": "string",
+      "SUPERFICIE": "double",
+      "QUOTA_SLM": "double",
+      "NOTE_TECNI": "string"
+    },
+    "id_distinti": 3000,
+    "contratto": {
+      "plenora.geometry.axis_order": "easting_northing",
+      "plenora.geometry.crs_definition": "PROJCS[\"Monte Mario / Italy zone 1\",GEOGCS[\"Monte Mario\",DATUM[\"Monte_Mario\",SPHEROID[\"International 1924\",6378388,297],TOWGS84[-104.1,-49.1,-9.9,0.971,-2.917,0.714,-11.68]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",1500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"3003\"]]",
+      "plenora.geometry.crs_definition_format": "wkt",
+      "plenora.geometry.crs_id": "EPSG:3003",
+      "plenora.geometry.crs_resolution": "resolved",
+      "plenora.geometry.dimensions": "xy",
+      "plenora.geometry.encoding": "wkb",
+      "plenora.geometry.native.shp.shape_type": "polygon-xy",
+      "plenora.geometry.precision": "float64",
+      "plenora.geometry.spatial_semantics": "geometry",
+      "plenora.geometry.types": "multipolygon",
+      "plenora.geometry.types_declaration": "exact"
+    },
+    "filtro": "RIFIUTATO",
+    "filtro_dettaglio": "{\"error\":{\"category\":\"crs\",\"message\":\"CRS error: input `main` (/tmp/plenora-fase0-726w1a4k/letto.arrow): CRS_TYPE_UNSUPPORTED: tipo PROJJSON BoundCRS non supportato\",\"phase\":\"validate\",\"remote_effect\":\"none\",\"retry\":{\"kind\":\"never\"}},\"protocol_version\":1,\"status\":\"error\"}\n",
+    "riproiezione": "RIFIUTATA",
+    "riproiezione_dettaglio": "{\"error\":{\"category\":\"crs\",\"message\":\"CRS error: input `main` (/tmp/plenora-fase0-726w1a4k/letto.arrow): CRS_TYPE_UNSUPPORTED: tipo PROJJSON BoundCRS non supportato\",\"phase\":\"validate\",\"remote_effect\":\"none\",\"retry\":{\"kind\":\"never\"}},\"protocol_version\":1,\"status\":\"error\"}\n"
+  },
+  "differenze": [
+    {
+      "aspetto": "righe dopo il filtro",
+      "attuale": "2532",
+      "nuovo": "?",
+      "nota": ""
+    },
+    {
+      "aspetto": "colonne omonime conservate",
+      "attuale": "[]",
+      "nuovo": "una sola per nome",
+      "nota": "il DBF tronca due nomi sullo stesso: uno stack le tiene entrambe"
+    },
+    {
+      "aspetto": "riproiezione",
+      "attuale": "eseguita",
+      "nuovo": "RIFIUTATA",
+      "nota": ""
+    },
+    {
+      "aspetto": "CRS dopo riproiezione",
+      "attuale": "EPSG:4326",
+      "nuovo": "?",
+      "nota": ""
+    },
+    {
+      "aspetto": "ordine assi dopo riproiezione",
+      "attuale": "non rappresentato da GeoPandas",
+      "nuovo": "?",
+      "nota": ""
+    },
+    {
+      "aspetto": "perdita dichiarata",
+      "attuale": "nessun meccanismo",
+      "nuovo": "{}",
+      "nota": ""
+    },
+    {
+      "aspetto": "tempo lettura (s)",
+      "attuale": "0.0359",
+      "nuovo": "7.9074  (220.3x)",
+      "nota": ""
+    },
+    {
+      "aspetto": "tempo filtro (s)",
+      "attuale": "0.0017",
+      "nuovo": "1.3128  (772.2x)",
+      "nota": ""
+    },
+    {
+      "aspetto": "tempo riproiezione (s)",
+      "attuale": "0.0235",
+      "nuovo": "2.2587  (96.1x)",
+      "nota": ""
+    },
+    {
+      "aspetto": "tempo totale (s)",
+      "attuale": "0.0612",
+      "nuovo": "11.4789  (187.6x)",
+      "nota": ""
+    }
+  ]
+}

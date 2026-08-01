@@ -1,0 +1,249 @@
+{
+  "manifest_version": 2,
+  "gate_id": "plenora-1.0-cross-library-campaign-v1",
+  "release_inventory": "conformance/releases/v1.0.1.json",
+  "icd": {
+    "version": "2.0-rc16",
+    "revision": "e81c3ce7941bacbdb0e083f03c512ae22a6b924a"
+  },
+  "profiles": {
+    "binding-v1": {
+      "rule_state": "ratificata",
+      "binding_claim": true
+    },
+    "target-rc16": {
+      "rule_state": "proposta",
+      "binding_claim": false
+    }
+  },
+  "components": [
+    {
+      "name": "plenora-IO-tools",
+      "role": "file_boundary",
+      "repository": "PlenoraETL/plenora-IO-tools",
+      "checkout": "plenora-IO-tools",
+      "tag": "v1.0.0",
+      "revision": "ca7f34c6b732700fa79f579f7b003df27ce54b09",
+      "capabilities": {
+        "arrow_to_arrow": "available",
+        "read_fidelity": "available",
+        "read_loss": "available",
+        "write_fidelity": "available",
+        "write_loss": "available",
+        "runtime_catalog": "available",
+        "filegdb_create": "runtime_dependent"
+      }
+    },
+    {
+      "name": "plenora-data-tools",
+      "role": "transformation_core",
+      "repository": "PlenoraETL/plenora-data-tools",
+      "checkout": "plenora-data-tools",
+      "tag": "v1.0.1",
+      "revision": "aab8152902a209955b2ea657dfeaeea10408f866",
+      "capabilities": {
+        "arrow_to_arrow": "available",
+        "plan_schema": 4,
+        "proj_backend": "required_for_crs_cases"
+      }
+    },
+    {
+      "name": "plenora-database-tools",
+      "role": "database_boundary",
+      "repository": "PlenoraETL/plenora-database-tools",
+      "checkout": "plenora-database-tools",
+      "tag": "v1.0.0",
+      "revision": "89c82c4c700550decc394bb1e43b22c8a32e44e1",
+      "capabilities": {
+        "inspect_dataset": "available",
+        "postgres_read_ipc": "available",
+        "persistent_ipc_write": "incomplete_blocking"
+      }
+    }
+  ],
+  "invocations": {
+    "io_arrow_to_arrow": [
+      "cargo",
+      "run",
+      "--locked",
+      "--quiet",
+      "-p",
+      "plenora-io-cli",
+      "--",
+      "convert",
+      "{input}",
+      "{output}"
+    ],
+    "data_arrow_to_arrow": [
+      "cargo",
+      "run",
+      "--locked",
+      "--quiet",
+      "-p",
+      "plenora-cli",
+      "--features",
+      "proj-backend",
+      "--",
+      "run",
+      "--plan",
+      "{plan}",
+      "--inputs",
+      "{input}",
+      "--output",
+      "{output}"
+    ],
+    "database_inspect": [
+      "cargo",
+      "run",
+      "--locked",
+      "--quiet",
+      "-p",
+      "plenora-database-cli",
+      "--",
+      "inspect-dataset",
+      "{input}"
+    ],
+    "postgres_read_ipc": [
+      "cargo",
+      "run",
+      "--release",
+      "--locked",
+      "--quiet",
+      "-p",
+      "plenora-database-cli",
+      "--",
+      "postgres-read-ipc",
+      "{dsn_env}",
+      "{schema}",
+      "{table}",
+      "{output}",
+      "--order-by",
+      "{order_by}",
+      "--max-rows",
+      "{max_rows}",
+      "--max-output-bytes",
+      "{max_output_bytes}",
+      "--timeout-ms",
+      "{timeout_ms}"
+    ]
+  },
+  "comparison_policies": {
+    "identity": {
+      "artifact_byte": false,
+      "batch_structure": false,
+      "contract": true,
+      "values": true
+    },
+    "strict_binary": {
+      "artifact_byte": true,
+      "batch_structure": true,
+      "contract": true,
+      "values": true
+    }
+  },
+  "pairwise": {
+    "io_to_data": {
+      "status": "passed_offline",
+      "coverage": "producer_consumer",
+      "fixtures_passed": 30
+    },
+    "data_to_io": {
+      "status": "passed_live_with_declared_transitions",
+      "coverage": "producer_consumer",
+      "transition_judge": "pass"
+    },
+    "database_to_data": {
+      "status": "passed_live_postgres",
+      "coverage": "live_producer_consumer",
+      "contract_identity": true,
+      "value_identity": true
+    },
+    "database_to_io": {
+      "status": "not_executed_directly",
+      "coverage": "covered_only_via_database_to_data_to_io"
+    },
+    "io_to_database": {
+      "status": "available_observer",
+      "coverage": "contract_consumer_only",
+      "persistent_coverage": "incomplete_blocking"
+    },
+    "data_to_database": {
+      "status": "available_observer",
+      "coverage": "contract_consumer_only",
+      "persistent_coverage": "incomplete_blocking"
+    }
+  },
+  "database_exports": {
+    "postgres": {
+      "status": "available",
+      "command": "postgres-read-ipc"
+    },
+    "sqlserver": {
+      "status": "incomplete_blocking",
+      "command": null
+    },
+    "mysql": {
+      "status": "incomplete_blocking",
+      "command": null
+    }
+  },
+  "database_writes": {
+    "postgres": {
+      "status": "incomplete_blocking",
+      "remote_effect": "not_exercised"
+    },
+    "sqlserver": {
+      "status": "incomplete_blocking",
+      "remote_effect": "not_exercised"
+    },
+    "mysql": {
+      "status": "expected_rejection",
+      "remote_effect": "none",
+      "successful_write_is_failure": true
+    }
+  },
+  "directions": {
+    "database_to_data_to_io": {
+      "status": "passed_postgres_with_declared_transitions",
+      "reference_provider": "postgres",
+      "sqlserver": "incomplete_blocking",
+      "mysql": "incomplete_blocking",
+      "evidence": "conformance/campaigns/v1.0.0/evidence/qualified/2026-08-01-live-postgres-data-io.json",
+      "satisfies_system_gate": false
+    },
+    "io_to_data_to_database": {
+      "status": "incomplete_blocking",
+      "terminal_coverage": "contract_observer_only",
+      "satisfies_system_gate": false
+    }
+  },
+  "known_blockers": {
+    "data_bound_crs_towgs84": {
+      "component": "plenora-data-tools",
+      "tag": "v1.0.0",
+      "revision": "7a47504482569636b6c0e268477d155010d3b030",
+      "fixture": "crs_wkt_towgs84",
+      "status": "remediated_by_patch_release",
+      "observed_error": "CRS_TYPE_UNSUPPORTED: tipo PROJJSON BoundCRS non supportato",
+      "scope": "standard Italian cadastral shapefile CRS in EPSG:3003 with WKT1 TOWGS84",
+      "supply_chain_identity_valid": true,
+      "functional_qualification_valid": false,
+      "evidence": "conformance/campaigns/v1.0.0/evidence/exploratory/fase0-2026-08-01.json",
+      "evidence_class": "exploratory_dirty_snapshot",
+      "required_remediation": "new immutable patch release candidate and exact-SHA requalification",
+      "remediation_tag": "v1.0.1",
+      "remediation_revision": "aab8152902a209955b2ea657dfeaeea10408f866",
+      "remediation_ci_run": 30705866117,
+      "remediation_release": "https://github.com/PlenoraETL/plenora-data-tools/releases/tag/v1.0.1",
+      "remediation_functional_qualification_valid": true,
+      "blocks_system_gate": false
+    }
+  },
+  "execution": {
+    "command_timeout_seconds": 600,
+    "required_platforms": ["linux", "windows_native"],
+    "characterization_platforms": ["wsl2_ext4", "wsl2_mnt_c"],
+    "missing_required_cell": "incomplete_blocking",
+    "system_gate": "partial_pass_with_blocking_gaps"
+  }
+}

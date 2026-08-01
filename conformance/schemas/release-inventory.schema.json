@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plenora.dev/schemas/release-inventory-v1.schema.json",
+  "title": "Plenora immutable release input inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "gate_id", "inventory_id", "contracts", "components"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "gate_id": {"const": "plenora-release-inputs-v1"},
+    "inventory_id": {
+      "enum": ["plenora-system-v1.0.0", "plenora-system-v1.0.1"]
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "icd"],
+      "properties": {
+        "revision": {
+          "const": "e81c3ce7941bacbdb0e083f03c512ae22a6b924a"
+        },
+        "icd": {"const": "2.0-rc16"}
+      }
+    },
+    "components": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/component"}
+    }
+  },
+  "$defs": {
+    "sha1": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {"name": {"const": "plenora-data-tools"}},
+            "required": ["name"]
+          },
+          "then": {"properties": {"tag": {"enum": ["v1.0.0", "v1.0.1"]}}}
+        },
+        {
+          "if": {
+            "properties": {
+              "name": {
+                "enum": ["plenora-IO-tools", "plenora-database-tools"]
+              }
+            },
+            "required": ["name"]
+          },
+          "then": {"properties": {"tag": {"const": "v1.0.0"}}}
+        }
+      ],
+      "required": [
+        "name",
+        "repository",
+        "tag",
+        "tag_object",
+        "revision",
+        "release",
+        "source_archive",
+        "crates_publish"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "plenora-data-tools",
+            "plenora-IO-tools",
+            "plenora-database-tools"
+          ]
+        },
+        "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+        "tag": {"type": "string", "pattern": "^v1\\.0\\.[01]$"},
+        "tag_object": {"$ref": "#/$defs/sha1"},
+        "revision": {"$ref": "#/$defs/sha1"},
+        "release": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "url", "draft", "prerelease"],
+          "properties": {
+            "id": {"type": "integer", "minimum": 1},
+            "url": {"type": "string", "pattern": "^https://github\\.com/.+/releases/tag/v1\\.0\\.[01]$"},
+            "draft": {"const": false},
+            "prerelease": {"const": false}
+          }
+        },
+        "source_archive": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sha256", "bytes"],
+          "properties": {
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "bytes": {"type": "integer", "minimum": 1}
+          }
+        },
+        "crates_publish": {"const": false}
+      }
+    }
+  }
+}

@@ -1,0 +1,867 @@
+{
+  "cases": [
+    {
+      "case": "axis_lat_lon",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.2",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [
+            {
+              "after": "4326",
+              "before": null,
+              "category": "contract",
+              "path": "fields[0].metadata['plenora.geometry.srid']"
+            }
+          ],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "axis_lat_lon__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.2",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [
+            {
+              "after": "4326",
+              "before": null,
+              "category": "contract",
+              "path": "fields[0].metadata['plenora.geometry.srid']"
+            }
+          ],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs",
+      "expect": "preserve_with_transition",
+      "judge": {
+        "accepted": true,
+        "detail": "{\"error\":{\"category\":\"crs\",\"execution_id\":null,\"message\":\"identificatore CRS e SRID numerico divergenti\",\"phase\":\"validate\",\"provider\":null,\"remote_effect\":\"none\",\"retry\":{\"kind\":\"never\"}},\"protocol_version\":1,\"status\":\"error\"}",
+        "outcome": "rejected",
+        "reason": "respinto per la causa attesa"
+      },
+      "rule": "R4.3.1, R4.6",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [
+            {
+              "after": "declared_unresolved",
+              "before": "resolved",
+              "category": "contract",
+              "path": "fields[0].metadata['plenora.geometry.crs_resolution']"
+            }
+          ],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs__geoarrow",
+      "expect": "preserve_with_transition",
+      "judge": {
+        "accepted": true,
+        "detail": "{\"error\":{\"category\":\"crs\",\"execution_id\":null,\"message\":\"identificatore CRS e SRID numerico divergenti\",\"phase\":\"validate\",\"provider\":null,\"remote_effect\":\"none\",\"retry\":{\"kind\":\"never\"}},\"protocol_version\":1,\"status\":\"error\"}",
+        "outcome": "rejected",
+        "reason": "respinto per la causa attesa"
+      },
+      "rule": "R4.3.1, R4.6",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [
+            {
+              "after": "declared_unresolved",
+              "before": "resolved",
+              "category": "contract",
+              "path": "fields[0].metadata['plenora.geometry.crs_resolution']"
+            }
+          ],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.1",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.1",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.1",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.1",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_wkt_towgs84",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R2.6",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [
+            {
+              "after": "3003",
+              "before": null,
+              "category": "contract",
+              "path": "fields[0].metadata['plenora.geometry.srid']"
+            }
+          ],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_wkt_towgs84__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R2.6",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [
+            {
+              "after": "3003",
+              "before": null,
+              "category": "contract",
+              "path": "fields[0].metadata['plenora.geometry.srid']"
+            }
+          ],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.4",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.4",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.4",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R4.4",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R5.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R5.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.4.1",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R3.4.1",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R5.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R5.3",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R2.4",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key__geoarrow",
+      "expect": "preserve",
+      "judge": {
+        "accepted": true,
+        "divergences": [],
+        "outcome": "accepted",
+        "reason": "contratto in fondo alla catena confermato"
+      },
+      "rule": "R2.4",
+      "stages": [
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "io"
+        },
+        {
+          "differences": [],
+          "outcome": "ok",
+          "reason": "semantic contract preserved",
+          "stage": "data"
+        }
+      ],
+      "terminal_role": "transformation_core",
+      "verdict": "pass"
+    }
+  ],
+  "component_revisions": {
+    "plenora-IO-tools": "ca7f34c6b732700fa79f579f7b003df27ce54b09",
+    "plenora-data-tools": "aab8152902a209955b2ea657dfeaeea10408f866",
+    "plenora-database-tools": "89c82c4c700550decc394bb1e43b22c8a32e44e1"
+  },
+  "icd": {
+    "revision": "e81c3ce7941bacbdb0e083f03c512ae22a6b924a",
+    "version": "2.0-rc16"
+  },
+  "manifest_version": 1,
+  "stages_skipped": []
+}

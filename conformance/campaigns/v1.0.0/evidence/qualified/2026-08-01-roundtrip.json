@@ -1,0 +1,1021 @@
+{
+  "component_revisions": {
+    "plenora-IO-tools": "ca7f34c6b732700fa79f579f7b003df27ce54b09",
+    "plenora-data-tools": "aab8152902a209955b2ea657dfeaeea10408f866",
+    "plenora-database-tools": "89c82c4c700550decc394bb1e43b22c8a32e44e1"
+  },
+  "icd": {
+    "revision": "e81c3ce7941bacbdb0e083f03c512ae22a6b924a",
+    "version": "2.0-rc16"
+  },
+  "manifest_version": 1,
+  "roundtrips_skipped": [],
+  "verifications": [
+    {
+      "case": "axis_lat_lon",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "axis_lat_lon__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "unverified_obligation": "R4.6.1 impone di preservare *e* di dichiarare l'incoerenza nel LossReport o FidelityAssessment. Questo runner verifica solo la preservazione: un esito positivo non e' evidenza che l'incoerenza sia stata dichiarata.",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "unverified_obligation": "R4.6.1 impone di preservare *e* di dichiarare l'incoerenza nel LossReport o FidelityAssessment. Questo runner verifica solo la preservazione: un esito positivo non e' evidenza che l'incoerenza sia stata dichiarata.",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_wkt_towgs84",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_wkt_towgs84__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key__geoarrow",
+      "component": "plenora-IO-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "file_boundary",
+      "roundtrip": "io",
+      "verdict": "pass"
+    },
+    {
+      "case": "axis_lat_lon",
+      "component": "plenora-data-tools",
+      "differences": [
+        {
+          "after": "4326",
+          "before": null,
+          "category": "contract",
+          "path": "fields[0].metadata['plenora.geometry.srid']"
+        }
+      ],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "axis_lat_lon__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [
+        {
+          "after": "4326",
+          "before": null,
+          "category": "contract",
+          "path": "fields[0].metadata['plenora.geometry.srid']"
+        }
+      ],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs",
+      "component": "plenora-data-tools",
+      "differences": [
+        {
+          "after": "declared_unresolved",
+          "before": "resolved",
+          "category": "contract",
+          "path": "fields[0].metadata['plenora.geometry.crs_resolution']"
+        }
+      ],
+      "expect": "preserve_with_transition",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [
+        {
+          "after": "declared_unresolved",
+          "before": "resolved",
+          "category": "contract",
+          "path": "fields[0].metadata['plenora.geometry.crs_resolution']"
+        }
+      ],
+      "expect": "preserve_with_transition",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_wkt_towgs84",
+      "component": "plenora-data-tools",
+      "differences": [
+        {
+          "after": "3003",
+          "before": null,
+          "category": "contract",
+          "path": "fields[0].metadata['plenora.geometry.srid']"
+        }
+      ],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_wkt_towgs84__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [
+        {
+          "after": "3003",
+          "before": null,
+          "category": "contract",
+          "path": "fields[0].metadata['plenora.geometry.srid']"
+        }
+      ],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key__geoarrow",
+      "component": "plenora-data-tools",
+      "differences": [],
+      "expect": "preserve",
+      "kind": "arrow_to_arrow",
+      "reason": "semantic contract preserved",
+      "role": "transformation_core",
+      "roundtrip": "data",
+      "verdict": "pass"
+    },
+    {
+      "case": "axis_lat_lon",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "axis_lat_lon__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs",
+      "component": "plenora-database-tools",
+      "expect": "fail_closed",
+      "kind": "arrow_to_contract",
+      "reason": "respinto per la causa attesa",
+      "rejection": "{\"error\":{\"category\":\"crs\",\"execution_id\":null,\"message\":\"identificatore CRS e SRID numerico divergenti\",\"phase\":\"validate\",\"provider\":null,\"remote_effect\":\"none\",\"retry\":{\"kind\":\"never\"}},\"protocol_version\":1,\"status\":\"error\"}",
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "conflicting_crs__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "fail_closed",
+      "kind": "arrow_to_contract",
+      "reason": "respinto per la causa attesa",
+      "rejection": "{\"error\":{\"category\":\"crs\",\"execution_id\":null,\"message\":\"identificatore CRS e SRID numerico divergenti\",\"phase\":\"validate\",\"provider\":null,\"remote_effect\":\"none\",\"retry\":{\"kind\":\"never\"}},\"protocol_version\":1,\"status\":\"error\"}",
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_missing__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_unresolved__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_wkt_towgs84",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "crs_wkt_towgs84__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "dimensions_unknown__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "geography_semantics__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "int64_beyond_2_53__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "multipolygon_xyzm_srid__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_z__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "point_zm__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "polygon_xy_projected__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "types_mixed__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "uint64_ordering__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    },
+    {
+      "case": "unknown_key__geoarrow",
+      "component": "plenora-database-tools",
+      "expect": "preserve",
+      "kind": "arrow_to_contract",
+      "losses": [],
+      "role": "database_boundary",
+      "roundtrip": "database",
+      "verdict": "pass"
+    }
+  ]
+}

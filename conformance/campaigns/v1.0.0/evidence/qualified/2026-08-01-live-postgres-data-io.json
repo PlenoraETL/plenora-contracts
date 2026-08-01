@@ -1,0 +1,94 @@
+{
+  "campaign_id": "postgres-data-io-live-v1",
+  "component_revisions": {
+    "data": "aab8152902a209955b2ea657dfeaeea10408f866",
+    "database": "89c82c4c700550decc394bb1e43b22c8a32e44e1",
+    "io": "ca7f34c6b732700fa79f579f7b003df27ce54b09"
+  },
+  "data_to_io": {
+    "contract_identity": false,
+    "expected_loss": {},
+    "expected_transitions": 2,
+    "loss_judge": "pass",
+    "observed_loss": {},
+    "observed_transitions": 2,
+    "output_sha256": "9609fa40cb082ef136a45156996e7e884f6850e6641bc1ff82033e659df28a2a",
+    "reported_loss": {},
+    "status": "pass_with_declared_transitions",
+    "transition_judge": "pass",
+    "values": "pass"
+  },
+  "database_export": {
+    "columns": 5,
+    "determinism": "byte_exact",
+    "repetitions": 2,
+    "row_order": "deterministic",
+    "rows": 3,
+    "sha256": "24b412ea2b8c4bcc0555925154eb11c4fc27ce6e485b5d42ebd375ea7b025823",
+    "source_rows_observed_after_export": 3
+  },
+  "database_to_data": {
+    "artifact_byte_identity": true,
+    "contract_identity": true,
+    "rows_after": 3,
+    "rows_before": 3,
+    "spill_bytes": 0,
+    "status": "pass",
+    "value_identity": true
+  },
+  "executed_at": "2026-08-01",
+  "governed_rejections": [
+    {
+      "category": "resource_limit",
+      "id": "rows_over_budget",
+      "partial_artifact": false,
+      "remote_effect": "rolled_back",
+      "status": "pass"
+    },
+    {
+      "category": "resource_limit",
+      "id": "bytes_over_budget",
+      "partial_artifact": false,
+      "remote_effect": "rolled_back",
+      "status": "pass"
+    }
+  ],
+  "issues": [],
+  "performance": {
+    "absolute_budget_approved": false,
+    "status": "observational_only"
+  },
+  "persistent_database_roundtrip": "not_demonstrated",
+  "providers_not_exercised": [
+    "mysql",
+    "sqlserver"
+  ],
+  "required_transitions": [
+    {
+      "after": "4",
+      "before": null,
+      "category": "contract",
+      "path": "fields[4].metadata['plenora.field_id']"
+    },
+    {
+      "after": "float64",
+      "before": null,
+      "category": "contract",
+      "path": "fields[4].metadata['plenora.geometry.precision']"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "live PostgreSQL read through Data identity transform and IO IPC rewrite",
+  "stage_execution": {
+    "data": {
+      "exit_code": 0,
+      "output_preexisting": false
+    },
+    "evidence_class": "attested_event",
+    "io": {
+      "exit_code": 0,
+      "output_preexisting": false
+    }
+  },
+  "status": "pass"
+}

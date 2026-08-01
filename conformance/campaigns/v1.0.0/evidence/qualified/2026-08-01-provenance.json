@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "campaign": "plenora-1.0-cross-library-campaign-v1",
+  "executed_at": "2026-08-01",
+  "status": "pass_with_declared_gaps",
+  "input_releases": {
+    "plenora-data-tools": {
+      "tag": "v1.0.1",
+      "revision": "aab8152902a209955b2ea657dfeaeea10408f866"
+    },
+    "plenora-IO-tools": {
+      "tag": "v1.0.0",
+      "revision": "ca7f34c6b732700fa79f579f7b003df27ce54b09"
+    },
+    "plenora-database-tools": {
+      "tag": "v1.0.0",
+      "revision": "89c82c4c700550decc394bb1e43b22c8a32e44e1"
+    }
+  },
+  "environment": {
+    "image": "rust@sha256:e90e846de4124376164ddfbaab4b0774c7bdeef5e738866295e5a90a34a307a2",
+    "rustc": "1.92.0",
+    "cargo": "1.92.0",
+    "pyarrow": "23.0.1",
+    "platform": "linux-container",
+    "proj_cli_available": false,
+    "proj_backend": "system libproj-dev 9.1.1-1+b1",
+    "system_packages": {
+      "ca-certificates": "20230311+deb12u1",
+      "git": "1:2.39.5-0+deb12u3",
+      "libproj-dev": "9.1.1-1+b1",
+      "pkg-config": "1.8.1-1",
+      "python3": "3.11.2-1+b1",
+      "python3-pip": "23.0.1+dfsg-1"
+    }
+  },
+  "runner_snapshot": {
+    "conformance/campaigns/v1.0.0/execution.json": "2d6763a3405757e3ca1a7b4e5d753059a5247c83a6b4bb112969dc02d836b38a",
+    "conformance/corpus/generate.py": "87aa4ff06a55a9d5ef4ea666ed57cb6bb28d17b70dd07a814440e947f51cfef6",
+    "conformance/run-in-container.sh": "46efe5afd74f0807c8f4ba9875b6ff0619e5ee0da85c07f930c4d9542193023d",
+    "conformance/run_roundtrip.py": "09e7c82ff44b25847838f1e937746268c39c6382bdc2fbb95802d2f26ef3818c",
+    "conformance/run_chain.py": "4f5b89e8ba1d52ac291a5e75596e80ef087e5ef3b8173049b186988ff0c1e436",
+    "conformance/run_pairwise.py": "753d8e8c4d45c7af37ee359e6dc785bf9f48f76f2231bffa18102352e766cfa5",
+    "conformance/_shared.py": "85ec6666ee35ce3a0fe5b1bf860c1cef1f32d8dcd86d8e77d8f629d981be3ece",
+    "conformance/comparator.py": "d7905924c37c31152ddac12fd3708f217f9e7073810572d4c13802fd425d793e",
+    "conformance/fidelity.py": "572effad2afd7b69c92b78e99181c17e8118056bbcb9735cc6eab249e3e95ac4"
+  },
+  "reports": {
+    "2026-08-01-roundtrip.json": {
+      "sha256": "f70ab9ef77fe3dcb1a00fadce61718bba3668cee995270694512d4ff4744cfda",
+      "verifications": 90,
+      "passed": 90
+    },
+    "2026-08-01-roundtrip-chain.json": {
+      "sha256": "6ef2daaf8f09382b102de7c0fd6315eddc65a431a45ce4710a3a4e750fc2f347",
+      "cases": 30,
+      "passed": 30
+    },
+    "2026-08-01-roundtrip-pairwise.json": {
+      "sha256": "d788e1fbb7fb11b81bbc7789e1978c59cb85ec1ffa30ea4999a64ee388038f12",
+      "cases": 30,
+      "passed": 30
+    },
+    "2026-08-01-live-postgres-data-io.json": {
+      "sha256": "214bfe27bc5bda926bc07edfe225b60d07e4d56048b6dbd191605201b67f42e0",
+      "status": "pass"
+    },
+    "2026-08-01-plenora-read-only.json": {
+      "sha256": "ca00d08c914dd4b72f1dcf286f53c5c51bde4258afce6222b01f21afc5fbe763",
+      "status": "pass_with_declared_differences"
+    }
+  },
+  "established": [
+    "isolated IO Arrow-to-Arrow contract preservation on 30 fixtures",
+    "isolated Data Arrow-to-Arrow contract preservation on 30 fixtures",
+    "isolated Database inspect-dataset contract observation on 30 fixtures",
+    "IO to Data to Database-observer contract chain on 30 fixtures",
+    "both IO-to-Data and Data-to-IO rewrite orders on 30 fixtures",
+    "both canonical and GeoArrow variants of the EPSG:3003 TOWGS84 fixture",
+    "required conflicting-CRS metadata transitions without residual loss",
+    "live PostgreSQL export through Data and IO with deterministic artifacts and governed rollback",
+    "read-only Plenora versus Data filter and reprojection comparison under a neutral judge"
+  ],
+  "declared_gaps": [
+    "Database is a contract observer, not a persistent writer in this execution",
+    "no reverse persistent IO-to-Data-to-Database roundtrip",
+    "no native-Windows execution in this report",
+    "no live SQL Server or MySQL provider in this report",
+    "this report does not by itself satisfy the complete system gate"
+  ]
+}

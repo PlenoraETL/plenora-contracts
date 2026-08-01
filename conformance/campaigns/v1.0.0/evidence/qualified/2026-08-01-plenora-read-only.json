@@ -1,0 +1,51 @@
+{
+  "campaign_id": "plenora-read-only-cross-v1",
+  "filter": {
+    "assessment": "data_preserves_narrower_physical_types",
+    "logical_values": "pass",
+    "missing_declared_differences": [],
+    "observed_contract_differences": [
+      {
+        "after": null,
+        "before": "{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\": \"id\", \"field_name\": \"id\", \"pandas_type\": \"int64\", \"numpy_type\": \"int64\", \"metadata\": null}, {\"name\": \"value\", \"field_name\": \"value\", \"pandas_type\": \"float64\", \"numpy_type\": \"float64\", \"metadata\": null}, {\"name\": \"label\", \"field_name\": \"label\", \"pandas_type\": \"object\", \"numpy_type\": \"str\", \"metadata\": null}], \"attributes\": {}, \"creator\": {\"library\": \"pyarrow\", \"version\": \"23.0.1\"}, \"pandas_version\": \"3.0.3\"}",
+        "category": "contract",
+        "path": "schema.metadata['pandas']"
+      },
+      {
+        "after": "int64",
+        "before": "double",
+        "category": "contract",
+        "path": "fields[1].type"
+      },
+      {
+        "after": "string",
+        "before": "large_string",
+        "category": "contract",
+        "path": "fields[2].type"
+      }
+    ],
+    "rows": 3,
+    "undeclared_contract_differences": []
+  },
+  "issues": [],
+  "reference_revisions": {
+    "data": "aab8152902a209955b2ea657dfeaeea10408f866",
+    "plenora": "fff9619bfdad6605afcaeabbeff5126f0282e72c"
+  },
+  "reproject": {
+    "crs": "EPSG:4326",
+    "crs_judge": "pass",
+    "geometry_validity": "pass",
+    "max_hausdorff_degrees": 7.105427357601002e-15,
+    "rows": 2,
+    "status": "pass",
+    "tolerance_degrees": 1e-10
+  },
+  "schema_version": 1,
+  "scope_limits": [
+    "read-only comparison",
+    "table.filter and geo.reproject only",
+    "does not establish persistence, provider, orchestration, or performance parity"
+  ],
+  "status": "pass_with_declared_differences"
+}

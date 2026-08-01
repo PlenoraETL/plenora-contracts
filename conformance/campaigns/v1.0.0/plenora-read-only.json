@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "campaign_id": "plenora-read-only-cross-v1",
+  "plenora_revision": "fff9619bfdad6605afcaeabbeff5126f0282e72c",
+  "data_revision": "aab8152902a209955b2ea657dfeaeea10408f866",
+  "toolchain": {
+    "pyarrow": "23.0.1",
+    "pandas": "3.0.3",
+    "geopandas": "1.1.3",
+    "shapely": "2.1.2",
+    "rust": "1.92.0"
+  },
+  "operations": [
+    {
+      "id": "filter",
+      "plenora": "op_filter(value, >=, 0)",
+      "data": "table.filter(value >= 0)"
+    },
+    {
+      "id": "reproject",
+      "plenora": "op_geo_reproject(EPSG:3003/TOWGS84, EPSG:4326)",
+      "data": "geo.reproject(EPSG:4326)"
+    }
+  ],
+  "filter": {
+    "allowed_contract_differences": [
+      {
+        "category": "contract",
+        "path": "schema.metadata['pandas']",
+        "before_presence": "present",
+        "after_presence": "absent"
+      },
+      {
+        "category": "contract",
+        "path": "fields[1].type",
+        "before": "double",
+        "after": "int64"
+      },
+      {
+        "category": "contract",
+        "path": "fields[2].type",
+        "before": "large_string",
+        "after": "string"
+      }
+    ]
+  },
+  "reproject": {
+    "fixture": "crs_wkt_towgs84__geoarrow",
+    "source_crs": "EPSG:3003 with governed TOWGS84 operation",
+    "crs": "EPSG:4326",
+    "hausdorff_tolerance_degrees": 1e-10
+  },
+  "scope_limits": [
+    "read-only comparison",
+    "table.filter and geo.reproject only",
+    "no Plenora source modification",
+    "no persistence, provider, orchestration or performance parity claim"
+  ]
+}
