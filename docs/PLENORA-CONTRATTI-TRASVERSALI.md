@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc15 · 31 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc16 · 1 agosto 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -30,7 +30,7 @@
 > | §3.5 | Encoding come enumerazione chiusa | **ratificata** | dal 27 lug |
 > | §4.1–§4.4 | CRS: tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | dal 27 lug, testo 1.x |
 > | §4.1.1 | `declared_unresolved` non richiede una definizione testuale | **ratificata** | dal 31 lug; posizione IO-tools `accetta`, nessun gap su data-tools e database-tools |
-> | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | `proposta` | nuove 2.0, dentro una sezione ratificata |
+> | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | `proposta` | nuove 2.0; R4.3.2 emendata in 2.0-rc16, dentro una sezione ratificata |
 > | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | `proposta` | emendata 2.0 |
 > | §4.6 | Collocazione del fail-closed: rapporto in lettura, rifiuto in scrittura, decisione al centro; propagare contro scegliere quando i bordi coincidono | `proposta` | nuova 2.0-rc9, R4.6.5 in rc12 |
 > | §5 | Perdita di informazione mai silenziosa | **ratificata** | dal 27 lug |
@@ -63,9 +63,9 @@
 > della 1.0. La 2.0 emenda le sei sezioni che erano `sospesa` e le sei `proposta`
 > con rilievi aperti: nessuna sezione risulta più sospesa, tutte attendono
 > ratifica. Le revisioni successive alla 2.0 aggiornano la fotografia
-> dell'Appendice A e la forma normativa; la sola modifica di sostanza è
+> dell'Appendice A e la forma normativa. Le modifiche di sostanza sono
 > l'emendamento di §15.4 in rc5 (emissione canonica ammessa con deroga
-> registrata, DER-ICD-002).
+> registrata, DER-ICD-002) e il chiarimento fail-closed di R4.3.2 in rc16.
 
 Governa i confini fra i tre componenti Plenora sviluppati separatamente. Le regole
 qui contenute prevalgono sulla documentazione locale dei singoli repository.
@@ -377,9 +377,13 @@ end-to-end XYZM attraverso i tre componenti; grep di assegnazioni che portano a
 > discordano, il componente **DEVE** fallire con categoria `Crs`: non deve
 > scegliere silenziosamente la più conveniente.
 >
-> **R4.3.2** *(nuova 2.0)* Se il payload è EWKB e porta un SRID incorporato,
-> questo **DEVE** coincidere con `plenora.geometry.srid`. La divergenza è un
-> errore, non una precedenza da risolvere.
+> **R4.3.2** *(emendata 2.0)* Un payload dichiarato `wkb` **NON DEVE** portare
+> il flag SRID EWKB: il consumatore lo rifiuta, anche quando il valore numerico
+> coinciderebbe con il CRS governato. Un payload dichiarato `ewkb` **PUÒ**
+> portare un SRID incorporato soltanto se `plenora.geometry.srid` è presente e
+> il valore incorporato coincide; assenza o divergenza sono errori, non una
+> precedenza da risolvere. La stessa regola si applica ricorsivamente a ogni
+> geometria annidata.
 >
 > **R4.3.3** *(emendata 2.0)* `plenora.geometry.axis_order` ammette:
 > `lon_lat`, `lat_lon`, `easting_northing`, `northing_easting`, `other`,

@@ -44,6 +44,9 @@ di ciascuna sezione. Nessuna affermazione altrove lo sostituisce.
 
 Owner: Marco Bonamente.
 
+Baseline ICD corrente: **2.0-rc16**. L'emendamento R4.3.2 resta `proposta`
+finché l'owner non ne registra la ratifica nella tabella normativa.
+
 ## Come citarlo
 
 La proposta §15.2 della 2.0-rc15 richiede che ogni change impact analysis nei tre
