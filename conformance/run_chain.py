@@ -31,6 +31,7 @@ from _shared import (  # noqa: E402  — le funzioni comuni ai due runner
     judge_ipc_transition,
     judge_rejection,
     observe_scoped,
+    scoped_contract_divergences,
     write_json_atomic,
 )
 
@@ -192,9 +193,9 @@ def main() -> int:
                                            "reason": "uscita del giudice non e' JSON conforme"}
                     else:
                         declared = observe_scoped(current)
-                        divergent = [f"{k}: catena {v!r}, giudice "
-                                     f"{seen.get(k, '<assente>')!r}"
-                                     for k, v in declared.items() if seen.get(k) != v]
+                        divergent = scoped_contract_divergences(
+                            declared, seen, "catena", "giudice"
+                        )
                         accepted = not divergent and judge_expectation != "fail_closed"
                         record["judge"] = {
                             "outcome": "accepted", "accepted": accepted,

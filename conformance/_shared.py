@@ -133,6 +133,20 @@ def contract_from_stdout_scoped(payload: str) -> dict[str, str]:
     return observed
 
 
+def scoped_contract_divergences(
+    declared: dict[str, str],
+    observed: dict[str, str],
+    declared_label: str,
+    observed_label: str,
+) -> list[str]:
+    return [
+        f"{key}: {declared_label} {declared.get(key, '<missing>')!r}, "
+        f"{observed_label} {observed.get(key, '<missing>')!r}"
+        for key in sorted(set(declared) | set(observed))
+        if declared.get(key) != observed.get(key)
+    ]
+
+
 def expectation_for(expected: dict, role: str | None) -> str:
     """L'attesa dipende dal ruolo: R4.6 colloca il fail-closed.
 

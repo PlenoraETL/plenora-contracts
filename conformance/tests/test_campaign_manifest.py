@@ -62,6 +62,11 @@ class CampaignManifestTests(unittest.TestCase):
         cls.provenance = json.loads(PROVENANCE.read_text(encoding="utf-8"))
 
     def test_qualified_report_hashes_match_provenance(self) -> None:
+        self.assertEqual(self.provenance["hash_basis"], "canonical_lf")
+
+        def canonical_sha256(path: Path) -> str:
+            return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
         self.assertEqual(
             set(self.provenance["runner_snapshot"]),
             {
@@ -78,17 +83,11 @@ class CampaignManifestTests(unittest.TestCase):
         )
         for relative, expected_hash in self.provenance["runner_snapshot"].items():
             with self.subTest(relative=relative):
-                self.assertEqual(
-                    hashlib.sha256((ROOT / relative).read_bytes()).hexdigest(),
-                    expected_hash,
-                )
+                self.assertEqual(canonical_sha256(ROOT / relative), expected_hash)
         evidence_root = PROVENANCE.parent
         for name, report in self.provenance["reports"].items():
             with self.subTest(name=name):
-                self.assertEqual(
-                    hashlib.sha256((evidence_root / name).read_bytes()).hexdigest(),
-                    report["sha256"],
-                )
+                self.assertEqual(canonical_sha256(evidence_root / name), report["sha256"])
 
     def test_execution_state_records_passed_format_gates_and_blocking_gap(self) -> None:
         qualification = self.execution["qualification"]

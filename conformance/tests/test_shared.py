@@ -14,6 +14,7 @@ from conformance._shared import (
     judge_transition,
     observe,
     observe_scoped,
+    scoped_contract_divergences,
 )
 
 
@@ -180,6 +181,21 @@ class SharedTransitionTests(unittest.TestCase):
         self.assertEqual(arrow_contract, cli_contract)
         self.assertEqual(arrow_contract["fields[0].metadata['shared']"], "one")
         self.assertEqual(arrow_contract["fields[1].metadata['shared']"], "two")
+
+    def test_scoped_comparison_rejects_observer_invented_metadata(self) -> None:
+        divergences = scoped_contract_divergences(
+            {"schema.metadata['known']": "value"},
+            {
+                "schema.metadata['known']": "value",
+                "fields[1].metadata['invented']": "value",
+            },
+            "artifact",
+            "observer",
+        )
+
+        self.assertEqual(len(divergences), 1)
+        self.assertIn("fields[1].metadata['invented']", divergences[0])
+        self.assertIn("artifact '<missing>'", divergences[0])
 
 
 if __name__ == "__main__":

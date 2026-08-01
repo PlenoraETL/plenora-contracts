@@ -14,12 +14,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _shared import (  # noqa: E402
-    contract_from_stdout,
+    contract_from_stdout_scoped,
     expectation_for,
-    flatten,
     judge_ipc_transition,
     judge_rejection,
-    observe,
+    observe_scoped,
+    scoped_contract_divergences,
     write_json_atomic,
 )
 from comparator import compare_ipc  # noqa: E402
@@ -77,15 +77,13 @@ def judge_terminal(
             "reason": "terminal observer accepted a fail-closed case",
         }
     try:
-        seen = contract_from_stdout(completed.stdout)
+        seen = contract_from_stdout_scoped(completed.stdout)
     except (json.JSONDecodeError, AttributeError) as exc:
         return {"status": "fail", "outcome": "unreadable", "reason": str(exc)}
-    declared = flatten(observe(artifact))
-    divergences = [
-        f"{key}: artifact {value!r}, observer {seen.get(key, '<missing>')!r}"
-        for key, value in declared.items()
-        if seen.get(key) != value
-    ]
+    declared = observe_scoped(artifact)
+    divergences = scoped_contract_divergences(
+        declared, seen, "artifact", "observer"
+    )
     return {
         "status": "fail" if divergences else "pass",
         "outcome": "accepted",

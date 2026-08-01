@@ -14,8 +14,10 @@ from pathlib import Path
 from typing import Any
 
 if __package__:
+    from ._shared import write_json_atomic
     from .release_authority import TRUSTED_INVENTORIES
 else:
+    from _shared import write_json_atomic
     from release_authority import TRUSTED_INVENTORIES
 
 
@@ -373,8 +375,7 @@ def main(
 
     encoded = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
     print(encoded)
-    args.json_out.parent.mkdir(parents=True, exist_ok=True)
-    args.json_out.write_text(encoded + "\n", encoding="utf-8")
+    write_json_atomic(args.json_out, report)
     return 0 if report["status"] == "pass" else 1
 
 

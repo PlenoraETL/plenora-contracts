@@ -42,6 +42,14 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn('mkdir -p "${cases_real}"', runner)
         self.assertNotIn('rm -rf -- "${CASES}"', runner)
 
+    def test_container_runner_defaults_to_qualified_execution_manifest(self) -> None:
+        runner = CONTAINER_RUNNER.read_text(encoding="utf-8")
+
+        self.assertIn(
+            'MANIFEST=${MANIFEST:-"${CONTRACTS}/conformance/campaigns/v1.0.0/execution.json"}',
+            runner,
+        )
+
     def test_container_runner_executes_and_preserves_pairwise_report(self) -> None:
         runner = CONTAINER_RUNNER.read_text(encoding="utf-8")
         self.assertIn("conformance/run_pairwise.py", runner)

@@ -35,6 +35,7 @@ from _shared import (  # noqa: E402  — le funzioni comuni ai due runner
     judge_ipc_transition,
     judge_rejection,
     observe_scoped,
+    scoped_contract_divergences,
     write_json_atomic,
 )
 
@@ -179,10 +180,9 @@ def main() -> int:
                         record["reason"] = "stdout non è JSON conforme a expected_output"
                         results.append(record)
                         continue
-                    losses = [f"{key}: dichiarato {value!r}, osservato "
-                              f"{seen.get(key, '<assente>')!r}"
-                              for key, value in declared.items()
-                              if seen.get(key) != value]
+                    losses = scoped_contract_divergences(
+                        declared, seen, "dichiarato", "osservato"
+                    )
                     record["verdict"] = "fail" if losses else "pass"
                     record["losses"] = losses
                 results.append(record)
