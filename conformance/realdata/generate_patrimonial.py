@@ -129,8 +129,19 @@ PATHOLOGIES = [
 ]
 
 
-def pathology_for(index: int) -> str:
-    """Distribuzione deterministica: nessun random, il corpus e' riproducibile."""
+def pathology_for(index: int, geometrie_sane: bool = False) -> str:
+    """Distribuzione deterministica: nessun random, il corpus e' riproducibile.
+
+    Con `geometrie_sane` le patologie **geometriche** spariscono e restano
+    quelle degli attributi: identificativi larghi, nomi troncati dal DBF,
+    codifiche. Serve al confronto della fase 0, dove i due stack devono poter
+    leggere lo stesso file: un anello non chiuso su tremila fa rifiutare
+    l'intero file a entrambi, e un confronto che non parte non misura nulla.
+    Il dataset patologico resta il default, perche' e' quello che assomiglia a
+    un estratto catastale vero.
+    """
+    if geometrie_sane:
+        return "regolare"
     position = (index * 7919) % 100  # 7919 primo: sparpaglia senza casualita'
     threshold = 0.0
     for name, share in PATHOLOGIES:
@@ -336,13 +347,16 @@ def main() -> int:
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--rows", type=int, default=50_000)
     parser.add_argument("--name", default="particelle")
+    parser.add_argument("--geometrie-sane", action="store_true",
+                        help="niente patologie geometriche: restano quelle "
+                             "degli attributi. Serve al confronto fase 0.")
     arguments = parser.parse_args()
 
     geometries: list = []
     rows: list[dict] = []
     counts: dict[str, int] = {}
     for index in range(arguments.rows):
-        pathology = pathology_for(index)
+        pathology = pathology_for(index, arguments.geometrie_sane)
         rings, note = parcel(index, pathology)
         geometries.append(rings)
         rows.append(attributes(index, pathology, note))

@@ -1,6 +1,6 @@
 # Plenora — Contratti trasversali
 
-**Documento normativo di interfaccia (ICD) · versione 2.0-rc15 · 31 luglio 2026**
+**Documento normativo di interfaccia (ICD) · versione 2.0-rc17 · 2 agosto 2026**
 
 > **Owner: Marco Bonamente.** Nominato il 27 luglio 2026.
 >
@@ -30,7 +30,7 @@
 > | §3.5 | Encoding come enumerazione chiusa | **ratificata** | dal 27 lug |
 > | §4.1–§4.4 | CRS: tre stati, axis order non canonicalizzato, definizione preservata, nessun default | **ratificata** | dal 27 lug, testo 1.x |
 > | §4.1.1 | `declared_unresolved` non richiede una definizione testuale | **ratificata** | dal 31 lug; posizione IO-tools `accetta`, nessun gap su data-tools e database-tools |
-> | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | `proposta` | nuove 2.0, dentro una sezione ratificata |
+> | §4.3.1–§4.3.3 | Formato della definizione, precedenza fra rappresentazioni, coerenza con l'SRID EWKB | `proposta` | nuove 2.0; R4.3.2 emendata in 2.0-rc16, dentro una sezione ratificata |
 > | §4.5 | Riproiezione decisa dal centro, eseguibile dal bordo come pushdown | `proposta` | emendata 2.0 |
 > | §4.6 | Collocazione del fail-closed: rapporto in lettura, rifiuto in scrittura, decisione al centro; propagare contro scegliere quando i bordi coincidono | `proposta` | nuova 2.0-rc9, R4.6.5 in rc12 |
 > | §5 | Perdita di informazione mai silenziosa | **ratificata** | dal 27 lug |
@@ -38,6 +38,7 @@
 > | §7 | Limiti pre-allocazione e budget ceduto lungo la catena | `proposta` | emendata 2.0 |
 > | §8 | Identità di crate e colonne | **ratificata** | dal 27 lug |
 > | §9 | Errore a quattro assi | `proposta` | emendata 2.0; già adottata dai tre |
+> | §9.9–§9.14 | Diagnostica row-scoped azionabile nei rifiuti fail-closed | `proposta` | nuova 2.0-rc17; schema `plenora-row-diagnostics-v1`, in attesa di posizioni e corpus |
 > | §10 | Capability dichiarative interrogabili | `proposta` | forma da definire |
 > | §11.5–§11.10 | Cancellazione: token, attesa asincrona race-free, deadline, token figli | **ratificata** | dal 31 lug; adottata da tutti e tre, nessun gap aperto |
 > | §12 | Determinismo su quattro livelli | `proposta` | emendata 2.0 |
@@ -63,9 +64,10 @@
 > della 1.0. La 2.0 emenda le sei sezioni che erano `sospesa` e le sei `proposta`
 > con rilievi aperti: nessuna sezione risulta più sospesa, tutte attendono
 > ratifica. Le revisioni successive alla 2.0 aggiornano la fotografia
-> dell'Appendice A e la forma normativa; la sola modifica di sostanza è
+> dell'Appendice A e la forma normativa. Le modifiche di sostanza sono
 > l'emendamento di §15.4 in rc5 (emissione canonica ammessa con deroga
-> registrata, DER-ICD-002).
+> registrata, DER-ICD-002), il chiarimento fail-closed di R4.3.2 in rc16 e la
+> proposta di diagnostica row-scoped azionabile di §9.9–§9.14 in rc17.
 
 Governa i confini fra i tre componenti Plenora sviluppati separatamente. Le regole
 qui contenute prevalgono sulla documentazione locale dei singoli repository.
@@ -377,9 +379,13 @@ end-to-end XYZM attraverso i tre componenti; grep di assegnazioni che portano a
 > discordano, il componente **DEVE** fallire con categoria `Crs`: non deve
 > scegliere silenziosamente la più conveniente.
 >
-> **R4.3.2** *(nuova 2.0)* Se il payload è EWKB e porta un SRID incorporato,
-> questo **DEVE** coincidere con `plenora.geometry.srid`. La divergenza è un
-> errore, non una precedenza da risolvere.
+> **R4.3.2** *(emendata 2.0)* Un payload dichiarato `wkb` **NON DEVE** portare
+> il flag SRID EWKB: il consumatore lo rifiuta, anche quando il valore numerico
+> coinciderebbe con il CRS governato. Un payload dichiarato `ewkb` **PUÒ**
+> portare un SRID incorporato soltanto se `plenora.geometry.srid` è presente e
+> il valore incorporato coincide; assenza o divergenza sono errori, non una
+> precedenza da risolvere. La stessa regola si applica ricorsivamente a ogni
+> geometria annidata.
 >
 > **R4.3.3** *(emendata 2.0)* `plenora.geometry.axis_order` ammette:
 > `lon_lat`, `lat_lon`, `easting_northing`, `northing_easting`, `other`,
@@ -643,11 +649,78 @@ cargo clippy --workspace --lib --all-features --locked --
 > IO-tools e data-tools, e un terzo omonimo aggraverebbe R8.4.
 >
 > **R9.4** I messaggi d'errore **NON DEVONO** contenere credenziali, stringhe di
-> connessione, percorsi assoluti dell'ambiente o contenuto dei dati. Il
-> riferimento al dato avviene per posizione (riga, colonna, offset), mai per valore.
+> connessione, percorsi assoluti dell'ambiente o contenuto dei dati. Il testo
+> umano riferisce il dato per posizione (riga, colonna, offset), mai copiandone il
+> valore. La sola eccezione è il valore di una **chiave configurata** dentro la
+> diagnostica strutturata di R9.11, quando una policy esplicita ne consente
+> l'emissione; in caso contrario lo stato è `redacted` o `unavailable`.
 >
 > **R9.5** Le categorie d'errore **DEVONO** provenire da un'enumerazione condivisa.
 > Un componente può usarne un sottoinsieme, non può inventarne di proprie.
+
+### Diagnostica row-scoped nei rifiuti fail-closed
+
+> **R9.9** *(nuova 2.0-rc17)* Quando un componente rifiuta un'operazione per uno
+> o più difetti attribuibili a righe o celle specifiche, il rifiuto **DEVE**
+> restare fail-closed e **DEVE** portare una diagnostica strutturata conforme a
+> `conformance/schemas/row-diagnostics-v1.schema.json`. La regola si applica a
+> lettura e scrittura e non è limitata alle geometrie.
+>
+> **R9.10** *(nuova 2.0-rc17)* La diagnostica **DEVE** dichiarare se
+> l'osservazione è `complete`, `partial` o `unknown`. Quando è `complete`, il
+> totale **DEVE** essere esatto e coincidere con la somma dei conteggi per causa.
+> `completeness` descrive la conoscenza di righe e cause, non l'effetto remoto
+> della scrittura, che resta dichiarato da R9.14. Quando il parser o il protocollo
+> non consentono la completezza, il componente **NON DEVE** inventarla: usa
+> `partial` o `unknown` e dichiara almeno un `knowledge_limits`. Un report
+> `partial` può portare un `total` esatto anche senza identità delle righe; un
+> report `unknown` può avere `observed_total=0`, conteggi ed esempi vuoti quando
+> cardinalità, causa e identità non sono tecnicamente osservabili.
+>
+> **R9.11** *(nuova 2.0-rc17)* Ogni esempio **DEVE** portare l'indice della riga
+> sorgente, zero-based e stabile attraverso batch e stream. Quando il chiamante
+> configura una colonna chiave, l'esempio **DEVE** portare nome e stato della
+> chiave (`value`, `redacted`, `unavailable`); il valore è ammesso solo da una
+> policy esplicita e rispettando R9.4. Una chiave numerica non intera o esterna
+> all'intervallo interoperabile `[-(2^53-1), 2^53-1]` **DEVE** essere codificata
+> come stringa canonica. L'assenza di una chiave non impedisce il riferimento
+> per indice.
+>
+> **R9.12** *(nuova 2.0-rc17)* I conteggi per causa e il totale osservato **DEVONO**
+> coprire tutte le righe che il componente ha potuto classificare. Gli esempi
+> **DEVONO** essere limitati da `examples_limit`; `examples_truncated` dichiara
+> se il limite ne ha omessi. In un report `complete`, il numero di esempi **DEVE**
+> essere `min(observed_total, examples_limit)`; nessuna causa può avere più
+> esempi del proprio conteggio. Limitare gli esempi **NON DEVE** limitare i
+> conteggi.
+>
+> **R9.13** *(nuova 2.0-rc17)* La diagnostica **NON AUTORIZZA** correzione,
+> coercizione, omissione o retry per riga al confine. La remediation appartiene a
+> un nodo esplicito del piano di data-tools. Un'eventuale quarantena **DEVE**
+> dichiarare due output separati, `accepted` e `rejected`; un singolo output con
+> buchi non dichiarati è vietato.
+>
+> **R9.14** *(nuova 2.0-rc17)* In scrittura la diagnostica **DEVE** dichiarare
+> `input_total` e distinguere righe `certainly_rejected`,
+> `certainly_not_attempted`, `certainly_rolled_back` ed `effect_unknown`.
+> Questa partizione integra, non sostituisce, `remote_effect`:
+> `remote_effect=partial` o `remote_effect=unknown` **NON DEVE** essere
+> trasformato in una lista esatta di righe
+> committate quando il provider non permette di conoscerla. Un conteggio non
+> osservabile usa `state=unknown` e **NON DEVE** portare un valore.
+> `diagnostic_state_counts` partiziona le sole righe presenti nei conteggi
+> diagnostici e **DEVE** sommare a `observed_total`; `write_outcome` partiziona
+> invece tutte le righe di `input_total`. Ogni conteggio diagnostico di stato
+> **NON DEVE** superare il bucket outcome corrispondente quando questo è noto.
+> La somma dei bucket outcome noti, aumentata del minimo già diagnosticato nei
+> bucket outcome ignoti, **NON DEVE** superare `input_total`; quando tutti i
+> bucket sono noti la somma **DEVE** coincidere con `input_total`.
+
+Lo schema `plenora-row-diagnostics-v1` usa `observed_total` per ciò che è stato
+classificato. `total` è obbligatorio con `completeness=complete`, facoltativo ma
+non inferiore all'osservato con `partial`, e vietato con `unknown`. Le cause sono
+codici machine-readable; il messaggio umano sintetizza il rifiuto e rimanda al
+report, non ne sostituisce i campi.
 
 **Perché R9.3.** È la distinzione che rende un'API onesta e che oggi solo
 database-tools modella (`WriteStatus::OutcomeUnknown`, `ErrorCategory::OutcomeUnknown`,
@@ -903,6 +976,11 @@ segnali.
 >
 > **R14.5** Quando l'atomicità non è tecnicamente ottenibile, il componente
 > **DEVE** dichiararlo nel proprio contratto anziché simularla.
+>
+> **R14.6** *(nuova 2.0-rc17)* Un rifiuto row-scoped durante la scrittura **DEVE**
+> seguire R9.9–R9.14. Un rollback confermato può identificare la causa sorgente
+> senza dichiarare effetti persistenti; un outcome `partial` o `unknown` **DEVE**
+> preservare esplicitamente ciò che non è conoscibile.
 
 **Perché.** H-02 e H-05 sono gli hazard che riguardano l'uscita, e valgono
 identici su un file e su una tabella: sostituire un dataset pubblicato con uno
@@ -1099,8 +1177,8 @@ documento controllano gli hazard indicati.
 
 | Hazard | Descrizione | Regole |
 |---|---|---|
-| H-01 | Corruzione, perdita o reinterpretazione silenziosa dei dati | R2.2, R2.4, R3.2, R3.4, R5, R6.5, R9.3, R10.4 |
-| H-02 | Sovrascrittura o pubblicazione parziale di un dataset | R11.3, R14 |
+| H-01 | Corruzione, perdita o reinterpretazione silenziosa dei dati | R2.2, R2.4, R3.2, R3.4, R5, R6.5, R9.3, R9.9–R9.13, R10.4 |
+| H-02 | Sovrascrittura o pubblicazione parziale di un dataset | R9.14, R11.3, R14 |
 | H-03 | Esaurimento non controllato di memoria, CPU o storage | R7 |
 | H-04 | Panic, comportamento indefinito o arresto del processo | R6 |
 | H-05 | Dichiarazione di durabilità non realmente confermata | R14.3 |
@@ -1165,12 +1243,12 @@ lavoro residuo, non lo chiude.
 | R6 | analisi statica, fuzzing, boundary test e audit | gate §6, corpus e seed riproducibili, overflow in release, elenco delle API panicking e relativa mitigazione |
 | R7 | property test, test concorrenti e fault injection | nessuna allocazione prima del limite; lease restituiti; overflow rifiutato; limiti di espansione, decompressione, CPU e spill |
 | R8 | analisi automatica del grafo e test d'API | nomi package unici, un solo tipo per concetto di confine, stabilità di `FieldId` attraverso le rinomine |
-| R9 | test tabellari e fault injection | combinazioni dei quattro assi; commit perso, timeout per fase, effetto ignoto e decisione di retry senza inferenze dal messaggio |
+| R9 | test tabellari e fault injection | combinazioni dei quattro assi; commit perso, timeout per fase, effetto ignoto e decisione di retry senza inferenze dal messaggio; rifiuti row-scoped con indice, chiave policy-safe, conteggi completi, esempi bounded e stato non conoscibile esplicito |
 | R10 | test di conformità delle capability | ogni capability dichiarata ha un test positivo; ogni assenza ha un test di rifiuto fail-closed |
 | R11 | test concorrenti e temporali con clock controllato | `cancel()` idempotente, wake senza polling, deadline, motivo, propagazione padre–figlio e cancellazione durante I/O bloccante |
 | R12 | ripetizione con scheduling e spill differenti | confronto semantico, d'ordine e byte-for-byte secondo il livello dichiarato; snapshot e collation registrati |
 | R13 | build riproducibile e analisi delle dipendenze | toolchain esatta, lockfile invariato, assenza di caret, CIA associata a ogni variazione |
-| R14 | fault injection in ogni fase di pubblicazione | no-clobber concorrente, crash prima/durante/dopo commit, durabilità verificata, classificazione `partial`/`unknown` e recovery provata |
+| R14 | fault injection in ogni fase di pubblicazione | no-clobber concorrente, crash prima/durante/dopo commit, durabilità verificata, classificazione `partial`/`unknown`, partizione row-scoped senza falsa precisione e recovery provata |
 | R15 | verifica crittografica e test d'integrazione | firma del tag valida, commit coincidente col lockfile, build `--locked`, API pubblica del crate conforme all'ICD |
 | R16 | ispezione del registro delle deroghe | regola, hazard, motivo, owner, condizione di rientro e stato presenti per ogni deroga |
 | R17 | generazione del report di conformità | risultato per ogni regola ratificata, commit e ambiente; nessun `✅` derivato dalla sola assenza di evidenza contraria |

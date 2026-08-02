@@ -26,8 +26,13 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _shared import (  # noqa: E402  — le funzioni comuni ai due runner
-    contract_from_stdout, diff, expectation_for, flatten,
-    judge_rejection, judge_transition, observe,
+    contract_from_stdout_scoped,
+    expectation_for,
+    judge_ipc_transition,
+    judge_rejection,
+    observe_scoped,
+    scoped_contract_divergences,
+    write_json_atomic,
 )
 
 
@@ -121,7 +126,6 @@ def main() -> int:
             expectation = expectation_for(expected, terminal_role)
             fail_closed = expectation == "fail_closed"
             current = arguments.cases / f"{case}.arrow"
-            observed = observe(current)
             record = {"case": case, "expect": expectation,
                       "terminal_role": terminal_role,
                       "rule": expected.get("rule"), "stages": []}
@@ -138,17 +142,32 @@ def main() -> int:
                         {"stage": stage["id"], "outcome": "error", "detail": detail}
                     )
                     break
-                after = observe(target)
-                record["stages"].append(
-                    {"stage": stage["id"], "outcome": "ok", "losses": diff(observed, after)}
+                semantic_ok, reason, differences = judge_ipc_transition(
+                    current,
+                    target,
+                    expected,
+                    roles.get(stage["component"]),
                 )
-                observed, current = after, target
+                record["stages"].append(
+                    {
+                        "stage": stage["id"],
+                        "outcome": "ok" if semantic_ok else "semantic_error",
+                        "reason": reason or "semantic contract preserved",
+                        "differences": differences,
+                    }
+                )
+                if not semantic_ok:
+                    break
+                current = target
 
             # Stadio terminale: il bordo di scrittura non riscrive, osserva. Fa
             # da giudice del contratto arrivato in fondo alla catena — che e'
             # il punto della catena, e cio' che la distingue da tre roundtrip
             # separati.
-            if judge and not any(s["outcome"] == "error" for s in record["stages"]):
+            if judge and not any(
+                s["outcome"] in {"error", "semantic_error"}
+                for s in record["stages"]
+            ):
                 completed = subprocess.run(
                     [part.format(input=str(current)) for part in judge["invocation"]],
                     cwd=arguments.checkouts / judge["component"],
@@ -168,15 +187,15 @@ def main() -> int:
                                            "detail": detail[-500:]}
                 else:
                     try:
-                        seen = contract_from_stdout(completed.stdout)
+                        seen = contract_from_stdout_scoped(completed.stdout)
                     except (json.JSONDecodeError, AttributeError):
                         record["judge"] = {"outcome": "unreadable", "accepted": False,
                                            "reason": "uscita del giudice non e' JSON conforme"}
                     else:
-                        declared = {**observed["schema"], **observed["field"]}
-                        divergent = [f"{k}: catena {v!r}, giudice "
-                                     f"{seen.get(k, '<assente>')!r}"
-                                     for k, v in declared.items() if seen.get(k) != v]
+                        declared = observe_scoped(current)
+                        divergent = scoped_contract_divergences(
+                            declared, seen, "catena", "giudice"
+                        )
                         accepted = not divergent and judge_expectation != "fail_closed"
                         record["judge"] = {
                             "outcome": "accepted", "accepted": accepted,
@@ -188,9 +207,11 @@ def main() -> int:
                                        "contratto in fondo alla catena confermato"),
                         }
 
-            errored = any(s["outcome"] == "error" for s in record["stages"])
+            errored = any(
+                s["outcome"] in {"error", "semantic_error"}
+                for s in record["stages"]
+            )
             reached_end = len(record["stages"]) == len(runnable) and not errored
-            losses = [loss for s in record["stages"] for loss in s.get("losses", [])]
 
             if fail_closed:
                 # Un rifiuto vale solo se e' il rifiuto giusto: vedi
@@ -208,20 +229,16 @@ def main() -> int:
                     record["reason"] = why
             elif errored:
                 record["verdict"] = "fail"
-                record["reason"] = "errore in " + record["stages"][-1]["stage"]
+                failed_stage = record["stages"][-1]
+                record["reason"] = (
+                    "errore in " + failed_stage["stage"] + ": "
+                    + str(failed_stage.get("reason") or failed_stage.get("detail", ""))
+                )
             elif not reached_end:
                 record["verdict"] = "incomplete"
             elif record.get("judge") and not record["judge"]["accepted"]:
                 record["verdict"] = "fail"
                 record["reason"] = "giudice terminale: " + record["judge"]["reason"]
-            elif expectation == "preserve_with_transition":
-                ok, why, residual = judge_transition(expected, terminal_role, losses)
-                record["verdict"] = "pass" if ok else "fail"
-                record["reason"] = why
-                record["observed_changes"] = losses
-            elif losses:
-                record["verdict"] = "fail"
-                record["reason"] = "; ".join(losses)
             else:
                 record["verdict"] = "pass"
             results.append(record)
@@ -229,15 +246,12 @@ def main() -> int:
     for record in results:
         marker = {"pass": "  ok", "fail": "FAIL", "incomplete": "  ??"}[record["verdict"]]
         print(f"{marker}  {record['case']:<26} {record.get('reason', '')}")
-        required = set()
-        for changes in (json.loads((arguments.cases / f"{record['case']}.json")
-                        .read_text(encoding="utf-8")).get("required_transitions") or {}).values():
-            for key, change in changes.items():
-                required.add(f"{key}: {change['from']!r} -> {change['to']!r}")
         for entry in record["stages"]:
-            for loss in entry.get("losses", []):
-                etichetta = "transizione richiesta" if loss in required else "perso"
-                print(f"          {etichetta} nello stadio '{entry['stage']}': {loss}")
+            for difference in entry.get("differences", []):
+                print(
+                    f"          {difference['category']} nello stadio "
+                    f"'{entry['stage']}': {difference['path']}"
+                )
 
     judged = sum(1 for r in results if r.get("judge"))
     skipped = [s["id"] for s in stages
@@ -247,10 +261,14 @@ def main() -> int:
           + (f", stadi non eseguiti: {', '.join(skipped)}" if skipped else ""))
 
     if arguments.report:
-        arguments.report.write_text(
-            json.dumps({"manifest_version": 1, "icd": manifest["icd"],
-                        "stages_skipped": skipped, "cases": results},
-                       indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        write_json_atomic(
+            arguments.report,
+            {"manifest_version": 1, "icd": manifest["icd"],
+             "component_revisions": {
+                 row["name"]: row["revision"] for row in manifest["components"]
+             },
+             "stages_skipped": skipped, "cases": results},
+        )
 
     # Uno stadio saltato non è un successo: la catena non è verificata end-to-end.
     if skipped:

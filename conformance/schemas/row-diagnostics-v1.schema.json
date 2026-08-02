@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plenora.dev/schemas/row-diagnostics-v1.schema.json",
+  "title": "Plenora bounded row-scoped rejection diagnostics",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "scope",
+    "index_basis",
+    "completeness",
+    "observed_total",
+    "counts",
+    "examples_limit",
+    "examples_truncated",
+    "examples"
+  ],
+  "properties": {
+    "contract": {"const": "plenora-row-diagnostics-v1"},
+    "scope": {"enum": ["read", "write"]},
+    "index_basis": {"const": "source_row_zero_based"},
+    "completeness": {"enum": ["complete", "partial", "unknown"]},
+    "knowledge_limits": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/knowledge_limit"}
+    },
+    "observed_total": {"type": "integer", "minimum": 0},
+    "total": {"type": "integer", "minimum": 1},
+    "input_total": {"type": "integer", "minimum": 1},
+    "counts": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/cause"},
+      "additionalProperties": {"type": "integer", "minimum": 1}
+    },
+    "examples_limit": {"type": "integer", "minimum": 1},
+    "examples_truncated": {"type": "boolean"},
+    "examples": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/example"}
+    },
+    "diagnostic_state_counts": {"$ref": "#/$defs/diagnostic_state_counts"},
+    "write_outcome": {"$ref": "#/$defs/write_outcome"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"completeness": {"const": "complete"}},
+        "required": ["completeness"]
+      },
+      "then": {
+        "allOf": [
+          {"required": ["total"]},
+          {"not": {"required": ["knowledge_limits"]}}
+        ]
+      },
+      "else": {"required": ["knowledge_limits"]}
+    },
+    {
+      "if": {
+        "properties": {"completeness": {"const": "unknown"}},
+        "required": ["completeness"]
+      },
+      "then": {"not": {"required": ["total"]}}
+    },
+    {
+      "if": {
+        "properties": {"scope": {"const": "read"}},
+        "required": ["scope"]
+      },
+      "then": {
+        "allOf": [
+          {"not": {"required": ["write_outcome"]}},
+          {"not": {"required": ["input_total"]}},
+          {"not": {"required": ["diagnostic_state_counts"]}}
+        ]
+      },
+      "else": {
+        "required": ["write_outcome", "input_total", "diagnostic_state_counts"]
+      }
+    },
+    {
+      "if": {
+        "properties": {"scope": {"const": "write"}},
+        "required": ["scope"]
+      },
+      "then": {
+        "properties": {
+          "examples": {
+            "items": {
+              "allOf": [
+                {"$ref": "#/$defs/example"},
+                {"required": ["write_state"]}
+              ]
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "examples": {
+            "items": {"not": {"required": ["write_state"]}}
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "knowledge_limit": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "maxLength": 128
+    },
+    "cause": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "maxLength": 128
+    },
+    "key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "state"],
+      "properties": {
+        "field": {"type": "string", "minLength": 1, "maxLength": 256},
+        "state": {"enum": ["value", "redacted", "unavailable"]},
+        "value": {
+          "oneOf": [
+            {"type": "string", "maxLength": 1024},
+            {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            {"type": "boolean"}
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"state": {"const": "value"}},
+            "required": ["state"]
+          },
+          "then": {"required": ["value"]},
+          "else": {"not": {"required": ["value"]}}
+        }
+      ]
+    },
+    "example": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_index", "cause"],
+      "properties": {
+        "source_index": {"type": "integer", "minimum": 0},
+        "cause": {"$ref": "#/$defs/cause"},
+        "column": {"type": "string", "minLength": 1, "maxLength": 256},
+        "key": {"$ref": "#/$defs/key"},
+        "write_state": {
+          "enum": [
+            "certainly_rejected",
+            "certainly_not_attempted",
+            "certainly_rolled_back",
+            "effect_unknown"
+          ]
+        }
+      }
+    },
+    "known_or_unknown_count": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "value"],
+          "properties": {
+            "state": {"const": "known"},
+            "value": {"type": "integer", "minimum": 0}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": {"state": {"const": "unknown"}}
+        }
+      ]
+    },
+    "diagnostic_state_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "certainly_rejected",
+        "certainly_not_attempted",
+        "certainly_rolled_back",
+        "effect_unknown"
+      ],
+      "properties": {
+        "certainly_rejected": {"type": "integer", "minimum": 0},
+        "certainly_not_attempted": {"type": "integer", "minimum": 0},
+        "certainly_rolled_back": {"type": "integer", "minimum": 0},
+        "effect_unknown": {"type": "integer", "minimum": 0}
+      }
+    },
+    "write_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "certainly_rejected",
+        "certainly_not_attempted",
+        "certainly_rolled_back",
+        "effect_unknown"
+      ],
+      "properties": {
+        "certainly_rejected": {"$ref": "#/$defs/known_or_unknown_count"},
+        "certainly_not_attempted": {"$ref": "#/$defs/known_or_unknown_count"},
+        "certainly_rolled_back": {"$ref": "#/$defs/known_or_unknown_count"},
+        "effect_unknown": {"$ref": "#/$defs/known_or_unknown_count"}
+      }
+    }
+  }
+}

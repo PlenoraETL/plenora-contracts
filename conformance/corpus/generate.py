@@ -155,8 +155,21 @@ def case_axis_lat_lon() -> tuple[pa.Table, dict]:
         schema=pa.schema([field, pa.field("id", pa.int64())],
                          metadata={"plenora.contract.version": CONTRACT_VERSION}),
     )
-    return table, {"crs_id": "EPSG:4326", "axis_order": "lat_lon",
-                   "must_not_become": "OGC:CRS84", "rule": "R4.2"}
+    return table, {
+        "crs_id": "EPSG:4326",
+        "axis_order": "lat_lon",
+        "must_not_become": "OGC:CRS84",
+        "rule": "R4.2",
+        "allowed_transitions": [
+            {
+                "category": "contract",
+                "path": "fields[0].metadata['plenora.geometry.srid']",
+                "before": None,
+                "after": "4326",
+                "reason": "authority_derived_srid_completion",
+            }
+        ],
+    }
 
 
 def case_types_mixed() -> tuple[pa.Table, dict]:
@@ -379,6 +392,90 @@ def case_polygon_xy_projected() -> tuple[pa.Table, dict]:
                    "rule": "R3.3", "purpose": "ingresso per le trasformazioni geo"}
 
 
+# Il WKT1 che accompagna ogni shapefile catastale italiano in EPSG:3003. La
+# clausola `TOWGS84` e' la trasformazione al datum WGS84: PROJ, convertendo
+# questo WKT in PROJJSON, produce un **BoundCRS** — un CRS sorgente piu' la
+# trasformazione verso l'hub — e non un `ProjectedCRS` semplice.
+EPSG_3003_WKT_TOWGS84 = (
+    'PROJCS["Monte Mario / Italy zone 1",'
+    'GEOGCS["Monte Mario",DATUM["Monte_Mario",'
+    'SPHEROID["International 1924",6378388,297],'
+    'TOWGS84[-104.1,-49.1,-9.9,0.971,-2.917,0.714,-11.68]],'
+    'PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]],'
+    'PROJECTION["Transverse_Mercator"],'
+    'PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",9],'
+    'PARAMETER["scale_factor",0.9996],'
+    'PARAMETER["false_easting",1500000],PARAMETER["false_northing",0],'
+    'UNIT["metre",1],AXIS["Easting",EAST],AXIS["Northing",NORTH],'
+    'AUTHORITY["EPSG","3003"]]'
+)
+
+
+def case_crs_wkt_towgs84() -> tuple[pa.Table, dict]:
+    """Il CRS catastale italiano vero: WKT1 con `TOWGS84`, cioe' un BoundCRS.
+
+    Non e' una variante esotica. E' il contratto che `plenora-IO-tools` emette
+    leggendo uno shapefile dell'Agenzia, di ArcGIS o di QGIS in EPSG:3003, ed
+    e' riprodotto qui campo per campo come osservato il 1 agosto 2026 sulla
+    fase 0: `crs_definition` in WKT, `crs_id` d'autorita', `crs_resolution`
+    `resolved`, nessun `srid`.
+
+    Perche' esiste: il corpus non conteneva **nessuna** definizione con
+    `TOWGS84`, e la qualifica restava verde mentre `plenora-data-tools`
+    rifiutava l'intera classe con `CRS_TYPE_UNSUPPORTED: BoundCRS`. Una lacuna
+    del corpus, non dei componenti — ma una lacuna che copriva il caso d'uso
+    principale.
+
+    Il contratto qui e' coerente con l'ICD: R4.3 (definizione e formato in
+    coppia), R4.3.3 (`axis_order` presente), R2.6 (la definizione attraversa
+    la catena come byte, senza riconciliazione). Se un componente la rifiuta,
+    lo fa per una scelta propria, non per una violazione del contratto — ed e'
+    esattamente cio' che questo caso rende visibile.
+    """
+    ring = [(1_500_000.0, 5_030_000.0), (1_500_040.0, 5_030_000.0),
+            (1_500_040.0, 5_030_030.0), (1_500_000.0, 5_030_030.0),
+            (1_500_000.0, 5_030_000.0)]
+
+    def polygon(offset: float) -> bytes:
+        out = struct.pack("<BII", 1, 3, 1) + struct.pack("<I", len(ring))
+        for x, y in ring:
+            out += struct.pack("<2d", x + offset, y)
+        return out
+
+    meta = _canonical("xy")
+    meta["plenora.geometry.types"] = "polygon"
+    meta["plenora.geometry.crs_id"] = "EPSG:3003"
+    meta["plenora.geometry.crs_definition"] = EPSG_3003_WKT_TOWGS84
+    meta["plenora.geometry.crs_definition_format"] = "wkt"
+    meta["plenora.geometry.crs_resolution"] = "resolved"
+    meta["plenora.geometry.axis_order"] = "easting_northing"
+    field = _geometry_field("geometry", meta)
+    table = pa.table(
+        {"geometry": pa.array([polygon(0.0), polygon(60.0)], type=pa.binary()),
+         "id": pa.array([1, 2], pa.int64())},
+        schema=pa.schema([field, pa.field("id", pa.int64())],
+                         metadata={"plenora.contract.version": CONTRACT_VERSION}),
+    )
+    return table, {
+        "dimensions": "xy",
+        "crs_id": "EPSG:3003",
+        "types": "polygon",
+        "crs_definition_format": "wkt",
+        "crs_resolution": "resolved",
+        "rule": "R2.6",
+        "purpose": "CRS catastale italiano reale (WKT1 con TOWGS84 → BoundCRS)",
+        "allowed_transitions": [
+            {
+                "category": "contract",
+                "path": "fields[0].metadata['plenora.geometry.srid']",
+                "before": None,
+                "after": "3003",
+                "reason": "authority_derived_srid_completion",
+            }
+        ],
+    }
+
+
 CASES = {
     "point_z": case_point_z,
     "point_zm": case_point_zm,
@@ -394,6 +491,7 @@ CASES = {
     "geography_semantics": case_geography_semantics,
     "conflicting_crs": case_conflicting_crs,
     "polygon_xy_projected": case_polygon_xy_projected,
+    "crs_wkt_towgs84": case_crs_wkt_towgs84,
 }
 
 

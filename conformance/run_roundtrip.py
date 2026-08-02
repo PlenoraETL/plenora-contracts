@@ -30,8 +30,13 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _shared import (  # noqa: E402  — le funzioni comuni ai due runner
-    contract_from_stdout, diff, expectation_for, flatten,
-    judge_rejection, judge_transition, observe,
+    contract_from_stdout_scoped,
+    expectation_for,
+    judge_ipc_transition,
+    judge_rejection,
+    observe_scoped,
+    scoped_contract_divergences,
+    write_json_atomic,
 )
 
 
@@ -149,18 +154,17 @@ def main() -> int:
                     if not target.is_file():
                         record["verdict"] = "fail"
                         record["reason"] = "nessun file prodotto"
-                    elif expectation == "preserve_with_transition":
-                        losses = diff(observe(source), observe(target))
-                        ok, why, residual = judge_transition(expected, role, losses)
-                        record["verdict"] = "pass" if ok else "fail"
-                        record["reason"] = why
-                        record["losses"] = residual
-                        record["observed_changes"] = losses
                     else:
-                        losses = diff(observe(source), observe(target))
-                        record["verdict"] = "fail" if losses else "pass"
-                        record["losses"] = losses
-                        if expected.get("expect") == "by_role"                                 and expectation == "preserve":
+                        ok, why, differences = judge_ipc_transition(
+                            source, target, expected, role
+                        )
+                        record["verdict"] = "pass" if ok else "fail"
+                        record["reason"] = why or "semantic contract preserved"
+                        record["differences"] = differences
+                        if (
+                            expected.get("expect") == "by_role"
+                            and expectation == "preserve"
+                        ):
                             record["unverified_obligation"] = (
                                 "R4.6.1 impone di preservare *e* di dichiarare "
                                 "l'incoerenza nel LossReport o FidelityAssessment. "
@@ -168,18 +172,17 @@ def main() -> int:
                                 "esito positivo non e' evidenza che l'incoerenza sia "
                                 "stata dichiarata.")
                 else:
-                    declared = flatten(observe(source))
+                    declared = observe_scoped(source)
                     try:
-                        seen = contract_from_stdout(completed.stdout)
+                        seen = contract_from_stdout_scoped(completed.stdout)
                     except (json.JSONDecodeError, AttributeError):
                         record["verdict"] = "fail"
                         record["reason"] = "stdout non è JSON conforme a expected_output"
                         results.append(record)
                         continue
-                    losses = [f"{key}: dichiarato {value!r}, osservato "
-                              f"{seen.get(key, '<assente>')!r}"
-                              for key, value in declared.items()
-                              if seen.get(key) != value]
+                    losses = scoped_contract_divergences(
+                        declared, seen, "dichiarato", "osservato"
+                    )
                     record["verdict"] = "fail" if losses else "pass"
                     record["losses"] = losses
                 results.append(record)
@@ -201,10 +204,14 @@ def main() -> int:
           + (f", roundtrip non eseguiti: {', '.join(skipped)}" if skipped else ""))
 
     if arguments.report:
-        arguments.report.write_text(
-            json.dumps({"manifest_version": 1, "icd": manifest["icd"],
-                        "roundtrips_skipped": skipped, "verifications": results},
-                       indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        write_json_atomic(
+            arguments.report,
+            {"manifest_version": 1, "icd": manifest["icd"],
+             "component_revisions": {
+                 row["name"]: row["revision"] for row in manifest["components"]
+             },
+             "roundtrips_skipped": skipped, "verifications": results},
+        )
 
     # Un roundtrip non eseguito non è un successo: la copertura non è completa.
     return 1 if failed or skipped else 0

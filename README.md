@@ -15,7 +15,7 @@ Baseline dei contratti trasversali fra i tre componenti Plenora:
   team: chi fa cosa, in che ordine, e cosa sblocca cosa. Istantanea datata e non
   normativa; lo stato autorevole sta nelle fonti citate in Appendice A dell'ICD.
 - [`docs/RATIFICA-DECISIONI-APERTE.md`](docs/RATIFICA-DECISIONI-APERTE.md) — le
-  quattordici voci del registro ancora `proposta`, con l'adozione già in atto nei tre
+  quindici voci del registro ancora `proposta`, con l'adozione già in atto nei tre
   componenti e cosa comporta ratificare ciascuna. Serve a decidere voce per voce
   senza rileggere l'ICD; non è normativo, prevale il registro.
 - [`docs/PLENORA-CRITERI-RC.md`](docs/PLENORA-CRITERI-RC.md) — criteri di release
@@ -43,6 +43,10 @@ Il registro di ratifica in testa all'ICD è l'unica fonte sullo stato normativo
 di ciascuna sezione. Nessuna affermazione altrove lo sostituisce.
 
 Owner: Marco Bonamente.
+
+Baseline ICD corrente: **2.0-rc17**. L'emendamento R4.3.2 e la diagnostica
+row-scoped R9.9–R9.14 restano `proposta` finché l'owner non ne registra la
+ratifica nella tabella normativa.
 
 ## Come citarlo
 

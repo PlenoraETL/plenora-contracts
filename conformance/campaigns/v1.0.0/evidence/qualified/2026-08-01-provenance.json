@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "campaign": "plenora-1.0-cross-library-campaign-v1",
+  "executed_at": "2026-08-01",
+  "status": "pass_with_declared_gaps",
+  "hash_basis": "canonical_lf",
+  "input_releases": {
+    "plenora-data-tools": {
+      "tag": "v1.0.1",
+      "revision": "aab8152902a209955b2ea657dfeaeea10408f866"
+    },
+    "plenora-IO-tools": {
+      "tag": "v1.0.0",
+      "revision": "ca7f34c6b732700fa79f579f7b003df27ce54b09"
+    },
+    "plenora-database-tools": {
+      "tag": "v1.0.0",
+      "revision": "89c82c4c700550decc394bb1e43b22c8a32e44e1"
+    }
+  },
+  "environment": {
+    "image": "rust@sha256:e90e846de4124376164ddfbaab4b0774c7bdeef5e738866295e5a90a34a307a2",
+    "rustc": "1.92.0",
+    "cargo": "1.92.0",
+    "pyarrow": "23.0.1",
+    "platform": "linux-container",
+    "proj_cli_available": false,
+    "proj_backend": "system libproj-dev 9.1.1-1+b1",
+    "system_packages": {
+      "ca-certificates": "20230311+deb12u1",
+      "git": "1:2.39.5-0+deb12u3",
+      "libproj-dev": "9.1.1-1+b1",
+      "pkg-config": "1.8.1-1",
+      "python3": "3.11.2-1+b1",
+      "python3-pip": "23.0.1+dfsg-1"
+    }
+  },
+  "runner_snapshot": {
+    "conformance/campaigns/v1.0.0/execution.json": "2d6763a3405757e3ca1a7b4e5d753059a5247c83a6b4bb112969dc02d836b38a",
+    "conformance/corpus/generate.py": "b78bbf621a3bc4b869dbe9e00d65033a623dafae88a124efbc743d7d65e917af",
+    "conformance/run-in-container.sh": "d1d685c770cff8c2f85369c84bef466462bedeebd877ac5a1a8177a287a4162f",
+    "conformance/run_roundtrip.py": "e3ded6c7045fa38656ad2e573caa5fc66c156a6de6ca3cf678c2231cb7debebe",
+    "conformance/run_chain.py": "f87a8af0b7b24a7bed74d2e6cfc227479941d311bbfde4d435fc82c8da1f495c",
+    "conformance/run_pairwise.py": "b23aa921abb6717d633e62d091a002de227d036aa988274be20199c1dd6d7e78",
+    "conformance/_shared.py": "0bc157e9cc2163260dff845871e638ffa6519fed8fad25f5f6f7f6d6b9bffecf",
+    "conformance/comparator.py": "d7905924c37c31152ddac12fd3708f217f9e7073810572d4c13802fd425d793e",
+    "conformance/fidelity.py": "572effad2afd7b69c92b78e99181c17e8118056bbcb9735cc6eab249e3e95ac4"
+  },
+  "reports": {
+    "2026-08-01-roundtrip.json": {
+      "sha256": "f70ab9ef77fe3dcb1a00fadce61718bba3668cee995270694512d4ff4744cfda",
+      "verifications": 90,
+      "passed": 90
+    },
+    "2026-08-01-roundtrip-chain.json": {
+      "sha256": "6ef2daaf8f09382b102de7c0fd6315eddc65a431a45ce4710a3a4e750fc2f347",
+      "cases": 30,
+      "passed": 30
+    },
+    "2026-08-01-roundtrip-pairwise.json": {
+      "sha256": "d788e1fbb7fb11b81bbc7789e1978c59cb85ec1ffa30ea4999a64ee388038f12",
+      "cases": 30,
+      "passed": 30
+    },
+    "2026-08-01-live-postgres-data-io.json": {
+      "sha256": "b611af2ff839666193a349bcc51000205d1255d74ce4cdbff433f94bdc7462ff",
+      "status": "pass"
+    },
+    "2026-08-01-plenora-read-only.json": {
+      "sha256": "725e7607a558b0fd9802a4cc415a0050d6374c18e50110227d0c17c73dcd99fa",
+      "status": "pass_with_declared_differences"
+    }
+  },
+  "established": [
+    "isolated IO Arrow-to-Arrow contract preservation on 30 fixtures",
+    "isolated Data Arrow-to-Arrow contract preservation on 30 fixtures",
+    "isolated Database inspect-dataset contract observation on 30 fixtures",
+    "IO to Data to Database-observer contract chain on 30 fixtures",
+    "both IO-to-Data and Data-to-IO rewrite orders on 30 fixtures",
+    "both canonical and GeoArrow variants of the EPSG:3003 TOWGS84 fixture",
+    "required conflicting-CRS metadata transitions without residual loss",
+    "live PostgreSQL export through Data and IO with deterministic artifacts and governed rollback",
+    "read-only Plenora versus Data filter and reprojection comparison under a neutral judge"
+  ],
+  "declared_gaps": [
+    "Database is a contract observer, not a persistent writer in this execution",
+    "no reverse persistent IO-to-Data-to-Database roundtrip",
+    "no native-Windows execution in this report",
+    "no live SQL Server or MySQL provider in this report",
+    "this report does not by itself satisfy the complete system gate"
+  ]
+}

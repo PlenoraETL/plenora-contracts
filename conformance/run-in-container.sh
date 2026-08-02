@@ -10,13 +10,12 @@ set -euo pipefail
 
 ROOT=${ROOT:-/work}
 CONTRACTS="${ROOT}/plenora-contracts"
-# Il manifesto e' sovrascrivibile perche' servono due esecuzioni diverse: la
-# qualifica, che gira su revisioni fissate e immutabili ed e' evidenza, e la
-# verifica esplorativa, che gira sul codice corrente e dice se una correzione
-# funziona. Confonderle produce un numero che non descrive ne' l'una ne' l'altra.
-MANIFEST=${MANIFEST:-"${CONTRACTS}/conformance/components.json"}
+# Il default e' la campagna 1.0 qualificata. MANIFEST resta sovrascrivibile per
+# esecuzioni esplorative, che non devono essere confuse con questa evidence.
+MANIFEST=${MANIFEST:-"${CONTRACTS}/conformance/campaigns/v1.0.0/execution.json"}
 PINNED="${ROOT}/pinned"
 REPORT=${REPORT:-${CONTRACTS}/conformance/roundtrip.json}
+CASES=${CASES:-${CONTRACTS}/conformance/cases}
 
 test -f "${MANIFEST}" || { echo "manifesto non trovato: ${MANIFEST}" >&2; exit 2; }
 
@@ -60,14 +59,29 @@ done < /tmp/pins.txt
 
 echo
 echo "== generazione del corpus ============================================="
+root_real=$(realpath -m -- "${ROOT}")
+contracts_real=$(realpath -m -- "${CONTRACTS}")
+cases_real=$(realpath -m -- "${CASES}")
+case "${cases_real}" in
+    "${root_real}/cases"|"${root_real}"/cases-*|\
+    "${contracts_real}/conformance/cases"|"${contracts_real}/conformance"/cases-*)
+        ;;
+    *)
+        echo "directory corpus non sicura: ${CASES}" >&2
+        exit 2
+        ;;
+esac
+rm -rf -- "${cases_real}"
+mkdir -p "${cases_real}"
+CASES=${cases_real}
 python3 "${CONTRACTS}/conformance/corpus/generate.py" \
-        --out "${CONTRACTS}/conformance/cases" | tail -3
+        --out "${CASES}" | tail -3
 
 echo
 echo "== qualifica =========================================================="
 set +e
 python3 "${CONTRACTS}/conformance/run_roundtrip.py" \
-        --cases "${CONTRACTS}/conformance/cases" \
+        --cases "${CASES}" \
         --components "${MANIFEST}" \
         --checkouts "${PINNED}" \
         --report "${REPORT}"
@@ -81,14 +95,32 @@ echo "== catena ============================================================="
 # domande diverse e la seconda non segue dalla prima per verifica, solo per
 # ragionamento.
 set +e
-python3 "${CONTRACTS}/conformance/run_chain.py"         --cases "${CONTRACTS}/conformance/cases"         --components "${MANIFEST}"         --checkouts "${PINNED}"         --report "${REPORT%.json}-chain.json"
+python3 "${CONTRACTS}/conformance/run_chain.py" \
+        --cases "${CASES}" \
+        --components "${MANIFEST}" \
+        --checkouts "${PINNED}" \
+        --report "${REPORT%.json}-chain.json"
 chain=$?
+set -e
+
+echo
+echo "== pairwise bidirezionale ============================================="
+set +e
+python3 "${CONTRACTS}/conformance/run_pairwise.py" \
+        --cases "${CASES}" \
+        --components "${MANIFEST}" \
+        --checkouts "${PINNED}" \
+        --report "${REPORT%.json}-pairwise.json"
+pairwise=$?
 set -e
 
 echo
 echo "rapporto roundtrip: ${REPORT}"
 echo "rapporto catena:    ${REPORT%.json}-chain.json"
+echo "rapporto pairwise:  ${REPORT%.json}-pairwise.json"
 # Un roundtrip non eseguito non e' un successo: run_roundtrip.py restituisce
 # gia' 1 in quel caso, e qui non lo si addolcisce.
-if [ ${outcome} -ne 0 ] || [ ${chain} -ne 0 ]; then exit 1; fi
+if [ ${outcome} -ne 0 ] || [ ${chain} -ne 0 ] || [ ${pairwise} -ne 0 ]; then
+    exit 1
+fi
 exit 0

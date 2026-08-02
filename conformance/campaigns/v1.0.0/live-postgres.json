@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "campaign_id": "postgres-data-io-live-v1",
+  "release_inventory": "conformance/releases/v1.0.1.json",
+  "components": {
+    "database": {
+      "tag": "v1.0.0",
+      "revision": "89c82c4c700550decc394bb1e43b22c8a32e44e1"
+    },
+    "data": {
+      "tag": "v1.0.1",
+      "revision": "aab8152902a209955b2ea657dfeaeea10408f866"
+    },
+    "io": {
+      "tag": "v1.0.0",
+      "revision": "ca7f34c6b732700fa79f579f7b003df27ce54b09"
+    }
+  },
+  "environment": {
+    "database_image": "postgis/postgis:16-3.4",
+    "database_port": 55432,
+    "dsn_env": "PLENORA_CAMPAIGN_DSN",
+    "runner_image": "plenora-conformance@sha256:e87b76d5020db647a52be8685765907726c7fc3011599fbbded31664347d6cab"
+  },
+  "fixture": {
+    "schema": "campaign",
+    "object": "parcels",
+    "order_by": "id",
+    "rows": 3,
+    "columns": ["id", "label", "assessed_value", "measured_at", "geom"],
+    "geometry": "geometry(Point,4326)",
+    "setup_sql": [
+      "CREATE EXTENSION IF NOT EXISTS postgis",
+      "CREATE SCHEMA campaign",
+      "CREATE TABLE campaign.parcels (id bigint PRIMARY KEY, label text NOT NULL, assessed_value numeric(12,2), measured_at timestamptz NOT NULL, geom geometry(Point,4326) NOT NULL)",
+      "INSERT INTO campaign.parcels (id, label, assessed_value, measured_at, geom) VALUES (1, 'alpha', 100.25, '2026-08-01T10:00:00Z', ST_SetSRID(ST_MakePoint(9.0, 45.0), 4326)), (2, 'beta', NULL, '2026-08-01T10:01:00Z', ST_SetSRID(ST_MakePoint(9.1, 45.1), 4326)), (3, 'gamma', 9999999999.99, '2026-08-01T10:02:00Z', ST_SetSRID(ST_MakePoint(9.2, 45.2), 4326))"
+    ]
+  },
+  "database_export": {
+    "command": [
+      "plenora-database-cli", "postgres-read-ipc", "PLENORA_CAMPAIGN_DSN",
+      "campaign", "parcels", "{output}", "--order-by", "id",
+      "--max-rows", "100", "--max-output-bytes", "10485760",
+      "--timeout-ms", "30000"
+    ],
+    "repeat": 2,
+    "required_determinism": "artifact_byte"
+  },
+  "data_plan": {
+    "schema_version": 4,
+    "operation": "table.filter",
+    "predicate": "id >= 0",
+    "purpose": "identity-preserving live chain stage"
+  },
+  "required_transitions": [
+    {
+      "category": "contract",
+      "path": "fields[4].metadata['plenora.field_id']",
+      "before": null,
+      "after": "4",
+      "reason": "IO materializes the deterministic Arrow field index for a missing optional field_id"
+    },
+    {
+      "category": "contract",
+      "path": "fields[4].metadata['plenora.geometry.precision']",
+      "before": null,
+      "after": "float64",
+      "reason": "IO materializes the governed WKB coordinate precision for a missing optional precision key"
+    }
+  ],
+  "fault_cases": [
+    {
+      "id": "rows_over_budget",
+      "max_rows": 2,
+      "required_category": "resource_limit",
+      "required_remote_effect": "rolled_back",
+      "artifact_must_not_exist": true
+    },
+    {
+      "id": "bytes_over_budget",
+      "max_output_bytes": 1024,
+      "required_category": "resource_limit",
+      "required_remote_effect": "rolled_back",
+      "artifact_must_not_exist": true
+    }
+  ]
+}

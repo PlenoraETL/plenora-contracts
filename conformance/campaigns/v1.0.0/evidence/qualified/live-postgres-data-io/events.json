@@ -1,0 +1,35 @@
+{
+  "executed_at": "2026-08-01",
+  "source_rows_observed_after_export": 3,
+  "data": {
+    "exit_code": 0,
+    "output_preexisting": false,
+    "rows_in": 3,
+    "rows_out": 3,
+    "spill_bytes": 0
+  },
+  "io": {
+    "exit_code": 0,
+    "output_preexisting": false,
+    "rows": 3,
+    "expected_loss": {},
+    "observed_loss": {},
+    "reported_loss": {}
+  },
+  "faults": [
+    {
+      "id": "rows_over_budget",
+      "exit_code": 2,
+      "category": "resource_limit",
+      "remote_effect": "rolled_back",
+      "artifact_exists": false
+    },
+    {
+      "id": "bytes_over_budget",
+      "exit_code": 2,
+      "category": "resource_limit",
+      "remote_effect": "rolled_back",
+      "artifact_exists": false
+    }
+  ]
+}

@@ -8,24 +8,86 @@ on:
 permissions:
   contents: read
 
+env:
+  CANDIDATE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   document-control:
-    name: Validate normative baseline
+    name: Validate normative and release baseline
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 15
 
     steps:
       # actions/checkout v4, pinned to the exact revision resolved on 2026-07-27.
       - name: Check out the candidate baseline
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+
+      - name: Verify the candidate revision
+        run: test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
 
       - name: Record the execution environment
         run: python3 --version
+
+      - name: Create the pinned conformance environment
+        run: |
+          python3 -m venv "$RUNNER_TEMP/conformance-venv"
+          "$RUNNER_TEMP/conformance-venv/bin/python" -m pip install \
+            --disable-pip-version-check \
+            pyarrow==23.0.1 \
+            tzdata==2025.3 \
+            shapely==2.1.2 \
+            PyYAML==6.0.3 \
+            jsonschema==4.26.0
+
+      - name: Run conformance unit and mutation tests
+        run: >-
+          "$RUNNER_TEMP/conformance-venv/bin/python" -m unittest discover
+          -s conformance/tests -v
 
       - name: Validate the contract
         run: >-
           python3 scripts/check_contract.py
           --json-out assurance-results/contract-check.json
+
+      - name: Verify historical immutable v1.0.0 release inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          "$RUNNER_TEMP/conformance-venv/bin/python"
+          conformance/verify_release_inputs.py
+          --manifest conformance/releases/v1.0.0.json
+          --json-out assurance-results/release-inputs-v1.0.0.json
+
+      - name: Verify current immutable v1.0.1 release inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          "$RUNNER_TEMP/conformance-venv/bin/python"
+          conformance/verify_release_inputs.py
+          --manifest conformance/releases/v1.0.1.json
+          --json-out assurance-results/release-inputs-v1.0.1.json
+
+      - name: Regenerate qualified retained-artifact evidence
+        run: |
+          "$RUNNER_TEMP/conformance-venv/bin/python" \
+            conformance/judge_live_postgres.py \
+            --spec conformance/campaigns/v1.0.0/live-postgres.json \
+            --events conformance/campaigns/v1.0.0/evidence/qualified/live-postgres-data-io/events.json \
+            --artifacts conformance/campaigns/v1.0.0/evidence/qualified/live-postgres-data-io/artifacts \
+            --output assurance-results/live-postgres-data-io.json
+          cmp \
+            assurance-results/live-postgres-data-io.json \
+            conformance/campaigns/v1.0.0/evidence/qualified/2026-08-01-live-postgres-data-io.json
+          "$RUNNER_TEMP/conformance-venv/bin/python" \
+            conformance/judge_plenora_cross.py \
+            --spec conformance/campaigns/v1.0.0/plenora-read-only.json \
+            --artifacts conformance/campaigns/v1.0.0/evidence/qualified/plenora-read-only/artifacts \
+            --output assurance-results/plenora-read-only.json
+          cmp \
+            assurance-results/plenora-read-only.json \
+            conformance/campaigns/v1.0.0/evidence/qualified/2026-08-01-plenora-read-only.json
 
       # actions/upload-artifact v4, pinned to the exact revision resolved on
       # 2026-07-27. The report is evidence of this check, not certification.
@@ -33,7 +95,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: contract-assurance-${{ github.sha }}
-          path: assurance-results/contract-check.json
+          name: contract-assurance-${{ env.CANDIDATE_SHA }}
+          path: |
+            assurance-results/contract-check.json
+            assurance-results/release-inputs-v1.0.0.json
+            assurance-results/release-inputs-v1.0.1.json
+            assurance-results/live-postgres-data-io.json
+            assurance-results/plenora-read-only.json
           if-no-files-found: error
           retention-days: 90

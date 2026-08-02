@@ -1,0 +1,303 @@
+{
+  "schema_version": 1,
+  "campaign_id": "row-diagnostics-v1",
+  "contract": "plenora-row-diagnostics-v1",
+  "cases": [
+    {
+      "id": "read-shapefile-invalid-geometry",
+      "fixture": {
+        "kind": "shapefile",
+        "path": "fixtures/read-shapefile-invalid-geometry/particelle.shp",
+        "rows": 128,
+        "configured_key": "ID_PART",
+        "key_policy": {"emit_value": true, "encoding": "decimal_string"},
+        "injections": [
+          {"source_index": 17, "cause": "shapefile.inner_ring_without_outer"},
+          {"source_index": 89, "cause": "shapefile.unclosed_ring"},
+          {"source_index": 113, "cause": "shapefile.inner_ring_without_outer"}
+        ]
+      },
+      "expected_error_axes": {
+        "category": "DataMapping",
+        "phase": "Read",
+        "remote_effect": "none",
+        "retry": "never"
+      },
+      "expected_diagnostics": {
+        "contract": "plenora-row-diagnostics-v1",
+        "scope": "read",
+        "index_basis": "source_row_zero_based",
+        "completeness": "complete",
+        "observed_total": 3,
+        "total": 3,
+        "counts": {
+          "shapefile.inner_ring_without_outer": 2,
+          "shapefile.unclosed_ring": 1
+        },
+        "examples_limit": 2,
+        "examples_truncated": true,
+        "examples": [
+          {
+            "source_index": 17,
+            "cause": "shapefile.inner_ring_without_outer",
+            "key": {"field": "ID_PART", "state": "value", "value": "9007199254741009"}
+          },
+          {
+            "source_index": 89,
+            "cause": "shapefile.unclosed_ring",
+            "key": {"field": "ID_PART", "state": "value", "value": "9007199254741081"}
+          }
+        ]
+      }
+    },
+    {
+      "id": "read-invalid-date",
+      "fixture": {
+        "kind": "csv",
+        "path": "fixtures/read-invalid-date.csv",
+        "rows": 1025,
+        "configured_key": null,
+        "injections": [
+          {"source_index": 4, "cause": "conversion.invalid_date"},
+          {"source_index": 1004, "cause": "conversion.invalid_date"}
+        ]
+      },
+      "expected_error_axes": {
+        "category": "DataMapping",
+        "phase": "Read",
+        "remote_effect": "none",
+        "retry": "never"
+      },
+      "expected_diagnostics": {
+        "contract": "plenora-row-diagnostics-v1",
+        "scope": "read",
+        "index_basis": "source_row_zero_based",
+        "completeness": "complete",
+        "observed_total": 2,
+        "total": 2,
+        "counts": {"conversion.invalid_date": 2},
+        "examples_limit": 10,
+        "examples_truncated": false,
+        "examples": [
+          {"source_index": 4, "cause": "conversion.invalid_date", "column": "effective_date"},
+          {"source_index": 1004, "cause": "conversion.invalid_date", "column": "effective_date"}
+        ]
+      }
+    },
+    {
+      "id": "write-constraint-confirmed-rollback",
+      "fixture": {
+        "kind": "csv_to_database_adapter",
+        "path": "fixtures/write-constraint.csv",
+        "rows": 5200,
+        "configured_key": "parcel_id",
+        "constraint": "area_m2 >= 0",
+        "injections": [
+          {"source_index": 4999, "cause": "database.constraint_violation"}
+        ]
+      },
+      "expected_error_axes": {
+        "category": "DataMapping",
+        "phase": "Write",
+        "remote_effect": "rolled_back",
+        "retry": "never"
+      },
+      "expected_diagnostics": {
+        "contract": "plenora-row-diagnostics-v1",
+        "scope": "write",
+        "index_basis": "source_row_zero_based",
+        "completeness": "complete",
+        "observed_total": 1,
+        "total": 1,
+        "input_total": 5200,
+        "counts": {"database.constraint_violation": 1},
+        "examples_limit": 10,
+        "examples_truncated": false,
+        "examples": [
+          {
+            "source_index": 4999,
+            "cause": "database.constraint_violation",
+            "column": "area_m2",
+            "write_state": "certainly_rejected",
+            "key": {"field": "parcel_id", "state": "redacted"}
+          }
+        ],
+        "diagnostic_state_counts": {
+          "certainly_rejected": 1,
+          "certainly_not_attempted": 0,
+          "certainly_rolled_back": 0,
+          "effect_unknown": 0
+        },
+        "write_outcome": {
+          "certainly_rejected": {"state": "known", "value": 1},
+          "certainly_not_attempted": {"state": "known", "value": 200},
+          "certainly_rolled_back": {"state": "known", "value": 4999},
+          "effect_unknown": {"state": "known", "value": 0}
+        }
+      }
+    },
+    {
+      "id": "write-constraint-rollback-outcome-unknown",
+      "fixture": {
+        "kind": "csv_to_database_adapter",
+        "path": "fixtures/write-constraint.csv",
+        "rows": 5200,
+        "configured_key": "parcel_id",
+        "constraint": "area_m2 >= 0",
+        "fault": "rollback-acknowledgement-lost",
+        "injections": [
+          {"source_index": 4999, "cause": "database.constraint_violation"}
+        ]
+      },
+      "expected_error_axes": {
+        "category": "DataMapping",
+        "phase": "Rollback",
+        "remote_effect": "unknown",
+        "retry": "quarantine"
+      },
+      "expected_diagnostics": {
+        "contract": "plenora-row-diagnostics-v1",
+        "scope": "write",
+        "index_basis": "source_row_zero_based",
+        "completeness": "complete",
+        "observed_total": 1,
+        "total": 1,
+        "input_total": 5200,
+        "counts": {"database.constraint_violation": 1},
+        "examples_limit": 10,
+        "examples_truncated": false,
+        "examples": [
+          {
+            "source_index": 4999,
+            "cause": "database.constraint_violation",
+            "column": "area_m2",
+            "write_state": "certainly_rejected",
+            "key": {"field": "parcel_id", "state": "redacted"}
+          }
+        ],
+        "diagnostic_state_counts": {
+          "certainly_rejected": 1,
+          "certainly_not_attempted": 0,
+          "certainly_rolled_back": 0,
+          "effect_unknown": 0
+        },
+        "write_outcome": {
+          "certainly_rejected": {"state": "known", "value": 1},
+          "certainly_not_attempted": {"state": "known", "value": 200},
+          "certainly_rolled_back": {"state": "unknown"},
+          "effect_unknown": {"state": "unknown"}
+        }
+      }
+    }
+  ],
+  "reference_observations": [
+    {
+      "id": "read-shapefile-invalid-geometry",
+      "exit_code": 2,
+      "output_exists": false,
+      "error_axes": {"category": "DataMapping", "phase": "Read", "remote_effect": "none", "retry": "never"},
+      "diagnostics": {
+        "contract": "plenora-row-diagnostics-v1",
+        "scope": "read",
+        "index_basis": "source_row_zero_based",
+        "completeness": "complete",
+        "observed_total": 3,
+        "total": 3,
+        "counts": {"shapefile.inner_ring_without_outer": 2, "shapefile.unclosed_ring": 1},
+        "examples_limit": 2,
+        "examples_truncated": true,
+        "examples": [
+          {"source_index": 17, "cause": "shapefile.inner_ring_without_outer", "key": {"field": "ID_PART", "state": "value", "value": "9007199254741009"}},
+          {"source_index": 89, "cause": "shapefile.unclosed_ring", "key": {"field": "ID_PART", "state": "value", "value": "9007199254741081"}}
+        ]
+      }
+    },
+    {
+      "id": "read-invalid-date",
+      "exit_code": 2,
+      "output_exists": false,
+      "error_axes": {"category": "DataMapping", "phase": "Read", "remote_effect": "none", "retry": "never"},
+      "diagnostics": {
+        "contract": "plenora-row-diagnostics-v1",
+        "scope": "read",
+        "index_basis": "source_row_zero_based",
+        "completeness": "complete",
+        "observed_total": 2,
+        "total": 2,
+        "counts": {"conversion.invalid_date": 2},
+        "examples_limit": 10,
+        "examples_truncated": false,
+        "examples": [
+          {"source_index": 4, "cause": "conversion.invalid_date", "column": "effective_date"},
+          {"source_index": 1004, "cause": "conversion.invalid_date", "column": "effective_date"}
+        ]
+      }
+    },
+    {
+      "id": "write-constraint-confirmed-rollback",
+      "exit_code": 2,
+      "output_exists": false,
+      "error_axes": {"category": "DataMapping", "phase": "Write", "remote_effect": "rolled_back", "retry": "never"},
+      "diagnostics": {
+        "contract": "plenora-row-diagnostics-v1",
+        "scope": "write",
+        "index_basis": "source_row_zero_based",
+        "completeness": "complete",
+        "observed_total": 1,
+        "total": 1,
+        "input_total": 5200,
+        "counts": {"database.constraint_violation": 1},
+        "examples_limit": 10,
+        "examples_truncated": false,
+        "examples": [
+          {"source_index": 4999, "cause": "database.constraint_violation", "column": "area_m2", "write_state": "certainly_rejected", "key": {"field": "parcel_id", "state": "redacted"}}
+        ],
+        "diagnostic_state_counts": {
+          "certainly_rejected": 1,
+          "certainly_not_attempted": 0,
+          "certainly_rolled_back": 0,
+          "effect_unknown": 0
+        },
+        "write_outcome": {
+          "certainly_rejected": {"state": "known", "value": 1},
+          "certainly_not_attempted": {"state": "known", "value": 200},
+          "certainly_rolled_back": {"state": "known", "value": 4999},
+          "effect_unknown": {"state": "known", "value": 0}
+        }
+      }
+    },
+    {
+      "id": "write-constraint-rollback-outcome-unknown",
+      "exit_code": 2,
+      "output_exists": false,
+      "error_axes": {"category": "DataMapping", "phase": "Rollback", "remote_effect": "unknown", "retry": "quarantine"},
+      "diagnostics": {
+        "contract": "plenora-row-diagnostics-v1",
+        "scope": "write",
+        "index_basis": "source_row_zero_based",
+        "completeness": "complete",
+        "observed_total": 1,
+        "total": 1,
+        "input_total": 5200,
+        "counts": {"database.constraint_violation": 1},
+        "examples_limit": 10,
+        "examples_truncated": false,
+        "examples": [
+          {"source_index": 4999, "cause": "database.constraint_violation", "column": "area_m2", "write_state": "certainly_rejected", "key": {"field": "parcel_id", "state": "redacted"}}
+        ],
+        "diagnostic_state_counts": {
+          "certainly_rejected": 1,
+          "certainly_not_attempted": 0,
+          "certainly_rolled_back": 0,
+          "effect_unknown": 0
+        },
+        "write_outcome": {
+          "certainly_rejected": {"state": "known", "value": 1},
+          "certainly_not_attempted": {"state": "known", "value": 200},
+          "certainly_rolled_back": {"state": "unknown"},
+          "effect_unknown": {"state": "unknown"}
+        }
+      }
+    }
+  ]
+}

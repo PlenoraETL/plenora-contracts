@@ -1,0 +1,102 @@
+{
+  "manifest_version": 1,
+  "gate_id": "plenora-1.0-release-execution-v1",
+  "icd": {
+    "version": "2.0-rc16",
+    "revision": "e81c3ce7941bacbdb0e083f03c512ae22a6b924a"
+  },
+  "components": [
+    {
+      "name": "plenora-IO-tools",
+      "role": "file_boundary",
+      "tag": "v1.0.0",
+      "revision": "ca7f34c6b732700fa79f579f7b003df27ce54b09"
+    },
+    {
+      "name": "plenora-data-tools",
+      "role": "transformation_core",
+      "tag": "v1.0.1",
+      "revision": "aab8152902a209955b2ea657dfeaeea10408f866"
+    },
+    {
+      "name": "plenora-database-tools",
+      "role": "database_boundary",
+      "tag": "v1.0.0",
+      "revision": "89c82c4c700550decc394bb1e43b22c8a32e44e1"
+    }
+  ],
+  "roundtrips": [
+    {
+      "id": "io",
+      "component": "plenora-IO-tools",
+      "kind": "arrow_to_arrow",
+      "status": "available",
+      "invocation": [
+        "cargo", "run", "--locked", "--quiet", "-p", "plenora-io-cli",
+        "--", "convert", "{input}", "{output}"
+      ]
+    },
+    {
+      "id": "data",
+      "component": "plenora-data-tools",
+      "kind": "arrow_to_arrow",
+      "status": "available",
+      "invocation": [
+        "cargo", "run", "--locked", "--quiet", "-p", "plenora-cli",
+        "--features", "proj-backend", "--", "run", "--plan", "{plan}",
+        "--inputs", "{input}", "--output", "{output}"
+      ]
+    },
+    {
+      "id": "database",
+      "component": "plenora-database-tools",
+      "kind": "arrow_to_contract",
+      "status": "available",
+      "invocation": [
+        "cargo", "run", "--locked", "--quiet", "-p", "plenora-database-cli",
+        "--", "inspect-dataset", "{input}"
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "id": "io",
+      "component": "plenora-IO-tools",
+      "status": "available",
+      "invocation": [
+        "cargo", "run", "--locked", "--quiet", "-p", "plenora-io-cli",
+        "--", "convert", "{input}", "{output}"
+      ]
+    },
+    {
+      "id": "data",
+      "component": "plenora-data-tools",
+      "status": "available",
+      "invocation": [
+        "cargo", "run", "--locked", "--quiet", "-p", "plenora-cli",
+        "--features", "proj-backend", "--", "run", "--plan", "{plan}",
+        "--inputs", "{input}", "--output", "{output}"
+      ]
+    },
+    {
+      "id": "database",
+      "component": "plenora-database-tools",
+      "status": "not_applicable",
+      "invocation": null,
+      "blocker": "Database v1.0.0 espone inspect-dataset come osservatore del contratto ma non un writer IPC persistente; run_chain lo usa come giudice terminale."
+    }
+  ],
+  "qualification": {
+    "state": "partial_pass_with_blocking_gaps",
+    "isolated_roundtrips": "passed_90_of_90",
+    "io_data_pairwise": "passed_30_of_30",
+    "io_data_chain": "passed_30_of_30",
+    "database_terminal": "contract_observer_only",
+    "persistent_reverse_roundtrip": "incomplete_blocking",
+    "evidence": [
+      "evidence/qualified/2026-08-01-roundtrip.json",
+      "evidence/qualified/2026-08-01-roundtrip-chain.json",
+      "evidence/qualified/2026-08-01-roundtrip-pairwise.json"
+    ]
+  }
+}
