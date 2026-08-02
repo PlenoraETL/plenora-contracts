@@ -1,6 +1,6 @@
-# Quattordici decisioni di ratifica aperte
+# Quindici decisioni di ratifica aperte
 
-Il registro dell'ICD ha 28 voci: **14 ratificate**, 14 `proposta`. Questa pagina
+Il registro dell'ICD ha 29 voci: **14 ratificate**, 15 `proposta`. Questa pagina
 serve a decidere voce per voce senza rileggere il documento.
 
 **Perché conta.** Una regola `proposta` non vincola nessuno. Alla data di questa
@@ -33,6 +33,7 @@ il confine da cui Plenora le userà.)*
 | Voce | Oggetto | Adozione | Cosa comporta ratificare |
 |---|---|---|---|
 | §9 | Errore a quattro assi | **solo dentro le librerie**, non al confine CLI | Apre un gap su tutti e tre. I tipi Rust esistono, ma i tre eseguibili espongono gli assi in tre modi diversi: uno in JSON con gli assi dentro la prosa, uno in testo semplice, uno senza assi. R9.2 vieta di dedurre la ritentabilità dal messaggio, e un chiamante Python oggi non può fare altro |
+| §9.9–§9.14 | Diagnostica row-scoped azionabile | **non ancora adottata**: IO-tools interrompe al primo record Shapefile invalido; database-tools conserva solo conteggi aggregati; data-tools non espone ancora lo schema comune | Apre un gap sui tre componenti. Richiede indici sorgente stabili, chiavi policy-safe, cause e conteggi completi con esempi bounded, più stato remoto esplicitamente non conoscibile. Corpus e judge sono definiti in `conformance/campaigns/row-diagnostics-v1/` |
 | §2 | Chiavi metadata canoniche, lineage, e da rc12 il riconoscimento (R2.8) | **due su tre** | R2.8 dice che le chiavi canoniche bastano a riconoscere una colonna geometrica. data-tools e database-tools già lo fanno; il driver IPC di IO-tools richiede `ARROW:extension:name` e legge la colonna come binario opaco senza. Ratificarla apre un gap dichiarato su IO-tools e zero sugli altri due |
 | §7 | Limiti pre-allocazione, budget ceduto lungo la catena | IO-tools parziale, gli altri due con lease | Un gap dichiarato a carico di IO-tools, oppure una deroga con rientro |
 | §12 | Determinismo su quattro livelli | dichiarato da tutti, verificato in modo disuguale | Obbliga a produrre l'evidenza del livello dichiarato. È la voce che costa più lavoro di verifica |

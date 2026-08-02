@@ -265,6 +265,34 @@
       "note": "Tutti e tre emettono `retry` come oggetto taggato. I campi in piu' sono contesto del componente e non ostacolano un lettore che cerca i cinque canonici. database-tools li emette come null invece di ometterli: irrilevante oggi, sarebbe un campo `context` opzionale quando nascera' il crate condiviso."
     }
   },
+  "required_row_diagnostics": {
+    "id": "row_scoped_rejection_diagnostics",
+    "contract": "plenora-row-diagnostics-v1",
+    "schema": "conformance/schemas/row-diagnostics-v1.schema.json",
+    "validator": "conformance/row_diagnostics.py",
+    "applies_to": [
+      "plenora-IO-tools",
+      "plenora-data-tools",
+      "plenora-database-tools"
+    ],
+    "scope": ["read", "write"],
+    "policy": {
+      "fail_closed": true,
+      "boundary_remediation": false,
+      "examples": "bounded",
+      "counts": "complete_when_observable",
+      "unknown_state": "explicit",
+      "diagnostic_completeness": "row_identity_and_cause_knowledge",
+      "knowledge_limits_required_for": ["partial", "unknown"],
+      "write_outcome_is_separate": true,
+      "write_diagnostic_state_partition": "required_and_sums_to_observed_total",
+      "future_quarantine_outputs": ["accepted", "rejected"]
+    },
+    "rule": "R9.9-R9.14, R14.6",
+    "rule_state": "proposta",
+    "issue": "https://github.com/PlenoraETL/plenora-contracts/issues/1",
+    "corpus_issue": "https://github.com/PlenoraETL/plenora-contracts/issues/2"
+  },
   "qualification_caveat": {
     "id": "geoarrow_extension_required_for_recognition",
     "discovered": "2026-07-31",
