@@ -2,72 +2,212 @@
   "schema_version": 1,
   "campaign_id": "error-axes-v1",
   "contract": "plenora-error-axes-v1",
-  "requirements": ["R9.15", "R9.16", "R9.17", "R9.18", "R9.7"],
+  "requirements": [
+    "R9.15",
+    "R9.16",
+    "R9.17",
+    "R9.18",
+    "R9.7"
+  ],
   "wire_forms": {
     "category": {
       "expected_count": 18,
       "values": [
-        {"value": "invalid_plan", "wire": "invalid_plan"},
-        {"value": "invalid_configuration", "wire": "invalid_configuration"},
-        {"value": "schema", "wire": "schema"},
-        {"value": "data_mapping", "wire": "data_mapping"},
-        {"value": "crs", "wire": "crs"},
-        {"value": "unsupported", "wire": "unsupported"},
-        {"value": "not_found", "wire": "not_found"},
-        {"value": "conflict", "wire": "conflict"},
-        {"value": "authentication", "wire": "authentication"},
-        {"value": "authorization", "wire": "authorization"},
-        {"value": "timeout", "wire": "timeout"},
-        {"value": "cancelled", "wire": "cancelled"},
-        {"value": "resource_limit", "wire": "resource_limit"},
-        {"value": "io", "wire": "io"},
-        {"value": "protocol", "wire": "protocol"},
-        {"value": "transient", "wire": "transient"},
-        {"value": "execution", "wire": "execution"},
-        {"value": "internal", "wire": "internal"}
+        {
+          "value": "invalid_plan",
+          "wire": "invalid_plan"
+        },
+        {
+          "value": "invalid_configuration",
+          "wire": "invalid_configuration"
+        },
+        {
+          "value": "schema",
+          "wire": "schema"
+        },
+        {
+          "value": "data_mapping",
+          "wire": "data_mapping"
+        },
+        {
+          "value": "crs",
+          "wire": "crs"
+        },
+        {
+          "value": "unsupported",
+          "wire": "unsupported"
+        },
+        {
+          "value": "not_found",
+          "wire": "not_found"
+        },
+        {
+          "value": "conflict",
+          "wire": "conflict"
+        },
+        {
+          "value": "authentication",
+          "wire": "authentication"
+        },
+        {
+          "value": "authorization",
+          "wire": "authorization"
+        },
+        {
+          "value": "timeout",
+          "wire": "timeout"
+        },
+        {
+          "value": "cancelled",
+          "wire": "cancelled"
+        },
+        {
+          "value": "resource_limit",
+          "wire": "resource_limit"
+        },
+        {
+          "value": "io",
+          "wire": "io"
+        },
+        {
+          "value": "protocol",
+          "wire": "protocol"
+        },
+        {
+          "value": "transient",
+          "wire": "transient"
+        },
+        {
+          "value": "execution",
+          "wire": "execution"
+        },
+        {
+          "value": "internal",
+          "wire": "internal"
+        }
       ]
     },
     "phase": {
       "expected_count": 10,
       "values": [
-        {"value": "validate", "wire": "validate"},
-        {"value": "connect", "wire": "connect"},
-        {"value": "probe", "wire": "probe"},
-        {"value": "prepare", "wire": "prepare"},
-        {"value": "read", "wire": "read"},
-        {"value": "write", "wire": "write"},
-        {"value": "finalize", "wire": "finalize"},
-        {"value": "commit", "wire": "commit"},
-        {"value": "rollback", "wire": "rollback"},
-        {"value": "cleanup", "wire": "cleanup"}
+        {
+          "value": "validate",
+          "wire": "validate"
+        },
+        {
+          "value": "connect",
+          "wire": "connect"
+        },
+        {
+          "value": "probe",
+          "wire": "probe"
+        },
+        {
+          "value": "prepare",
+          "wire": "prepare"
+        },
+        {
+          "value": "read",
+          "wire": "read"
+        },
+        {
+          "value": "write",
+          "wire": "write"
+        },
+        {
+          "value": "finalize",
+          "wire": "finalize"
+        },
+        {
+          "value": "commit",
+          "wire": "commit"
+        },
+        {
+          "value": "rollback",
+          "wire": "rollback"
+        },
+        {
+          "value": "cleanup",
+          "wire": "cleanup"
+        }
       ]
     },
     "remote_effect": {
       "expected_count": 5,
       "values": [
-        {"value": "none", "wire": "none"},
-        {"value": "rolled_back", "wire": "rolled_back"},
-        {"value": "partial", "wire": "partial"},
-        {"value": "committed", "wire": "committed"},
-        {"value": "unknown", "wire": "unknown"}
+        {
+          "value": "none",
+          "wire": "none"
+        },
+        {
+          "value": "rolled_back",
+          "wire": "rolled_back"
+        },
+        {
+          "value": "partial",
+          "wire": "partial"
+        },
+        {
+          "value": "committed",
+          "wire": "committed"
+        },
+        {
+          "value": "unknown",
+          "wire": "unknown"
+        }
       ]
     },
     "retry": {
       "expected_count": 5,
       "values": [
-        {"value": "never", "wire": {"kind": "never"}},
-        {"value": "safe", "wire": {"kind": "safe"}},
-        {"value": "requires_idempotency_key", "wire": {"kind": "requires_idempotency_key"}},
-        {"value": "requires_recovery", "wire": {"kind": "requires_recovery"}},
-        {"value": "after", "wire": {"kind": "after", "delay_ms": 1500}}
+        {
+          "value": "never",
+          "wire": {
+            "kind": "never"
+          }
+        },
+        {
+          "value": "safe",
+          "wire": {
+            "kind": "safe"
+          }
+        },
+        {
+          "value": "requires_idempotency_key",
+          "wire": {
+            "kind": "requires_idempotency_key"
+          }
+        },
+        {
+          "value": "requires_recovery",
+          "wire": {
+            "kind": "requires_recovery"
+          }
+        },
+        {
+          "value": "after",
+          "wire": {
+            "kind": "after",
+            "delay_ms": 1500
+          }
+        }
       ]
     },
     "session": {
       "expected_count": 3,
       "values": [
-        {"value": "reusable", "wire": "reusable"},
-        {"value": "discard", "wire": "discard"},
-        {"value": "quarantine", "wire": "quarantine"}
+        {
+          "value": "reusable",
+          "wire": "reusable"
+        },
+        {
+          "value": "discard",
+          "wire": "discard"
+        },
+        {
+          "value": "quarantine",
+          "wire": "quarantine"
+        }
       ]
     }
   },
@@ -75,10 +215,18 @@
     "remote_effect": "unknown",
     "retry": "requires_recovery"
   },
-  "descriptive_axes": ["category", "phase"],
+  "descriptive_axes": [
+    "category",
+    "phase"
+  ],
   "forbidden_degradations": {
-    "remote_effect": ["none", "committed"],
-    "retry": ["safe"]
+    "remote_effect": [
+      "none",
+      "committed"
+    ],
+    "retry": [
+      "safe"
+    ]
   },
   "absent_axis_defaults": {
     "session": "reusable"
@@ -92,7 +240,9 @@
         "category": "data_mapping",
         "phase": "rollback",
         "remote_effect": "unknown",
-        "retry": {"kind": "quarantine"},
+        "retry": {
+          "kind": "quarantine"
+        },
         "message": "vincolo violato durante il rollback"
       },
       "expected": {
@@ -101,7 +251,9 @@
         "phase": "rollback",
         "remote_effect": "unknown",
         "retry_effective": "requires_recovery",
-        "retry_received": {"kind": "quarantine"}
+        "retry_received": {
+          "kind": "quarantine"
+        }
       }
     },
     {
@@ -112,7 +264,9 @@
         "category": "protocol",
         "phase": "commit",
         "remote_effect": "partial",
-        "retry": {"kind": "after_lunar_eclipse"},
+        "retry": {
+          "kind": "after_lunar_eclipse"
+        },
         "message": "risposta non interpretabile"
       },
       "expected": {
@@ -121,7 +275,9 @@
         "phase": "commit",
         "remote_effect": "partial",
         "retry_effective": "requires_recovery",
-        "retry_received": {"kind": "after_lunar_eclipse"}
+        "retry_received": {
+          "kind": "after_lunar_eclipse"
+        }
       }
     },
     {
@@ -131,7 +287,9 @@
         "category": "timeout",
         "phase": "commit",
         "remote_effect": "half_committed",
-        "retry": {"kind": "requires_recovery"},
+        "retry": {
+          "kind": "requires_recovery"
+        },
         "message": "scadenza dopo l'invio del commit"
       },
       "expected": {
@@ -151,7 +309,9 @@
         "category": "quantum_decoherence",
         "phase": "read",
         "remote_effect": "none",
-        "retry": {"kind": "never"},
+        "retry": {
+          "kind": "never"
+        },
         "message": "categoria non riconosciuta"
       },
       "expected": {
@@ -170,7 +330,9 @@
         "category": "io",
         "phase": "defragment",
         "remote_effect": "none",
-        "retry": {"kind": "safe"},
+        "retry": {
+          "kind": "safe"
+        },
         "message": "fase non riconosciuta"
       },
       "expected": {
@@ -190,12 +352,41 @@
         "category": "conflict",
         "phase": "write",
         "remote_effect": "rolled_back",
-        "retry": {"kind": "never"},
+        "retry": {
+          "kind": "never"
+        },
         "message": "destinazione gia' esistente"
       },
       "expected": {
         "readable": true,
         "session_effective": "reusable"
+      }
+    },
+    {
+      "id": "campo-sconosciuto",
+      "axis": "envelope",
+      "note": "R9.16 vale anche per i campi, non solo per i valori. Rilevato dalla prima esecuzione contro un componente reale: `deny_unknown_fields` fa rifiutare l'envelope in blocco, quindi la regola che introduce l'asse sessione sarebbe irricevibile da chi non l'ha ancora adottato.",
+      "envelope": {
+        "category": "schema",
+        "phase": "prepare",
+        "remote_effect": "none",
+        "retry": {
+          "kind": "never"
+        },
+        "campo_di_una_versione_futura": {
+          "qualsiasi": "cosa"
+        },
+        "message": "campo non riconosciuto"
+      },
+      "expected": {
+        "readable": true,
+        "category": "schema",
+        "phase": "prepare",
+        "remote_effect": "none",
+        "retry": "never",
+        "unknown_fields_received": [
+          "campo_di_una_versione_futura"
+        ]
       }
     },
     {
@@ -205,7 +396,9 @@
         "category": "protocol",
         "phase": "cleanup",
         "remote_effect": "unknown",
-        "retry": {"kind": "requires_recovery"},
+        "retry": {
+          "kind": "requires_recovery"
+        },
         "session": "incinerate",
         "message": "disposizione di sessione non riconosciuta"
       },
@@ -220,16 +413,24 @@
     {
       "id": "inoltro-di-quarantine",
       "note": "R9.16: chi inoltra ritrasmette invariato cio' che non ha compreso, perche' il destinatario successivo potrebbe comprenderlo.",
-      "chain": ["database-tools", "data-tools", "io-tools"],
+      "chain": [
+        "database-tools",
+        "data-tools",
+        "io-tools"
+      ],
       "envelope": {
         "category": "data_mapping",
         "phase": "rollback",
         "remote_effect": "unknown",
-        "retry": {"kind": "quarantine"},
+        "retry": {
+          "kind": "quarantine"
+        },
         "message": "vincolo violato durante il rollback"
       },
       "expected_at_each_hop": {
-        "retry": {"kind": "quarantine"},
+        "retry": {
+          "kind": "quarantine"
+        },
         "category": "data_mapping",
         "phase": "rollback",
         "remote_effect": "unknown"
@@ -237,19 +438,26 @@
     },
     {
       "id": "inoltro-di-un-valore-inventato-su-due-assi",
-      "chain": ["io-tools", "data-tools"],
+      "chain": [
+        "io-tools",
+        "data-tools"
+      ],
       "envelope": {
         "category": "quantum_decoherence",
         "phase": "read",
         "remote_effect": "half_committed",
-        "retry": {"kind": "never"},
+        "retry": {
+          "kind": "never"
+        },
         "message": "due assi non riconosciuti"
       },
       "expected_at_each_hop": {
         "category": "quantum_decoherence",
         "phase": "read",
         "remote_effect": "half_committed",
-        "retry": {"kind": "never"}
+        "retry": {
+          "kind": "never"
+        }
       }
     }
   ],
@@ -263,6 +471,7 @@
       "categoria-inventata",
       "fase-inventata",
       "asse-sessione-assente",
+      "campo-sconosciuto",
       "sessione-inventata"
     ],
     "relay_cases": [

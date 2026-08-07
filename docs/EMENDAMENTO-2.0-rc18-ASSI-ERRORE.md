@@ -6,12 +6,13 @@ ritentativo.
 
 **Regole proposte:** R9.15, R9.16, R9.17, R9.18 · **Regole emendate:** R9.7
 
-**Origine:** rilievo del 2026-08-07. Tre contraddizioni interne alla
-specifica, tutte nella stessa area, tutte riprodotte.
+**Origine:** rilievo del 2026-08-07. Quattro contraddizioni interne alla
+specifica, tutte nella stessa area, tutte riprodotte. La quarta è emersa
+dalla prima esecuzione della campagna contro un componente reale.
 
 ---
 
-## 1. Le tre contraddizioni
+## 1. Le quattro contraddizioni
 
 ### 1.1 Il vocabolario sul filo non è specificato
 
@@ -68,7 +69,24 @@ caso in cui accade è `cases.json` riga 273: categoria `DataMapping`, fase
 `Rollback`, effetto `unknown` — un rollback dall'effetto incerto, cioè il
 momento in cui la gestione dell'errore deve essere più affidabile.
 
-### 1.3 La rappresentazione di `after` non è fissata
+### 1.3 Anche un campo nuovo distrugge l'envelope
+
+*Rilevata dalla prima esecuzione della campagna contro un componente reale, non
+prevista da questa proposta nella sua prima stesura.*
+
+`PlenoraIoError` è deserializzato con `#[serde(deny_unknown_fields)]`. Un
+envelope che porti un campo non previsto — per esempio l'asse sessione di
+R9.18 — viene rifiutato **in blocco**:
+
+```
+unknown field `session`, expected one of `code`, `category`, `phase`, ...
+```
+
+La regola che introduce l'asse sessione violerebbe quindi la regola che
+dovrebbe proteggerla: R9.18 sarebbe irricevibile dai componenti che non l'hanno
+ancora adottata, cioè tutti tranne l'emittente.
+
+### 1.4 La rappresentazione di `after` non è fissata
 
 R9.7 dice `after(durata)` senza dire come la durata viaggia. IO Tools e
 Database Tools usano `delay_ms` intero; Data Tools tiene una `Duration` e non
@@ -77,10 +95,10 @@ stata osservata.
 
 ---
 
-## 2. Perché non basta correggere i tre casi
+## 2. Perché non basta correggere i quattro casi
 
 Ogni contraddizione qui sopra si può chiudere con una modifica puntuale. Ma la
-ragione per cui sono arrivate fin qui è la stessa per tutte e tre, e resterebbe.
+ragione per cui sono arrivate fin qui è la stessa per tutte, e resterebbe.
 
 Gli assi viaggiano come enumerazioni chiuse: un valore non previsto fa fallire
 la lettura dell'**intero** envelope, e il fallimento si manifesta nel consumer,
@@ -116,14 +134,25 @@ invece di far cadere tutto. Manca sugli altri assi.
 
 ### §9.16 — L'envelope non cade su un valore sconosciuto
 
-> **R9.16** *(nuova 2.0-rc18)* Un consumer che riceve su un asse un valore che
-> non conosce **NON DEVE** far fallire la lettura dell'envelope. Gli altri assi
-> e il messaggio **DEVONO** restare leggibili.
+> **R9.16** *(nuova 2.0-rc18)* Un consumer che riceve un **valore** che non
+> conosce su un asse, o un **campo** che non conosce nell'envelope, **NON DEVE**
+> far fallire la lettura. Gli altri assi e il messaggio **DEVONO** restare
+> leggibili.
 >
-> Il valore ricevuto **DEVE** essere conservato così com'è. Un componente che
-> inoltra l'envelope **DEVE** ritrasmetterlo invariato: non gli è consentito
-> normalizzare a un valore noto ciò che non ha compreso, perché il destinatario
-> successivo potrebbe comprenderlo.
+> Il valore o il campo ricevuto **DEVE** essere conservato così com'è. Un
+> componente che inoltra l'envelope **DEVE** ritrasmetterlo invariato: non gli è
+> consentito né normalizzare a un valore noto ciò che non ha compreso, né
+> scartare un campo che non riconosce, perché il destinatario successivo
+> potrebbe comprenderli.
+>
+> Di conseguenza l'envelope **NON DEVE** essere deserializzato con una politica
+> che rifiuta i campi sconosciuti. È una rinuncia deliberata a una difesa
+> normalmente corretta: su un piano o su una configurazione il rifiuto dei campi
+> ignoti intercetta un refuso, ed è giusto tenerlo. Sull'envelope d'errore no —
+> è l'unica struttura che **deve** sopravvivere al disallineamento fra versioni,
+> perché è quella che viaggia proprio quando qualcosa è già andato storto. Un
+> refuso in un campo dell'envelope produce un campo ignorato; il rifiuto
+> produce la perdita dell'intera diagnosi.
 
 ### §9.17 — Il valore conservativo
 
