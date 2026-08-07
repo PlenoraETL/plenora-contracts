@@ -1,0 +1,482 @@
+{
+  "schema_version": 1,
+  "campaign_id": "error-axes-v1",
+  "contract": "plenora-error-axes-v1",
+  "requirements": [
+    "R9.15",
+    "R9.16",
+    "R9.17",
+    "R9.18",
+    "R9.7"
+  ],
+  "wire_forms": {
+    "category": {
+      "expected_count": 18,
+      "values": [
+        {
+          "value": "invalid_plan",
+          "wire": "invalid_plan"
+        },
+        {
+          "value": "invalid_configuration",
+          "wire": "invalid_configuration"
+        },
+        {
+          "value": "schema",
+          "wire": "schema"
+        },
+        {
+          "value": "data_mapping",
+          "wire": "data_mapping"
+        },
+        {
+          "value": "crs",
+          "wire": "crs"
+        },
+        {
+          "value": "unsupported",
+          "wire": "unsupported"
+        },
+        {
+          "value": "not_found",
+          "wire": "not_found"
+        },
+        {
+          "value": "conflict",
+          "wire": "conflict"
+        },
+        {
+          "value": "authentication",
+          "wire": "authentication"
+        },
+        {
+          "value": "authorization",
+          "wire": "authorization"
+        },
+        {
+          "value": "timeout",
+          "wire": "timeout"
+        },
+        {
+          "value": "cancelled",
+          "wire": "cancelled"
+        },
+        {
+          "value": "resource_limit",
+          "wire": "resource_limit"
+        },
+        {
+          "value": "io",
+          "wire": "io"
+        },
+        {
+          "value": "protocol",
+          "wire": "protocol"
+        },
+        {
+          "value": "transient",
+          "wire": "transient"
+        },
+        {
+          "value": "execution",
+          "wire": "execution"
+        },
+        {
+          "value": "internal",
+          "wire": "internal"
+        }
+      ]
+    },
+    "phase": {
+      "expected_count": 10,
+      "values": [
+        {
+          "value": "validate",
+          "wire": "validate"
+        },
+        {
+          "value": "connect",
+          "wire": "connect"
+        },
+        {
+          "value": "probe",
+          "wire": "probe"
+        },
+        {
+          "value": "prepare",
+          "wire": "prepare"
+        },
+        {
+          "value": "read",
+          "wire": "read"
+        },
+        {
+          "value": "write",
+          "wire": "write"
+        },
+        {
+          "value": "finalize",
+          "wire": "finalize"
+        },
+        {
+          "value": "commit",
+          "wire": "commit"
+        },
+        {
+          "value": "rollback",
+          "wire": "rollback"
+        },
+        {
+          "value": "cleanup",
+          "wire": "cleanup"
+        }
+      ]
+    },
+    "remote_effect": {
+      "expected_count": 5,
+      "values": [
+        {
+          "value": "none",
+          "wire": "none"
+        },
+        {
+          "value": "rolled_back",
+          "wire": "rolled_back"
+        },
+        {
+          "value": "partial",
+          "wire": "partial"
+        },
+        {
+          "value": "committed",
+          "wire": "committed"
+        },
+        {
+          "value": "unknown",
+          "wire": "unknown"
+        }
+      ]
+    },
+    "retry": {
+      "expected_count": 5,
+      "values": [
+        {
+          "value": "never",
+          "wire": {
+            "kind": "never"
+          }
+        },
+        {
+          "value": "safe",
+          "wire": {
+            "kind": "safe"
+          }
+        },
+        {
+          "value": "requires_idempotency_key",
+          "wire": {
+            "kind": "requires_idempotency_key"
+          }
+        },
+        {
+          "value": "requires_recovery",
+          "wire": {
+            "kind": "requires_recovery"
+          }
+        },
+        {
+          "value": "after",
+          "wire": {
+            "kind": "after",
+            "delay_ms": 1500
+          }
+        }
+      ]
+    },
+    "session": {
+      "expected_count": 3,
+      "values": [
+        {
+          "value": "reusable",
+          "wire": "reusable"
+        },
+        {
+          "value": "discard",
+          "wire": "discard"
+        },
+        {
+          "value": "quarantine",
+          "wire": "quarantine"
+        }
+      ]
+    }
+  },
+  "conservative_values": {
+    "remote_effect": "unknown",
+    "retry": "requires_recovery"
+  },
+  "descriptive_axes": [
+    "category",
+    "phase"
+  ],
+  "forbidden_degradations": {
+    "remote_effect": [
+      "none",
+      "committed"
+    ],
+    "retry": [
+      "safe"
+    ]
+  },
+  "absent_axis_defaults": {
+    "session": "reusable"
+  },
+  "degradation_cases": [
+    {
+      "id": "retry-quarantine-da-database-tools",
+      "axis": "retry",
+      "note": "Il caso reale del 2026-08-07: Database Tools emette quarantine sull'asse ritentativo, IO Tools non lo conosce. Prima di R9.16 l'intero envelope andava perso.",
+      "envelope": {
+        "category": "data_mapping",
+        "phase": "rollback",
+        "remote_effect": "unknown",
+        "retry": {
+          "kind": "quarantine"
+        },
+        "message": "vincolo violato durante il rollback"
+      },
+      "expected": {
+        "readable": true,
+        "category": "data_mapping",
+        "phase": "rollback",
+        "remote_effect": "unknown",
+        "retry_effective": "requires_recovery",
+        "retry_received": {
+          "kind": "quarantine"
+        }
+      }
+    },
+    {
+      "id": "retry-valore-inventato",
+      "axis": "retry",
+      "note": "Un valore che non esiste in nessuna versione: verifica che la degradazione non dipenda dal conoscere quarantine in particolare.",
+      "envelope": {
+        "category": "protocol",
+        "phase": "commit",
+        "remote_effect": "partial",
+        "retry": {
+          "kind": "after_lunar_eclipse"
+        },
+        "message": "risposta non interpretabile"
+      },
+      "expected": {
+        "readable": true,
+        "category": "protocol",
+        "phase": "commit",
+        "remote_effect": "partial",
+        "retry_effective": "requires_recovery",
+        "retry_received": {
+          "kind": "after_lunar_eclipse"
+        }
+      }
+    },
+    {
+      "id": "remote-effect-inventato",
+      "axis": "remote_effect",
+      "envelope": {
+        "category": "timeout",
+        "phase": "commit",
+        "remote_effect": "half_committed",
+        "retry": {
+          "kind": "requires_recovery"
+        },
+        "message": "scadenza dopo l'invio del commit"
+      },
+      "expected": {
+        "readable": true,
+        "category": "timeout",
+        "phase": "commit",
+        "remote_effect_effective": "unknown",
+        "remote_effect_received": "half_committed",
+        "retry": "requires_recovery"
+      }
+    },
+    {
+      "id": "categoria-inventata",
+      "axis": "category",
+      "note": "Asse descrittivo: nessun valore conservativo, il comportamento resta governato da effetto e ritentativo.",
+      "envelope": {
+        "category": "quantum_decoherence",
+        "phase": "read",
+        "remote_effect": "none",
+        "retry": {
+          "kind": "never"
+        },
+        "message": "categoria non riconosciuta"
+      },
+      "expected": {
+        "readable": true,
+        "category_received": "quantum_decoherence",
+        "category_effective": null,
+        "phase": "read",
+        "remote_effect": "none",
+        "retry": "never"
+      }
+    },
+    {
+      "id": "fase-inventata",
+      "axis": "phase",
+      "envelope": {
+        "category": "io",
+        "phase": "defragment",
+        "remote_effect": "none",
+        "retry": {
+          "kind": "safe"
+        },
+        "message": "fase non riconosciuta"
+      },
+      "expected": {
+        "readable": true,
+        "category": "io",
+        "phase_received": "defragment",
+        "phase_effective": null,
+        "remote_effect": "none",
+        "retry": "safe"
+      }
+    },
+    {
+      "id": "asse-sessione-assente",
+      "axis": "session",
+      "note": "R9.18: l'assenza si legge reusable, cosi' un emittente che non dichiara l'asse resta conforme.",
+      "envelope": {
+        "category": "conflict",
+        "phase": "write",
+        "remote_effect": "rolled_back",
+        "retry": {
+          "kind": "never"
+        },
+        "message": "destinazione gia' esistente"
+      },
+      "expected": {
+        "readable": true,
+        "session_effective": "reusable"
+      }
+    },
+    {
+      "id": "campo-sconosciuto",
+      "axis": "envelope",
+      "note": "R9.16 vale anche per i campi, non solo per i valori. Rilevato dalla prima esecuzione contro un componente reale: `deny_unknown_fields` fa rifiutare l'envelope in blocco, quindi la regola che introduce l'asse sessione sarebbe irricevibile da chi non l'ha ancora adottato.",
+      "envelope": {
+        "category": "schema",
+        "phase": "prepare",
+        "remote_effect": "none",
+        "retry": {
+          "kind": "never"
+        },
+        "campo_di_una_versione_futura": {
+          "qualsiasi": "cosa"
+        },
+        "message": "campo non riconosciuto"
+      },
+      "expected": {
+        "readable": true,
+        "category": "schema",
+        "phase": "prepare",
+        "remote_effect": "none",
+        "retry": "never",
+        "unknown_fields_received": [
+          "campo_di_una_versione_futura"
+        ]
+      }
+    },
+    {
+      "id": "sessione-inventata",
+      "axis": "session",
+      "envelope": {
+        "category": "protocol",
+        "phase": "cleanup",
+        "remote_effect": "unknown",
+        "retry": {
+          "kind": "requires_recovery"
+        },
+        "session": "incinerate",
+        "message": "disposizione di sessione non riconosciuta"
+      },
+      "expected": {
+        "readable": true,
+        "session_received": "incinerate",
+        "session_effective": "quarantine"
+      }
+    }
+  ],
+  "relay_cases": [
+    {
+      "id": "inoltro-di-quarantine",
+      "note": "R9.16: chi inoltra ritrasmette invariato cio' che non ha compreso, perche' il destinatario successivo potrebbe comprenderlo.",
+      "chain": [
+        "database-tools",
+        "data-tools",
+        "io-tools"
+      ],
+      "envelope": {
+        "category": "data_mapping",
+        "phase": "rollback",
+        "remote_effect": "unknown",
+        "retry": {
+          "kind": "quarantine"
+        },
+        "message": "vincolo violato durante il rollback"
+      },
+      "expected_at_each_hop": {
+        "retry": {
+          "kind": "quarantine"
+        },
+        "category": "data_mapping",
+        "phase": "rollback",
+        "remote_effect": "unknown"
+      }
+    },
+    {
+      "id": "inoltro-di-un-valore-inventato-su-due-assi",
+      "chain": [
+        "io-tools",
+        "data-tools"
+      ],
+      "envelope": {
+        "category": "quantum_decoherence",
+        "phase": "read",
+        "remote_effect": "half_committed",
+        "retry": {
+          "kind": "never"
+        },
+        "message": "due assi non riconosciuti"
+      },
+      "expected_at_each_hop": {
+        "category": "quantum_decoherence",
+        "phase": "read",
+        "remote_effect": "half_committed",
+        "retry": {
+          "kind": "never"
+        }
+      }
+    }
+  ],
+  "reference_observations": {
+    "note": "Oracoli del contratto. NON sono evidenza che un componente sia conforme: ogni adattatore deve eseguire l'operazione, conservare l'envelope osservato e passarlo al giudice.",
+    "wire_forms": "as_specified",
+    "degradation_cases": [
+      "retry-quarantine-da-database-tools",
+      "retry-valore-inventato",
+      "remote-effect-inventato",
+      "categoria-inventata",
+      "fase-inventata",
+      "asse-sessione-assente",
+      "campo-sconosciuto",
+      "sessione-inventata"
+    ],
+    "relay_cases": [
+      "inoltro-di-quarantine",
+      "inoltro-di-un-valore-inventato-su-due-assi"
+    ]
+  }
+}
