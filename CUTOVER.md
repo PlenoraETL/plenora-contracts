@@ -1,15 +1,17 @@
-# Cutover plan
+# Cutover and adoption plan
 
-This document describes the replacement sequence. It is not authorization to
-delete or publish anything.
+The repository replacement was completed on 2026-08-18. The former remote
+history, branches and tags were not carried into this repository. The remaining
+work is component-owned adoption.
 
-## Guardrails
+## Guardrails used for replacement
 
-- Keep the existing remote repository intact until this candidate is reviewed.
+- The former remote was kept intact until the replacement candidate was
+  reviewed and explicit deletion confirmation was received.
 - Do not rewrite immutable release manifests or historical evidence in component
   repositories.
 - Do not claim compliance before a component has tests for the pinned contract.
-- Recreate the final repository as private with a clean Git history.
+- The final repository was recreated as private with a clean Git history.
 
 ## Reference inventory
 
@@ -31,17 +33,22 @@ Observed live-reference areas:
 - `runtime-tools`: no current reference found;
 - `rest-tools`: no current reference found.
 
-## Sequence
+## Completed replacement sequence
 
-1. Review the local candidate and approve its normative rules.
-2. Initialize a clean local Git history and tag the first candidate revision.
-3. Add component-owned adoption manifests and tests, one repository at a time.
-4. Classify every old reference as historical or live before changing it.
-5. Verify that no active gate depends on files that will disappear.
-6. Obtain explicit confirmation for the irreversible remote deletion.
-7. Delete and recreate `PlenoraETL/plenora-contracts` as a private repository.
-8. Push only the clean replacement history.
-9. Pin component adoption to an immutable replacement revision.
+1. The candidate was reviewed and its normative scope was fixed.
+2. A clean local Git history was initialized.
+3. Explicit confirmation was obtained for the irreversible remote deletion.
+4. `PlenoraETL/plenora-contracts` was deleted and recreated as private.
+5. Only the replacement history and branch `main` were published.
+6. The specification validator was run locally and in GitHub Actions.
+
+## Remaining adoption sequence
+
+1. Add component-owned adoption manifests and tests, one repository at a time.
+2. Classify every old reference as historical or live before changing it.
+3. Keep immutable release manifests and historical evidence unchanged.
+4. Verify that no active gate depends on files removed with the old repository.
+5. Pin each component to an immutable replacement revision.
 
 ## Initial migration gaps
 

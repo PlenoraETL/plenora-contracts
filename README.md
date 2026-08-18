@@ -68,5 +68,7 @@ specification itself; it is not a central integration-test harness.
 
 ## Repository status
 
-This is a clean replacement candidate. It must be reviewed locally before the
-existing `plenora-contracts` repository is deleted or recreated.
+This repository is the clean replacement for the former mixed-scope contracts
+repository. The remote is private and contains only the new history. Component
+adoption remains explicit: no component is conforming until its own pinned
+manifest and verification are in place.
