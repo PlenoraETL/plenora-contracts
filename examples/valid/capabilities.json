@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "interfaces": {
+    "cli": 2,
+    "python_sdk": 1
+  },
+  "build_features": ["example"],
+  "features": [
+    {
+      "id": "example.read",
+      "status": "available",
+      "required_build_feature": "example"
+    },
+    {
+      "id": "example.destructive_write",
+      "status": "unavailable",
+      "reason": "The operation has not completed provider qualification."
+    }
+  ]
+}

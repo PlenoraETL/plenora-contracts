@@ -1,0 +1,13 @@
+{
+  "status": "ok",
+  "protocol_version": 2,
+  "component": "plenora-example-tools",
+  "component_version": "1.4.0",
+  "contract": "plenora-example-catalog-v1",
+  "command": "catalog",
+  "result": {
+    "items": [
+      {"id": "example.read", "available": true}
+    ]
+  }
+}

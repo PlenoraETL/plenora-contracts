@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "component": "plenora-example-tools",
+  "contracts_source": {
+    "repository": "https://github.com/PlenoraETL/plenora-contracts.git",
+    "revision": "main"
+  },
+  "cli": {"applicable": false},
+  "python_sdk": {"applicable": false}
+}

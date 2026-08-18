@@ -1,0 +1,7 @@
+{
+  "category": "transient",
+  "phase": "connect",
+  "remote_effect": "none",
+  "retry": {"kind": "after"},
+  "message": "The remote endpoint is temporarily unavailable."
+}

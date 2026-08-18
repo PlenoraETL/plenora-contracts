@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "interfaces": {
+    "cli": 2,
+    "python_sdk": null
+  },
+  "features": [
+    {
+      "id": "example.write",
+      "status": "unavailable"
+    }
+  ]
+}

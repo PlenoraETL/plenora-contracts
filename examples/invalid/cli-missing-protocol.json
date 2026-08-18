@@ -1,0 +1,8 @@
+{
+  "status": "ok",
+  "component": "plenora-example-tools",
+  "component_version": "1.4.0",
+  "contract": "plenora-example-catalog-v1",
+  "command": "catalog",
+  "result": {}
+}

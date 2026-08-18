@@ -1,0 +1,18 @@
+{
+  "status": "error",
+  "protocol_version": 2,
+  "component": "plenora-example-tools",
+  "component_version": "1.4.0",
+  "contract": "plenora-cli-error-v1",
+  "command": "write",
+  "error": {
+    "category": "timeout",
+    "phase": "commit",
+    "remote_effect": "unknown",
+    "retry": {"kind": "requires_recovery"},
+    "code": "COMMIT_OUTCOME_UNKNOWN",
+    "provider": "example",
+    "execution_id": "exec-01J5R7Y7M4",
+    "message": "Commit confirmation was not received; verify the remote outcome before retrying."
+  }
+}
