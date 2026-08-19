@@ -159,10 +159,10 @@
         "version": 1
       },
       "mode": "adapter_required",
-      "interchange_contract": "plenora-json-records-v1",
+      "interchange_contract": "plenora-rest-execution-result-v1",
       "content_type": "application/json",
       "constraints": [
-        "An explicit JSON-to-Arrow adapter must define field types, nullability and row-error policy."
+        "An explicit JSON-to-Arrow adapter consumes the complete REST result and must define field types, nullability, ordering and per-record error policy."
       ]
     }
   ]

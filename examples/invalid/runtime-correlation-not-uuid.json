@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "contract": "plenora-runtime-vector-v1",
+  "kind": "request",
+  "content_type": "application/json",
+  "metadata": {
+    "plenora.capability.name": "plenora.database-tools",
+    "plenora.capability.version": "1",
+    "plenora.capability.operation": "database.read",
+    "plenora.operation.version": "1",
+    "plenora.input.contract": "plenora-database-read-input-v1",
+    "plenora.trace.correlation_id": "not-a-canonical-uuid"
+  },
+  "payload": {}
+}

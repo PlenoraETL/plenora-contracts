@@ -102,7 +102,8 @@ The initial profiles cover:
 - `plenora-storage-tools`.
 
 `runtime-tools` is a consumer and transport binding for these public contracts;
-it is not one of the five domain libraries.
+it is not one of the five domain libraries. Its separate adoption target is the
+[runtime-tools transport profile](profiles/runtime-tools.md).
 
 ## Versioning
 

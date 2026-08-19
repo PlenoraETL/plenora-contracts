@@ -58,6 +58,10 @@ public operation:
 The machine representation is defined by
 [Capability Discovery 2.0](../capabilities/CAPABILITY-DISCOVERY-2.0.md).
 
+`side_effect` represents the conservative maximum-risk class. `remote` may
+include local effects in addition to remote effects; `local` guarantees that
+the operation cannot produce remote mutations.
+
 ## 5. Input and output contracts
 
 **SURF-007** — An operation MUST reject input that does not satisfy its declared

@@ -44,10 +44,18 @@ invocation with `protocol` or `unsupported`.
 **RT-005** — The serialized payload content type MUST be one of the input
 content types advertised for that operation version.
 
-Message identity and optional causation identity are carried by the runtime
-message envelope and remain observable to the caller. The canonical correlation
-metadata key is `plenora.trace.correlation_id`; alternate spellings are not
-compatible aliases.
+The runtime message envelope carries these identity keys:
+
+| Key | Requirement |
+|---|---|
+| `plenora.message.id` | required unique message identity |
+| `plenora.trace.correlation_id` | required originating correlation identity |
+| `plenora.message.causation_id` | optional direct-cause message identity |
+
+**RT-012** — Envelope identities MUST use the canonical lowercase hyphenated
+UUID representation. Alternate key spellings and non-canonical UUID text are
+not compatible aliases. Message and optional causation identities remain
+observable to the caller; results preserve the originating correlation UUID.
 
 ## 4. Execution controls
 
@@ -64,7 +72,19 @@ descriptor declares it unsupported.
 **RT-007** — Deadline, cancellation and idempotency behavior MUST preserve the
 semantics of the same operation version on its other public surfaces.
 
-## 5. Success result
+## 5. Artifact-bearing requests and results
+
+**RT-013** — A persistable serialized input that identifies a file or other
+artifact MUST carry an opaque artifact reference. Private local paths MUST NOT
+cross the runtime boundary. The reference is resolved only through an
+authorized runtime resource.
+
+**RT-014** — An artifact result MUST preserve its output contract, content
+type, originating correlation identity, byte count and checksum algorithm and
+value. The concrete transport or storage mechanism for the artifact is
+implementation-specific.
+
+## 6. Success result
 
 A successful runtime invocation returns serialized output with:
 
@@ -81,7 +101,7 @@ output contract explicitly represents an empty acknowledgement.
 delivery, but every delivered result MUST preserve the advertised content type,
 output contract and correlation identity.
 
-## 6. Failure result
+## 7. Failure result
 
 **RT-010** — A public runtime failure MUST preserve the common error axes from
 `plenora-error-v1`. An adapter-specific retry class is not a substitute for
@@ -94,21 +114,21 @@ A serialized error result uses content type
 **RT-011** — Unknown operation, version, input contract or content type fails
 before invocation with `remote_effect: none`.
 
-## 7. Security
+## 8. Security
 
 Runtime requests follow
 [Public Security 1.0](../security/PUBLIC-SECURITY-1.0.md). Persistable messages carry
 connection or secret references and MUST NOT contain raw credentials, tokens,
 authorization headers or private key material.
 
-## 8. Compatibility
+## 9. Compatibility
 
 Adding optional metadata is compatible when its absence preserves previous
 behavior. Renaming reserved keys, changing their meaning, changing routing
 identity or weakening result/error semantics requires a new runtime binding
 version.
 
-## 9. Canonical selectors and vectors
+## 10. Canonical selectors and vectors
 
 The exact operation selectors for the five component profiles are registered
 in [`bindings/runtime-v1.json`](../../bindings/runtime-v1.json). Reusable

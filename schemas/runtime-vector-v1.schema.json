@@ -13,8 +13,66 @@
     "content_type": {"type": "string", "minLength": 3},
     "metadata": {
       "type": "object",
+      "required": ["plenora.trace.correlation_id"],
+      "properties": {
+        "plenora.capability.name": {
+          "type": "string",
+          "pattern": "^plenora\\.[a-z][a-z0-9-]*-tools$"
+        },
+        "plenora.capability.version": {"const": "1"},
+        "plenora.capability.operation": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+        },
+        "plenora.operation.version": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "plenora.input.contract": {"$ref": "#/$defs/contractId"},
+        "plenora.output.contract": {"$ref": "#/$defs/contractId"},
+        "plenora.trace.correlation_id": {"$ref": "#/$defs/uuid"}
+      },
       "additionalProperties": {"type": "string"}
     },
     "payload": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"kind": {"const": "request"}}, "required": ["kind"]},
+      "then": {
+        "properties": {
+          "metadata": {
+            "required": [
+              "plenora.capability.name", "plenora.capability.version",
+              "plenora.capability.operation", "plenora.operation.version",
+              "plenora.input.contract"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"kind": {"enum": ["success", "error"]}}, "required": ["kind"]},
+      "then": {
+        "properties": {
+          "metadata": {
+            "required": [
+              "plenora.capability.operation", "plenora.operation.version",
+              "plenora.output.contract"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "contractId": {
+      "type": "string",
+      "pattern": "^plenora-[a-z0-9-]+-v[1-9][0-9]*$"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    }
   }
 }

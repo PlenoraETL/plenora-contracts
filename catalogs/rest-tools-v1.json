@@ -9,7 +9,7 @@
     "rust": "required",
     "cli": "not_applicable",
     "python_sdk": "required",
-    "runtime": "conditional"
+    "runtime": "required"
   },
   "operations": [
     {
@@ -21,7 +21,8 @@
       "input": {"contract": "plenora-rest-execution-request-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-rest-execution-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "remote",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "attributes": {"contract": "plenora-rest-capability-attributes-v1"}
     },
     {
       "id": "rest.generate",
@@ -32,7 +33,8 @@
       "input": {"contract": "plenora-rest-execution-request-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-rest-execution-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "remote",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "attributes": {"contract": "plenora-rest-capability-attributes-v1"}
     },
     {
       "id": "rest.enrich",
@@ -43,31 +45,32 @@
       "input": {"contract": "plenora-rest-execution-request-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-rest-execution-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "remote",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "attributes": {"contract": "plenora-rest-capability-attributes-v1"}
     },
     {
       "id": "rest.download",
       "version": 1,
       "requirement": "required",
-      "summary": "Download a bounded response to an explicitly allowed local artifact and report integrity metadata.",
+      "summary": "Download a bounded response to an explicitly authorized artifact sink and report integrity metadata.",
       "surfaces": ["rust", "python_sdk", "runtime"],
-      "input": {"contract": "plenora-rest-execution-request-v1", "content_types": ["application/json"], "interchange_contracts": []},
+      "input": {"contract": "plenora-rest-file-transfer-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-rest-file-transfer-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "side_effect": "local",
+      "side_effect": "remote",
       "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
-      "attributes": {"direction": "download", "integrity": "sha256"}
+      "attributes": {"contract": "plenora-rest-capability-attributes-v1", "direction": "download", "integrity": "sha256"}
     },
     {
       "id": "rest.upload",
       "version": 1,
       "requirement": "required",
-      "summary": "Upload a bounded local artifact and return structured response and integrity evidence.",
+      "summary": "Upload an explicitly authorized artifact source and return structured response and integrity evidence.",
       "surfaces": ["rust", "python_sdk", "runtime"],
-      "input": {"contract": "plenora-rest-file-transfer-input-v1", "content_types": ["application/json", "application/octet-stream"], "interchange_contracts": []},
+      "input": {"contract": "plenora-rest-file-transfer-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-rest-file-transfer-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "remote",
       "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
-      "attributes": {"direction": "upload", "integrity": "sha256"}
+      "attributes": {"contract": "plenora-rest-capability-attributes-v1", "direction": "upload", "integrity": "sha256"}
     }
   ]
 }

@@ -1,0 +1,11 @@
+{
+  "surface": "runtime",
+  "operation": "rest.download",
+  "input_contract": "plenora-rest-file-transfer-input-v1",
+  "content_type": "application/json",
+  "declared_side_effect": "local",
+  "input": {
+    "connection": {"method": "POST", "credential_ref": "secret://rest/production"},
+    "artifact_sink": {"reference": "artifact://tenant-a/8d936f1d"}
+  }
+}
