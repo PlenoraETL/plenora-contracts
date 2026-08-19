@@ -14,12 +14,12 @@ current implementation status.
   must still follow the applicable common contract.
 - **undecided**: no stable public product decision has been made.
 
-| Component | Rust | CLI | Python SDK | Runtime |
+| Domain component | Rust | CLI | Python SDK | Runtime |
 |---|---:|---:|---:|---:|
 | database-tools | required | required | required | conditional |
 | data-tools | required | required | not required | conditional |
 | io-tools | required | required | not required | conditional |
-| rest-tools | required | not required | required | conditional |
+| rest-tools | required | not required | required | required |
 | storage-tools | undecided | undecided | undecided | undecided |
 
 The exact target operations are machine-readable in:
@@ -37,7 +37,7 @@ cross-library handoffs are in
 
 ## Common obligations
 
-Every profile requires:
+Every domain profile requires:
 
 - stable component and operation identity;
 - truthful Capability Discovery 2.0;
@@ -51,6 +51,8 @@ Arrow and row diagnostics apply only to operations declaring those public
 representations.
 
 Operations listing the `runtime` surface follow Runtime Binding 1.0.
+The transport that consumes those operations follows the separate
+[runtime-tools profile](runtime-tools.md); it is not a sixth domain profile.
 
 ## Status
 
@@ -65,3 +67,7 @@ temporary deviations.
 - [io-tools](io-tools.md)
 - [rest-tools](rest-tools.md)
 - [storage-tools](storage-tools.md)
+
+Transport consumer:
+
+- [runtime-tools](runtime-tools.md)

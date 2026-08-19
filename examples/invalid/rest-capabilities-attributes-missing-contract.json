@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "component": "plenora-rest-tools",
+  "component_version": "1.0.0",
+  "interfaces": [
+    {"kind": "runtime", "contract": "plenora-runtime-binding-v1", "version": 1, "artifact": "plenora.rest-tools"}
+  ],
+  "operations": [
+    {
+      "id": "rest.upload",
+      "version": 1,
+      "status": "available",
+      "surfaces": ["runtime"],
+      "input": {"contract": "plenora-rest-file-transfer-input-v1", "content_types": ["application/json"]},
+      "output": {"contract": "plenora-rest-file-transfer-result-v1", "content_types": ["application/json"]},
+      "side_effect": "remote",
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "attributes": {"direction": "upload", "integrity": "sha256"}
+    }
+  ]
+}

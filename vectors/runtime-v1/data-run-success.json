@@ -8,7 +8,7 @@
     "plenora.capability.operation": "data.run",
     "plenora.operation.version": "1",
     "plenora.output.contract": "plenora-data-execution-result-v1",
-    "plenora.trace.correlation_id": "vector-data-run-1"
+    "plenora.trace.correlation_id": "018f3d84-7b2c-7f00-8000-000000000002"
   },
   "payload": {
     "fixture": "arrow-stream-bytes-are-supplied-by-the-adopting-test"

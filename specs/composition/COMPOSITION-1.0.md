@@ -44,10 +44,12 @@ row meaning survive.
 
 ## 4. Explicit adapters
 
-`rest.enrich` produces JSON. It is not directly composable with `data.run`,
-which consumes typed Arrow inputs. A JSON-to-Arrow adapter must explicitly own
-field type inference or declaration, nullability, ordering and row-error
-policy. No component may silently infer this edge from matching field names.
+`rest.enrich` produces `plenora-rest-execution-result-v1` as JSON. It is not
+directly composable with `data.run`, which consumes typed Arrow inputs. A
+JSON-to-Arrow adapter consumes the complete REST result, including ordering and
+partial errors, and must explicitly own field type inference or declaration,
+nullability, ordering and per-record error policy. No component may silently
+infer this edge from matching field names.
 
 Storage composition remains undefined until the provisional storage catalog is
 replaced by reviewed operations and artifact-reference contracts.
@@ -63,3 +65,8 @@ For a `direct` edge, the semantic validator checks that:
 
 This prevents documentation from claiming composition that the machine
 catalogs do not support.
+
+For an `adapter_required` edge, the named contract MUST be either the source
+operation's output contract or an interchange contract declared by that
+output. The adapter owns the conversion from that complete source result to a
+contract accepted by the target.

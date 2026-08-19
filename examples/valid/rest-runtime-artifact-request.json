@@ -1,0 +1,22 @@
+{
+  "surface": "runtime",
+  "operation": "rest.upload",
+  "input_contract": "plenora-rest-file-transfer-input-v1",
+  "content_type": "application/json",
+  "declared_side_effect": "remote",
+  "input": {
+    "connection": {
+      "method": "PUT",
+      "credential_ref": "secret://rest/production",
+      "content_type": "application/octet-stream"
+    },
+    "artifact_source": {
+      "reference": "artifact://tenant-a/8d936f1d"
+    },
+    "size_limit_bytes": 10485760,
+    "integrity": {
+      "algorithm": "sha256",
+      "value": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  }
+}

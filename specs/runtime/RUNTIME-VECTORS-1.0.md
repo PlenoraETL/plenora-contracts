@@ -15,6 +15,10 @@ contract and content type. A component test MUST reject any mutation that makes
 these values disagree with its capability descriptor before invoking domain
 functionality.
 
+Every vector carries `plenora.trace.correlation_id` as a canonical lowercase
+hyphenated UUID. Request metadata additionally carries the runtime capability
+identity; success and error metadata carry the output contract.
+
 The payload is illustrative operation data. It deliberately uses protected
 references and MUST NOT be replaced with real credentials in committed test
 evidence.
@@ -37,6 +41,10 @@ paired with quarantine or recovery, never automatic retry.
 component tests selector validation, invocation and semantic result/error
 mapping through its public runtime adapter. Neither test needs access to the
 other component's private types.
+
+`runtime-tools` adopts these obligations through the separate
+[runtime-tools transport profile](../../profiles/runtime-tools.md). That profile
+does not make it a sixth domain library.
 
 The structural shape is defined by
 [`runtime-vector-v1.schema.json`](../../schemas/runtime-vector-v1.schema.json).
