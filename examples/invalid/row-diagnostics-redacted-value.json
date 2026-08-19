@@ -1,0 +1,24 @@
+{
+  "contract": "plenora-row-diagnostics-v1",
+  "scope": "read",
+  "index_basis": "source_row_zero_based",
+  "completeness": "complete",
+  "observed_total": 1,
+  "total": 1,
+  "counts": {
+    "conversion.value_not_representable": 1
+  },
+  "examples_limit": 1,
+  "examples_truncated": false,
+  "examples": [
+    {
+      "source_index": 3,
+      "cause": "conversion.value_not_representable",
+      "key": {
+        "field": "secret",
+        "state": "redacted",
+        "value": "must-not-be-published"
+      }
+    }
+  ]
+}

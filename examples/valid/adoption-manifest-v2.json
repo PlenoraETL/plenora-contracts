@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "component": "plenora-example-tools",
+  "contracts_source": {
+    "repository": "https://github.com/PlenoraETL/plenora-contracts.git",
+    "revision": "0123456789abcdef0123456789abcdef01234567"
+  },
+  "profile": "plenora-example-tools-profile-v1",
+  "artifacts": [
+    {
+      "name": "plenora-example-core",
+      "surface": "rust",
+      "version": "1.4.0",
+      "verification": [
+        "cargo test -p plenora-example-core public_contract"
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "id": "plenora-public-surfaces-v1",
+      "status": "conforming",
+      "verification": [
+        "cargo test -p plenora-example-core capability_catalog"
+      ]
+    },
+    {
+      "id": "plenora-cli-v2",
+      "status": "not_applicable"
+    }
+  ],
+  "deviations": []
+}

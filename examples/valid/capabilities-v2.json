@@ -1,0 +1,44 @@
+{
+  "schema_version": 2,
+  "component": "plenora-io-tools",
+  "component_version": "1.0.1",
+  "interfaces": [
+    {
+      "kind": "rust",
+      "contract": "plenora-rust-public-v1",
+      "version": 1,
+      "artifact": "plenora-io-core"
+    },
+    {
+      "kind": "cli",
+      "contract": "plenora-cli-v2",
+      "version": 2,
+      "artifact": "plenora-io-tools"
+    }
+  ],
+  "operations": [
+    {
+      "id": "io.read",
+      "version": 1,
+      "status": "available",
+      "surfaces": ["rust", "cli"],
+      "input": {
+        "contract": "plenora-io-read-input-v1",
+        "content_types": ["application/json"]
+      },
+      "output": {
+        "contract": "plenora-arrow-table-v1",
+        "content_types": ["application/vnd.apache.arrow.stream"]
+      },
+      "side_effect": "none",
+      "controls": {
+        "cancellation": true,
+        "deadline": true,
+        "idempotency_key": false
+      },
+      "attributes": {
+        "formats": ["csv", "geojson", "parquet"]
+      }
+    }
+  ]
+}

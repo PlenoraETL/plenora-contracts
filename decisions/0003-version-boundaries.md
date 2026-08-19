@@ -1,6 +1,6 @@
 # Decision 0003: Do not redefine component-local v1 protocols
 
-Status: accepted for the replacement candidate
+Status: accepted
 
 ## Context
 

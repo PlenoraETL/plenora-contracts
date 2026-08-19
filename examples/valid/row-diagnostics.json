@@ -1,0 +1,32 @@
+{
+  "contract": "plenora-row-diagnostics-v1",
+  "scope": "write",
+  "index_basis": "source_row_zero_based",
+  "completeness": "partial",
+  "knowledge_limits": ["write.scan_stopped_at_first_defect"],
+  "observed_total": 2,
+  "input_total": 100,
+  "counts": {
+    "database.constraint_violation": 2
+  },
+  "examples_limit": 1,
+  "examples_truncated": true,
+  "examples": [
+    {
+      "source_index": 17,
+      "cause": "database.constraint_violation",
+      "column": "external_id",
+      "key": {
+        "field": "external_id",
+        "state": "redacted"
+      },
+      "write_state": "certainly_rolled_back"
+    }
+  ],
+  "write_outcome": {
+    "certainly_rejected": {"state": "known", "value": 2},
+    "certainly_not_attempted": {"state": "unknown"},
+    "certainly_rolled_back": {"state": "known", "value": 2},
+    "effect_unknown": {"state": "known", "value": 0}
+  }
+}

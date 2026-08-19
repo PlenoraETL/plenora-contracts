@@ -32,6 +32,7 @@ Observed live-reference areas:
   ownership statements;
 - `runtime-tools`: no current reference found;
 - `rest-tools`: no current reference found.
+- `storage-tools`: repository not yet developed; no live reference exists.
 
 ## Completed replacement sequence
 
@@ -64,3 +65,12 @@ The inventory identified these expected migrations:
   declare both contracts not applicable until such a surface exists.
 - `rest-tools`: Python package naming, minimum Python version, lifecycle and
   error shape require alignment before it can claim SDK v1 adoption.
+- `storage-tools`: no operations or public surfaces are standardized yet; its
+  provisional profile must be completed before the first stable release.
+
+## Scope after cutover
+
+Decision 0004 expanded the replacement from CLI/SDK conventions to all shared
+public surfaces. This does not change the cutover history above. New adoption
+uses component profiles and adoption manifest v2; no internal implementation
+architecture is centralized.

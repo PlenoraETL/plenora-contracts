@@ -1,6 +1,6 @@
 # Decision 0001: Narrow interface-contract scope
 
-Status: accepted for the replacement candidate
+Status: superseded by Decision 0004
 
 ## Context
 
@@ -11,7 +11,7 @@ repository to become stale while the component implementations evolved.
 
 ## Decision
 
-The replacement repository specifies only common CLI and Python SDK behavior.
+The replacement repository initially specified only common CLI and Python SDK behavior.
 It contains no shared implementation and owns no component qualification.
 
 Domain contracts stay in their implementing repositories. Components pin an
@@ -25,3 +25,6 @@ immutable contracts revision and test their own adoption locally.
 - Common boundary behavior can evolve independently through explicit versions.
 - Historical release records in component repositories remain historical and
   are not rewritten during the cutover.
+
+Decision 0004 widens the scope to every shared public boundary while preserving
+the prohibition on internal implementation requirements.

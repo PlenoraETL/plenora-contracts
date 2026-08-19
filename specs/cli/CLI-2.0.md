@@ -1,6 +1,8 @@
 # Plenora CLI Contract 2.0
 
-Status: replacement candidate
+Status: normative
+
+Contract identifier: `plenora-cli-v2`
 
 This document is normative. The key words MUST, MUST NOT, SHOULD, SHOULD NOT and
 MAY describe requirement strength.
@@ -132,12 +134,17 @@ stopped waiting.
 ## 10. Capabilities
 
 The capability response MUST validate against
-`schemas/capabilities-v1.schema.json` and be carried inside the common success
+`schemas/capabilities-v2.schema.json` and be carried inside the common success
 envelope.
 
 Capabilities MUST describe the binary that is running, including compile-time
 feature selection. Unsupported behavior MUST remain unavailable or fail closed;
 roadmap intent is not a capability.
+
+Every public command that invokes domain functionality MUST map to an operation
+identifier advertised by capability discovery. The CLI command name MAY be a
+surface-specific spelling, but its operation version, input/output contract,
+errors and side effects MUST remain equivalent to the other advertised surfaces.
 
 ## 11. Security
 

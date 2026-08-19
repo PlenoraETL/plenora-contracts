@@ -1,74 +1,110 @@
-# Plenora Interface Contracts
+# Plenora Public Interface Contracts
 
-This repository defines the shared public conventions for Plenora command-line
-interfaces and Python SDKs.
+This repository defines the public contracts through which Plenora components
+expose functionality to callers, orchestrators and other components.
 
-The contracts are deliberately small. They standardize the boundary that an
-orchestrator or an SDK consumer can rely on, while each component remains the
-owner of its domain behavior.
+It specifies what is observable at a boundary: operation identity, capability
+discovery, accepted inputs, returned outputs, typed failures, CLI behavior,
+SDK behavior and shared interchange formats. It does not prescribe how a
+component is implemented.
 
-## Authority
+## Boundary rule
+
+A requirement belongs here only when an external consumer can verify it
+without inspecting component internals.
+
+This repository may require that `io.read` is discoverable, accepts a
+versioned input contract and returns a declared output contract. It must not
+require a particular Rust trait, module layout, executor, dependency or
+algorithm.
+
+## Reading path
+
+A component adopter reads:
+
+1. its target profile in [profiles](profiles/README.md);
+2. the normative specifications linked by that profile;
+3. the versioned schemas and examples referenced by those specifications;
+4. [ADOPTION.md](ADOPTION.md) to publish a pinned conformance declaration.
+
+An adopter does not need to read the implementation of the other components.
+
+## Normative sources
 
 The normative sources are:
 
-- [CLI contract](specs/cli/CLI-2.0.md)
-- [Python SDK contract](specs/sdk/PYTHON-SDK-1.0.md)
-- the versioned JSON Schemas in [schemas](schemas)
+- [public surface contract](specs/surfaces/PUBLIC-SURFACES-1.0.md);
+- [capability discovery contract](specs/capabilities/CAPABILITY-DISCOVERY-2.0.md);
+- [typed error contract](specs/errors/ERRORS-1.0.md);
+- [Arrow interchange contract](specs/data/ARROW-INTERCHANGE-1.0.md);
+- [row diagnostics contract](specs/diagnostics/ROW-DIAGNOSTICS-1.0.md);
+- [public security contract](specs/security/PUBLIC-SECURITY-1.0.md);
+- [runtime binding contract](specs/runtime/RUNTIME-BINDING-1.0.md);
+- [CLI contract](specs/cli/CLI-2.0.md);
+- [Python SDK contract](specs/sdk/PYTHON-SDK-1.0.md);
+- the versioned JSON Schemas in [schemas](schemas/README.md);
+- the applicability rules in [profiles](profiles/README.md).
 
-Examples illustrate those sources but do not override them. Decisions explain
-why a rule exists but are not a second specification.
+Black-box verification guidance is collected in
+[conformance](conformance/README.md).
+Component-owned operation specifications can start from the
+[public operation template](templates/OPERATION-CONTRACT.md).
+
+Examples illustrate the normative sources but do not override them. Decisions
+explain why a rule exists and are not a second specification.
 
 ## Scope
 
-This repository owns only:
+This repository owns cross-component public behavior:
 
-- process-level CLI behavior shared across Plenora components;
-- machine-readable success and error envelopes;
-- stable error axes and exit-code projection;
-- capability discovery and interface-version reporting;
-- common Python SDK naming, lifecycle, typing, error and security rules;
-- an adoption manifest that components can keep in their own repositories.
+- stable component, operation and contract identifiers;
+- discovery of operations actually exposed by a released artifact;
+- public input, output and error semantics;
+- common CLI and Python SDK behavior;
+- Arrow and GeoArrow metadata exchanged between components;
+- bounded row-level diagnostics exposed to callers;
+- compatibility and adoption declarations.
+
+An operation-specific input or output contract belongs here when two or more
+components exchange it directly. A contract used by only one component remains
+component-owned and is referenced by its stable identifier.
 
 ## Explicit exclusions
 
 This repository does not own:
 
-- database, file-format, REST, geospatial or runtime domain semantics;
-- Arrow schemas used by a specific operation;
-- SQL dialects, plans, catalogs, provider capability matrices or wire formats;
-- shared runtime code or Python wrappers;
-- component release evidence, performance baselines or qualification campaigns;
-- snapshots of the implementation status of individual repositories.
+- crate, package, module or directory layout;
+- Rust traits, private types, executors, pools, threads or async runtimes;
+- algorithms, query planners, parsers, drivers or provider implementations;
+- database dialect internals, storage engines or file-format internals;
+- dependency selection or implementation performance techniques;
+- snapshots of the current implementation status of a component.
 
-Those artifacts stay with the component that implements and verifies them.
+Profiles define the target public surface. Actual status, verification commands
+and temporary deviations live in the adopting component's manifest.
 
-## Versions
+## Components
 
-The first common CLI contract is protocol version 2. Existing component-local
-protocols named version 1 are not silently redefined.
+The initial profiles cover:
 
-The Python SDK contract starts at version 1 because it describes a new common
-behavioral surface rather than replacing a shared wire protocol.
+- `plenora-database-tools`;
+- `plenora-data-tools`;
+- `plenora-io-tools`;
+- `plenora-rest-tools`;
+- `plenora-storage-tools`.
 
-Schema identifiers are immutable. A compatible clarification may update prose;
-an incompatible machine contract requires a new schema and protocol version.
+`runtime-tools` is a consumer and transport binding for these public contracts;
+it is not one of the five domain libraries.
+
+## Versioning
+
+Contract identifiers are immutable. Compatible clarification may update prose.
+Any change that alters accepted machine data or observable meaning requires a
+new schema or contract version. See [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## Adoption
 
-A component adopts these contracts by:
-
-1. adding an adoption manifest that validates against
-   `schemas/adoption-manifest-v1.schema.json`;
-2. pinning an immutable revision of this repository;
-3. testing its own CLI and SDK against that pinned revision;
-4. recording temporary deviations explicitly instead of claiming compliance.
-
-The component remains responsible for its tests. This repository validates the
-specification itself; it is not a central integration-test harness.
-
-## Repository status
-
-This repository is the clean replacement for the former mixed-scope contracts
-repository. The remote is private and contains only the new history. Component
-adoption remains explicit: no component is conforming until its own pinned
-manifest and verification are in place.
+Conformance is explicit and pinned to an immutable revision. A project cannot
+claim conformance merely because its internal types look similar. It must expose
+the required behavior and verify it through its public boundary as described in
+[ADOPTION.md](ADOPTION.md).

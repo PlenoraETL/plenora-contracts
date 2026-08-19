@@ -19,8 +19,15 @@ CASES = {
             "examples/valid/cli-error.json",
         ],
         "capabilities-v1.schema.json": ["examples/valid/capabilities.json"],
+        "capabilities-v2.schema.json": ["examples/valid/capabilities-v2.json"],
+        "row-diagnostics-v1.schema.json": [
+            "examples/valid/row-diagnostics.json"
+        ],
         "adoption-manifest-v1.schema.json": [
             "examples/valid/adoption-manifest.json"
+        ],
+        "adoption-manifest-v2.schema.json": [
+            "examples/valid/adoption-manifest-v2.json"
         ],
     },
     "invalid": {
@@ -33,8 +40,17 @@ CASES = {
         "capabilities-v1.schema.json": [
             "examples/invalid/capabilities-unavailable-without-reason.json"
         ],
+        "capabilities-v2.schema.json": [
+            "examples/invalid/capabilities-v2-unavailable-without-reason.json"
+        ],
+        "row-diagnostics-v1.schema.json": [
+            "examples/invalid/row-diagnostics-redacted-value.json"
+        ],
         "adoption-manifest-v1.schema.json": [
             "examples/invalid/adoption-floating-revision.json"
+        ],
+        "adoption-manifest-v2.schema.json": [
+            "examples/invalid/adoption-v2-floating-revision.json"
         ],
     },
 }
@@ -98,9 +114,12 @@ def main() -> int:
     }
     if set(schemas) != {
         "adoption-manifest-v1.schema.json",
+        "adoption-manifest-v2.schema.json",
         "capabilities-v1.schema.json",
+        "capabilities-v2.schema.json",
         "cli-envelope-v2.schema.json",
         "error-v1.schema.json",
+        "row-diagnostics-v1.schema.json",
     }:
         print("schema inventory differs from the validation contract", file=sys.stderr)
         return 1

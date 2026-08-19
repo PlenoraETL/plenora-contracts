@@ -1,6 +1,8 @@
 # Plenora Python SDK Contract 1.0
 
-Status: replacement candidate
+Status: normative
+
+Contract identifier: `plenora-python-sdk-v1`
 
 This document is normative. The key words MUST, MUST NOT, SHOULD, SHOULD NOT and
 MAY describe requirement strength.
@@ -91,6 +93,11 @@ strings, authorization headers, bound statements and source payloads.
 The SDK MUST provide structured capability discovery before a consumer needs to
 attempt a destructive operation.
 
+Capability discovery MUST expose a value semantically equivalent to
+`schemas/capabilities-v2.schema.json`. Python-native typed objects MAY wrap the
+document, but operation identifiers, versions, surfaces, contracts, status and
+controls MUST remain available without parsing text.
+
 Unsupported or unqualified behavior MUST fail closed with category
 `unsupported` or a more precise validation category. An argument MUST NOT be
 silently ignored or emulated with different semantics.
@@ -149,3 +156,11 @@ The following require a component major release:
 
 Additive optional parameters and new exception subclasses are compatible only
 when existing callers retain the same behavior.
+
+## 12. Operation identity across surfaces
+
+Every public SDK method that invokes domain functionality MUST map to an
+operation identifier advertised by capability discovery. Python method naming
+MAY be idiomatic, but validation, defaults, output meaning, error axes and side
+effects MUST remain equivalent to the same operation version on other public
+surfaces.
