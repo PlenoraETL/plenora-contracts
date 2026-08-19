@@ -13,6 +13,14 @@ from referencing import Registry, Resource
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_DIR = ROOT / "schemas"
 
+MAX_ERROR_BYTES = 524_288
+MAX_ERROR_DETAILS_BYTES = 262_144
+MAX_ERROR_DETAILS_DEPTH = 8
+MAX_ERROR_DETAILS_OBJECT_PROPERTIES = 128
+MAX_ERROR_DETAILS_ARRAY_ITEMS = 128
+MAX_ERROR_DETAILS_STRING_BYTES = 4_096
+MAX_ERROR_DETAILS_NODES = 2_048
+
 EXPECTED_SCHEMAS = {
     "adoption-manifest-v1.schema.json",
     "adoption-manifest-v2.schema.json",
@@ -37,6 +45,7 @@ CASES = {
         ],
         "capabilities-v1.schema.json": ["examples/valid/capabilities.json"],
         "capabilities-v2.schema.json": ["examples/valid/capabilities-v2.json"],
+        "error-v1.schema.json": ["examples/valid/error-details-bounded.json"],
         "row-diagnostics-v1.schema.json": ["examples/valid/row-diagnostics.json"],
         "adoption-manifest-v1.schema.json": ["examples/valid/adoption-manifest.json"],
         "adoption-manifest-v2.schema.json": ["examples/valid/adoption-manifest-v2.json"],
@@ -160,6 +169,110 @@ def validate_examples(
                     failures.append(f"{relative_path} must validate: {errors[0]}")
                 if expectation == "invalid" and not errors:
                     failures.append(f"{relative_path} must be rejected")
+    return failures
+
+
+def compact_json_size(value: Any) -> int:
+    return len(
+        json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    )
+
+
+def error_bound_errors(error: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if compact_json_size(error) > MAX_ERROR_BYTES:
+        errors.append("compact error JSON exceeds the byte limit")
+
+    details = error.get("details")
+    if not isinstance(details, dict):
+        return errors
+    if compact_json_size(details) > MAX_ERROR_DETAILS_BYTES:
+        errors.append("compact error details JSON exceeds the byte limit")
+
+    node_count = 0
+
+    def visit(value: Any, depth: int) -> None:
+        nonlocal node_count
+        node_count += 1
+        if depth > MAX_ERROR_DETAILS_DEPTH:
+            errors.append("error details exceed the nesting-depth limit")
+            return
+        if isinstance(value, dict):
+            if len(value) > MAX_ERROR_DETAILS_OBJECT_PROPERTIES:
+                errors.append("error details object exceeds the property limit")
+            for child in value.values():
+                visit(child, depth + 1)
+        elif isinstance(value, list):
+            if len(value) > MAX_ERROR_DETAILS_ARRAY_ITEMS:
+                errors.append("error details array exceeds the item limit")
+            for child in value:
+                visit(child, depth + 1)
+        elif isinstance(value, str) and len(value.encode("utf-8")) > MAX_ERROR_DETAILS_STRING_BYTES:
+            errors.append("error details string exceeds the byte limit")
+
+    visit(details, 1)
+    if node_count > MAX_ERROR_DETAILS_NODES:
+        errors.append("error details exceed the JSON-node limit")
+    return errors
+
+
+def validate_error_bound_vectors(
+    schemas: dict[str, dict[str, Any]], registry: Registry
+) -> list[str]:
+    failures: list[str] = []
+    cases = {
+        "examples/valid/error-details-bounded.json": False,
+        "examples/invalid/error-details-too-deep.json": True,
+    }
+    for relative_path, must_violate in cases.items():
+        error = load_json(ROOT / relative_path)
+        schema_errors = instance_errors(schemas["error-v1.schema.json"], error, registry)
+        if schema_errors:
+            failures.append(f"{relative_path} must satisfy the structural error schema")
+            continue
+        bound_errors = error_bound_errors(error)
+        if must_violate and not bound_errors:
+            failures.append(f"{relative_path} must violate a semantic error bound")
+        if not must_violate and bound_errors:
+            failures.append(f"{relative_path} must satisfy semantic error bounds")
+
+    probes = {
+        "details byte limit": (
+            {"items": ["x" * MAX_ERROR_DETAILS_STRING_BYTES] * 65},
+            "details JSON exceeds the byte limit",
+        ),
+        "error byte limit": (
+            {"items": ["x" * MAX_ERROR_DETAILS_STRING_BYTES] * 128},
+            "error JSON exceeds the byte limit",
+        ),
+        "object property limit": (
+            {f"field_{index}": index for index in range(129)},
+            "object exceeds the property limit",
+        ),
+        "array item limit": (
+            {"items": list(range(129))},
+            "array exceeds the item limit",
+        ),
+        "string byte limit": (
+            {"value": "x" * (MAX_ERROR_DETAILS_STRING_BYTES + 1)},
+            "string exceeds the byte limit",
+        ),
+        "JSON node limit": (
+            {"groups": [list(range(128)) for _ in range(16)]},
+            "exceed the JSON-node limit",
+        ),
+    }
+    base_error = {
+        "category": "internal",
+        "phase": "unknown",
+        "remote_effect": "none",
+        "retry": {"kind": "never"},
+        "message": "Semantic bound probe.",
+    }
+    for name, (details, expected_fragment) in probes.items():
+        probe_errors = error_bound_errors({**base_error, "details": details})
+        if not any(expected_fragment in error for error in probe_errors):
+            failures.append(f"generated {name} probe did not exercise its guard")
     return failures
 
 
@@ -493,7 +606,7 @@ def validate_runtime_vectors(
         component, operation = resolved
         if metadata.get("plenora.operation.version") != str(operation["version"]):
             failures.append(f"{path.relative_to(ROOT)} has wrong operation version")
-        if "plenora.message.correlation_id" not in metadata:
+        if "plenora.trace.correlation_id" not in metadata:
             failures.append(f"{path.relative_to(ROOT)} lacks correlation identity")
 
         if vector["kind"] == "request":
@@ -526,6 +639,9 @@ def validate_runtime_vectors(
             errors = instance_errors(schemas["error-v1.schema.json"], vector["payload"], registry)
             if errors:
                 failures.append(f"{path.relative_to(ROOT)} has invalid typed error: {errors[0]}")
+            bound_errors = error_bound_errors(vector["payload"])
+            if bound_errors:
+                failures.append(f"{path.relative_to(ROOT)} has unbounded error: {bound_errors[0]}")
     return failures
 
 
@@ -560,6 +676,7 @@ def main() -> int:
     registry = schema_registry(schemas)
     catalogs = load_catalogs()
     failures = validate_examples(schemas, registry)
+    failures.extend(validate_error_bound_vectors(schemas, registry))
     failures.extend(validate_machine_documents(schemas, registry))
     failures.extend(validate_catalog_semantics(catalogs))
     failures.extend(validate_bindings(catalogs))
@@ -578,7 +695,8 @@ def main() -> int:
     composition_count = len(load_json(ROOT / "composition/pipelines-v1.json")["edges"])
     print(
         f"validated {len(schemas)} schemas, {valid_count} valid examples, "
-        f"{invalid_count} rejected examples, {len(catalogs)} public catalogs, "
+        f"{invalid_count} schema-rejected examples, 7 semantic error-bound probes, "
+        f"{len(catalogs)} public catalogs, "
         f"3 binding maps, {composition_count} composition edges and "
         f"{vector_count} conformance vectors"
     )

@@ -60,7 +60,10 @@ The inventory identified these expected migrations:
 - `data-tools`: closest current implementation; its error stream and rich exit
   mapping are the basis for protocol v2, but success envelopes remain uneven.
 - `IO-tools`: errors currently use stderr and its exit mapping differs; this is
-  an explicit breaking migration.
+  an explicit breaking migration. The adopted decision is a component major
+  cutover: the first conforming release is `2.0.0` or later in the `2.x` line,
+  and one artifact does not serve both CLI JSON protocols. Deprecated command
+  aliases may remain only when they emit protocol v2.
 - `runtime-tools`: no public common CLI or Python SDK surface was found; it may
   declare both contracts not applicable until such a surface exists.
 - `rest-tools`: Python package naming, minimum Python version, lifecycle and

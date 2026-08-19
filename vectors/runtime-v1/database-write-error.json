@@ -8,7 +8,7 @@
     "plenora.capability.operation": "database.write",
     "plenora.operation.version": "1",
     "plenora.output.contract": "plenora-error-v1",
-    "plenora.message.correlation_id": "vector-database-write-1"
+    "plenora.trace.correlation_id": "vector-database-write-1"
   },
   "payload": {
     "category": "internal",

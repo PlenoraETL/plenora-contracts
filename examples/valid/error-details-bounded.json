@@ -1,0 +1,15 @@
+{
+  "category": "io",
+  "phase": "read",
+  "remote_effect": "none",
+  "retry": {"kind": "never"},
+  "code": "IO_FORMAT_UNSUPPORTED",
+  "message": "The requested input format is not supported by this artifact.",
+  "details": {
+    "contract": "plenora-io-error-details-v1",
+    "data": {
+      "format": "gpkg",
+      "reason": "unsupported_option"
+    }
+  }
+}

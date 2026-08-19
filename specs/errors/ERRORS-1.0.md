@@ -60,6 +60,27 @@ redacted.
 headers, connection strings, bound SQL, source rows, unbounded payloads or local
 secret paths.
 
+**ERR-011** — The compact UTF-8 JSON encoding of a public error MUST NOT exceed
+524,288 bytes. The compact UTF-8 JSON encoding of `details` MUST NOT exceed
+262,144 bytes.
+
+**ERR-012** — Within `details`, counting the `details` object as depth 1:
+
+- nesting depth MUST NOT exceed 8;
+- an object MUST NOT contain more than 128 properties;
+- an array MUST NOT contain more than 128 items;
+- a string value MUST NOT exceed 4,096 UTF-8 bytes;
+- the complete value MUST NOT contain more than 2,048 JSON nodes, including
+  containers and scalar values.
+
+These are semantic byte and aggregate limits. Producers and conformance tests
+MUST enforce them in addition to JSON Schema validation.
+
+**ERR-013** — When a component profile requires typed error details, `details`
+MUST contain exactly the component-owned, versioned shape declared by that
+profile. Contract identifiers are immutable. Evolving the shape requires a new
+identifier; consumers MUST NOT infer the shape from `code` or `message`.
+
 `code`, `provider`, `execution_id` and `details` MAY provide structured
 context. Their absence MUST NOT change the meaning of the four common axes.
 

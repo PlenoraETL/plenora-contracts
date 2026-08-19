@@ -11,7 +11,7 @@
     "plenora.operation.version": "1",
     "plenora.input.contract": "plenora-database-read-input-v1",
     "plenora.execution.deadline": "2030-01-01T00:00:00Z",
-    "plenora.message.correlation_id": "vector-database-read-1"
+    "plenora.trace.correlation_id": "vector-database-read-1"
   },
   "payload": {
     "connection_ref": "secret://database/example",

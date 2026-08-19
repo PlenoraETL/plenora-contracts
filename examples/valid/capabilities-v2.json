@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "component": "plenora-io-tools",
-  "component_version": "1.0.1",
+  "component_version": "2.0.0",
   "interfaces": [
     {
       "kind": "rust",
@@ -18,6 +18,26 @@
   ],
   "operations": [
     {
+      "id": "io.catalog",
+      "version": 1,
+      "status": "available",
+      "surfaces": ["rust", "cli"],
+      "input": {
+        "contract": "plenora-io-catalog-query-v1",
+        "content_types": ["application/json"]
+      },
+      "output": {
+        "contract": "plenora-io-catalog-v1",
+        "content_types": ["application/json"]
+      },
+      "side_effect": "none",
+      "controls": {
+        "cancellation": false,
+        "deadline": false,
+        "idempotency_key": false
+      }
+    },
+    {
       "id": "io.read",
       "version": 1,
       "status": "available",
@@ -27,7 +47,7 @@
         "content_types": ["application/json"]
       },
       "output": {
-        "contract": "plenora-arrow-table-v1",
+        "contract": "plenora-io-read-result-v1",
         "content_types": ["application/vnd.apache.arrow.stream"]
       },
       "side_effect": "none",
@@ -35,9 +55,6 @@
         "cancellation": true,
         "deadline": true,
         "idempotency_key": false
-      },
-      "attributes": {
-        "formats": ["csv", "geojson", "parquet"]
       }
     }
   ]

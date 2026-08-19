@@ -35,6 +35,7 @@ A runtime request carries these reserved metadata values:
 | `plenora.capability.operation` | stable public operation identifier |
 | `plenora.operation.version` | operation contract version |
 | `plenora.input.contract` | versioned input contract identifier |
+| `plenora.trace.correlation_id` | originating correlation identity |
 
 **RT-004** — Routing and contract metadata MUST agree with one available
 operation advertised by Capability Discovery 2.0. Mismatch fails before
@@ -43,8 +44,10 @@ invocation with `protocol` or `unsupported`.
 **RT-005** — The serialized payload content type MUST be one of the input
 content types advertised for that operation version.
 
-Message identity, correlation identity and optional causation identity are
-carried by the runtime message envelope and remain observable to the caller.
+Message identity and optional causation identity are carried by the runtime
+message envelope and remain observable to the caller. The canonical correlation
+metadata key is `plenora.trace.correlation_id`; alternate spellings are not
+compatible aliases.
 
 ## 4. Execution controls
 

@@ -21,8 +21,7 @@
       "input": {"contract": "plenora-io-catalog-query-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-io-catalog-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "none",
-      "controls": {"cancellation": false, "deadline": false, "idempotency_key": false},
-      "attributes": {"format_ids": ["csv", "dxf", "filegdb", "geojson", "geoparquet", "gpkg", "ipc", "kml", "shp", "xls"]}
+      "controls": {"cancellation": false, "deadline": false, "idempotency_key": false}
     },
     {
       "id": "io.inspect",

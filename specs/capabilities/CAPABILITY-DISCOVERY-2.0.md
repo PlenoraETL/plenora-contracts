@@ -88,6 +88,15 @@ select an available operation. Selection data belongs in typed attributes.
 driver names, dependency versions and private feature topology are out of scope
 unless they change consumer-visible compatibility.
 
+**CAP-013** — Attributes used for machine selection MUST conform to an
+immutable, versioned component-owned contract named by the component profile.
+Untyped attributes are opaque diagnostics: consumers MUST NOT interpret them
+for orchestration or compatibility decisions.
+
+A component profile MAY instead assign detailed discovery to a versioned public
+catalog operation. In that case the operation result is the sole normative
+source for those details, and `attributes` MUST NOT duplicate them.
+
 ## 8. Ordering and freshness
 
 Array order is not semantically significant. Producers SHOULD emit stable order
