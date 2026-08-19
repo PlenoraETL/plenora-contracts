@@ -22,6 +22,19 @@ current implementation status.
 | rest-tools | required | not required | required | conditional |
 | storage-tools | undecided | undecided | undecided | undecided |
 
+The exact target operations are machine-readable in:
+
+- [`database-tools-v1.json`](../catalogs/database-tools-v1.json);
+- [`data-tools-v1.json`](../catalogs/data-tools-v1.json) and the
+  [`data kernel registry`](../catalogs/data-kernels-v1.json);
+- [`io-tools-v1.json`](../catalogs/io-tools-v1.json);
+- [`rest-tools-v1.json`](../catalogs/rest-tools-v1.json);
+- [`storage-tools-v1.json`](../catalogs/storage-tools-v1.json).
+
+Canonical public entrypoints are in [`bindings`](../bindings/) and reviewed
+cross-library handoffs are in
+[`composition/pipelines-v1.json`](../composition/pipelines-v1.json).
+
 ## Common obligations
 
 Every profile requires:

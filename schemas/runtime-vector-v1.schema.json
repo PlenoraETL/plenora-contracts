@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/runtime-vector-v1.schema.json",
+  "title": "Plenora runtime binding conformance vector v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "contract", "kind", "content_type", "metadata", "payload"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "contract": {"const": "plenora-runtime-vector-v1"},
+    "kind": {"enum": ["request", "success", "error"]},
+    "content_type": {"type": "string", "minLength": 3},
+    "metadata": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "payload": {"type": "object"}
+  }
+}

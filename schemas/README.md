@@ -11,6 +11,12 @@ These schemas are normative and use JSON Schema draft 2020-12.
 | `row-diagnostics-v1.schema.json` | Bounded row-level evidence shared by data, database and I/O boundaries |
 | `adoption-manifest-v1.schema.json` | Component-owned declaration of adoption |
 | `adoption-manifest-v2.schema.json` | Adoption across Rust, CLI, Python and runtime surfaces |
+| `public-catalog-v1.schema.json` | Normative target operations and boundary contracts per component |
+| `operation-registry-v1.schema.json` | Stable embedded operation identities, including data kernels |
+| `surface-bindings-v1.schema.json` | Exact CLI, Python SDK and runtime entrypoint mappings |
+| `composition-v1.schema.json` | Cross-component direct and adapter-required handoffs |
+| `arrow-metadata-vector-v1.schema.json` | Arrow metadata conformance fixtures |
+| `runtime-vector-v1.schema.json` | Runtime request, success and error fixtures |
 
 Schema identifiers are immutable. Modify a schema in place only for a change
 that cannot alter whether an existing instance validates. Otherwise add a new

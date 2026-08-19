@@ -55,6 +55,9 @@ The shared geometry namespace includes:
 - `plenora.geometry.crs_definition_format`;
 - `plenora.geometry.axis_order`.
 
+The closed values, canonical ordering and dependent-field rules are normative
+in [Arrow Metadata Vocabulary 1.0](ARROW-VOCABULARY-1.0.md).
+
 **ARROW-005** — Canonical WKB geometry fields MUST use the GeoArrow extension
 name `geoarrow.wkb` and a compatible Arrow binary storage type.
 
@@ -106,3 +109,6 @@ This contract does not define the columns of every operation. Each
 operation-specific contract owns its logical input and output schema. This
 document defines only the common interchange rules needed to move that schema
 between Plenora components.
+
+Reusable valid and invalid fixtures are defined by
+[Arrow Metadata Vocabulary 1.0](ARROW-VOCABULARY-1.0.md).

@@ -1,0 +1,15 @@
+{
+  "$schema": "../schemas/public-catalog-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-public-catalog-v1",
+  "component": "plenora-storage-tools",
+  "profile": "plenora-storage-tools-profile-v1",
+  "status": "provisional",
+  "target_surfaces": {
+    "rust": "undecided",
+    "cli": "undecided",
+    "python_sdk": "undecided",
+    "runtime": "undecided"
+  },
+  "operations": []
+}

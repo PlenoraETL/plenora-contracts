@@ -14,3 +14,9 @@
 - Shared error, CLI envelope, capability and adoption-manifest schemas.
 - Valid and invalid examples for the machine-readable contracts.
 - Scope, stream-selection and cutover decisions.
+- Machine-readable target catalogs for all five libraries and the exact 146-kernel data registry.
+- Canonical CLI, Python SDK and runtime binding maps.
+- Cross-component Arrow composition matrix.
+- Closed Arrow metadata vocabulary with valid and invalid interoperability vectors.
+- Runtime request, success and typed-error conformance vectors.
+- Semantic validation across catalogs, bindings, composition and vectors.

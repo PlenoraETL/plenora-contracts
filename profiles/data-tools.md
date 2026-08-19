@@ -2,6 +2,10 @@
 
 Profile identifier: `plenora-data-tools-profile-v1`
 
+Normative target catalog:
+[`data-tools-v1.json`](../catalogs/data-tools-v1.json), with the exact
+[`data kernel registry`](../catalogs/data-kernels-v1.json)
+
 ## Applicable contracts
 
 - [Public Surfaces 1.0](../specs/surfaces/PUBLIC-SURFACES-1.0.md)
@@ -12,6 +16,8 @@ Profile identifier: `plenora-data-tools-profile-v1`
 - [Row Diagnostics 1.0](../specs/diagnostics/ROW-DIAGNOSTICS-1.0.md)
 - [CLI 2.0](../specs/cli/CLI-2.0.md)
 - [Runtime Binding 1.0](../specs/runtime/RUNTIME-BINDING-1.0.md), when exposed
+- [Surface Bindings 1.0](../specs/surfaces/SURFACE-BINDINGS-1.0.md)
+- [Composition 1.0](../specs/composition/COMPOSITION-1.0.md)
 
 ## Public purpose
 

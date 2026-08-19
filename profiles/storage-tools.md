@@ -4,6 +4,9 @@ Profile identifier: `plenora-storage-tools-profile-v1`
 
 Status: provisional
 
+Provisional empty catalog:
+[`storage-tools-v1.json`](../catalogs/storage-tools-v1.json)
+
 ## Applicable contracts
 
 - [Public Surfaces 1.0](../specs/surfaces/PUBLIC-SURFACES-1.0.md)

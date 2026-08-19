@@ -19,6 +19,10 @@ Every adopting component verifies that:
    results;
 8. secret canaries never appear in discovery, results, errors or diagnostics.
 
+The repository validator additionally checks that target catalogs, surface
+bindings and composition edges agree. Adopters consume those artifacts as test
+inputs; they do not maintain independent copies of operation names.
+
 ## CLI checks
 
 Invoke the installed or released binary as a subprocess. Verify help, version,
@@ -49,6 +53,9 @@ Send the serialized input through the public runtime binding. Verify operation
 and version selection, content type, correlation identity, result contract and
 error mapping at the receiving boundary.
 
+Run the fixtures in [`vectors/runtime-v1`](../vectors/runtime-v1/) for one
+request, result and typed failure before claiming the runtime surface.
+
 ## Arrow checks
 
 For every operation advertising Arrow:
@@ -59,6 +66,9 @@ For every operation advertising Arrow:
 - round-trip representative null, decimal, temporal and geometry values when
   the operation claims lossless behavior;
 - verify that an unsupported future contract version fails closed.
+
+Run every fixture in [`vectors/arrow-v1`](../vectors/arrow-v1/), including the
+semantic rejection cases from Arrow Metadata Vocabulary 1.0.
 
 ## Row diagnostics checks
 

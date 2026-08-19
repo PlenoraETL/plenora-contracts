@@ -2,6 +2,8 @@
 
 Profile identifier: `plenora-rest-tools-profile-v1`
 
+Normative target catalog: [`rest-tools-v1.json`](../catalogs/rest-tools-v1.json)
+
 ## Applicable contracts
 
 - [Public Surfaces 1.0](../specs/surfaces/PUBLIC-SURFACES-1.0.md)
@@ -11,6 +13,8 @@ Profile identifier: `plenora-rest-tools-profile-v1`
 - [Python SDK 1.0](../specs/sdk/PYTHON-SDK-1.0.md)
 - [Runtime Binding 1.0](../specs/runtime/RUNTIME-BINDING-1.0.md), when exposed
 - [Arrow Interchange 1.0](../specs/data/ARROW-INTERCHANGE-1.0.md), when advertised
+- [Surface Bindings 1.0](../specs/surfaces/SURFACE-BINDINGS-1.0.md)
+- [Composition 1.0](../specs/composition/COMPOSITION-1.0.md)
 
 ## Public purpose
 

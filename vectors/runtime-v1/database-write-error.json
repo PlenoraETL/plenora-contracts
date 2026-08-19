@@ -1,0 +1,23 @@
+{
+  "$schema": "../../schemas/runtime-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-runtime-vector-v1",
+  "kind": "error",
+  "content_type": "application/vnd.plenora.error+json",
+  "metadata": {
+    "plenora.capability.operation": "database.write",
+    "plenora.operation.version": "1",
+    "plenora.output.contract": "plenora-error-v1",
+    "plenora.message.correlation_id": "vector-database-write-1"
+  },
+  "payload": {
+    "category": "internal",
+    "phase": "commit",
+    "remote_effect": "unknown",
+    "retry": {"kind": "requires_recovery"},
+    "code": "COMMIT_OUTCOME_UNKNOWN",
+    "provider": "postgres",
+    "execution_id": "vector-execution-1",
+    "message": "Commit outcome is unknown; reconcile by execution identity."
+  }
+}

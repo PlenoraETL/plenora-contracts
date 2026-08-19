@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/runtime-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-runtime-vector-v1",
+  "kind": "success",
+  "content_type": "application/vnd.apache.arrow.stream",
+  "metadata": {
+    "plenora.capability.operation": "data.run",
+    "plenora.operation.version": "1",
+    "plenora.output.contract": "plenora-data-execution-result-v1",
+    "plenora.message.correlation_id": "vector-data-run-1"
+  },
+  "payload": {
+    "fixture": "arrow-stream-bytes-are-supplied-by-the-adopting-test"
+  }
+}

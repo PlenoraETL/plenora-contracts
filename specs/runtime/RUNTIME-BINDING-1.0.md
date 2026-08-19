@@ -104,3 +104,10 @@ Adding optional metadata is compatible when its absence preserves previous
 behavior. Renaming reserved keys, changing their meaning, changing routing
 identity or weakening result/error semantics requires a new runtime binding
 version.
+
+## 9. Canonical selectors and vectors
+
+The exact operation selectors for the five component profiles are registered
+in [`bindings/runtime-v1.json`](../../bindings/runtime-v1.json). Reusable
+request, success and error fixtures are defined by
+[Runtime Conformance Vectors 1.0](RUNTIME-VECTORS-1.0.md).
