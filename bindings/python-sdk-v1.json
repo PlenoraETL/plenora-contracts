@@ -18,10 +18,8 @@
           "version": 1,
           "requirement": "required",
           "entrypoints": [
-            "plenora_database.connect",
-            "plenora_database.aconnect",
-            "plenora_database.connect_mysql",
-            "plenora_database.aconnect_mysql"
+            "plenora_database.test_connection",
+            "plenora_database.atest_connection"
           ]
         },
         {
@@ -84,15 +82,7 @@
           "requirement": "conditional",
           "entrypoints": [
             "Session.select",
-            "Session.insert",
-            "Session.update",
-            "Session.delete",
-            "Session.upsert",
-            "AsyncSession.select",
-            "AsyncSession.insert",
-            "AsyncSession.update",
-            "AsyncSession.delete",
-            "AsyncSession.upsert"
+            "AsyncSession.select"
           ]
         },
         {
@@ -100,9 +90,17 @@
           "version": 1,
           "requirement": "conditional",
           "entrypoints": [
+            "Session.insert",
+            "Session.update",
+            "Session.delete",
+            "Session.upsert",
             "Session.execute",
             "Session.execute_scalar",
             "Session.execute_returning_rows",
+            "AsyncSession.insert",
+            "AsyncSession.update",
+            "AsyncSession.delete",
+            "AsyncSession.upsert",
             "AsyncSession.execute",
             "AsyncSession.execute_scalar",
             "AsyncSession.execute_returning_rows"

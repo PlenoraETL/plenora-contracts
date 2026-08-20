@@ -1,0 +1,38 @@
+{
+  "schema_version": 3,
+  "component": "plenora-example-tools",
+  "contracts_source": {
+    "repository": "https://github.com/PlenoraETL/plenora-contracts.git",
+    "revision": "0123456789abcdef0123456789abcdef01234567"
+  },
+  "profile": "plenora-example-tools-profile-v1",
+  "artifacts": [
+    {
+      "name": "plenora-example",
+      "surface": "python_sdk",
+      "version": "1.4.0",
+      "api_modes": ["sync"],
+      "verification": [
+        "python -m pytest tests/public_contract"
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "id": "plenora-python-sdk-v1",
+      "status": "conforming",
+      "verification": [
+        "python -m pytest tests/public_contract"
+      ]
+    }
+  ],
+  "deviations": [
+    {
+      "rule": "SDK-EXAMPLE-001",
+      "artifact": "plenora-example",
+      "observed_behavior": "The released package omits one optional convenience alias.",
+      "tracking": "https://github.com/PlenoraETL/example-tools/issues/1",
+      "detectable_before_invocation": true
+    }
+  ]
+}

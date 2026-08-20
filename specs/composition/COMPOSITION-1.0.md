@@ -34,13 +34,15 @@ The stable direct handoffs are:
 |---|---|
 | `io.read` | `data.run`, `database.write` |
 | `database.read` | `data.run`, `io.write` |
-| `arcgis.read` | `data.run` |
-| `data.run` | `io.write`, `database.write`, `arcgis.write` |
+| `data.run` | `io.write`, `database.write` |
 
 These edges use `plenora-arrow-interchange-v1`. A runtime may move Arrow IPC
 bytes, an SDK may use PyArrow and an in-process Rust caller may use Arrow-native
 values; the representations are compatible only when the shared metadata and
 row meaning survive.
+
+ArcGIS composition is intentionally absent until its component ownership and
+public operation contracts are ratified.
 
 ## 4. Explicit adapters
 

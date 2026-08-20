@@ -4,7 +4,7 @@
   "contract": "plenora-public-catalog-v1",
   "component": "plenora-database-tools",
   "profile": "plenora-database-tools-profile-v1",
-  "status": "normative",
+  "status": "provisional",
   "target_surfaces": {
     "rust": "required",
     "cli": "required",
@@ -88,7 +88,7 @@
       "output": {"contract": "plenora-database-write-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "remote",
       "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
-      "attributes": {"write_modes": ["create", "append", "replace", "truncate_insert", "update", "upsert", "delete_by_keys"]}
+      "attributes": {"contract": "plenora-database-capability-attributes-v1"}
     },
     {
       "id": "database.query",
@@ -153,94 +153,6 @@
       "surfaces": ["rust", "python_sdk"],
       "input": {"contract": "plenora-database-savepoint-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-database-transaction-outcome-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "side_effect": "remote",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
-    },
-    {
-      "id": "arcgis.test_connection",
-      "version": 1,
-      "requirement": "extension",
-      "summary": "Validate an ArcGIS connection reference and return redacted capabilities.",
-      "surfaces": ["rust", "runtime"],
-      "input": {"contract": "plenora-arcgis-connection-test-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "output": {"contract": "plenora-arcgis-connection-test-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "side_effect": "none",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
-    },
-    {
-      "id": "arcgis.list_folders",
-      "version": 1,
-      "requirement": "extension",
-      "summary": "List visible ArcGIS folders.",
-      "surfaces": ["rust", "runtime"],
-      "input": {"contract": "plenora-arcgis-list-folders-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "output": {"contract": "plenora-arcgis-list-folders-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "side_effect": "none",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
-    },
-    {
-      "id": "arcgis.list_items",
-      "version": 1,
-      "requirement": "extension",
-      "summary": "List visible ArcGIS items under an optional folder reference.",
-      "surfaces": ["rust", "runtime"],
-      "input": {"contract": "plenora-arcgis-list-items-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "output": {"contract": "plenora-arcgis-list-items-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "side_effect": "none",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
-    },
-    {
-      "id": "arcgis.list_services",
-      "version": 1,
-      "requirement": "extension",
-      "summary": "List visible ArcGIS services under an optional folder reference.",
-      "surfaces": ["rust", "runtime"],
-      "input": {"contract": "plenora-arcgis-list-services-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "output": {"contract": "plenora-arcgis-list-services-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "side_effect": "none",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
-    },
-    {
-      "id": "arcgis.list_layers",
-      "version": 1,
-      "requirement": "extension",
-      "summary": "List layers in one ArcGIS service.",
-      "surfaces": ["rust", "runtime"],
-      "input": {"contract": "plenora-arcgis-list-layers-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "output": {"contract": "plenora-arcgis-list-layers-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "side_effect": "none",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
-    },
-    {
-      "id": "arcgis.describe_layer",
-      "version": 1,
-      "requirement": "extension",
-      "summary": "Describe one ArcGIS layer and its externally visible schema and capabilities.",
-      "surfaces": ["rust", "runtime"],
-      "input": {"contract": "plenora-arcgis-describe-layer-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "output": {"contract": "plenora-arcgis-describe-layer-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "side_effect": "none",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
-    },
-    {
-      "id": "arcgis.read",
-      "version": 1,
-      "requirement": "extension",
-      "summary": "Read an ArcGIS layer as an Arrow dataset.",
-      "surfaces": ["rust", "runtime"],
-      "input": {"contract": "plenora-arcgis-read-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
-      "output": {"contract": "plenora-arcgis-read-result-v1", "content_types": ["application/vnd.apache.arrow.stream"], "interchange_contracts": ["plenora-arrow-interchange-v1"]},
-      "side_effect": "none",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
-    },
-    {
-      "id": "arcgis.write",
-      "version": 1,
-      "requirement": "extension",
-      "summary": "Write Arrow rows to an ArcGIS layer with explicit partial-outcome reporting.",
-      "surfaces": ["rust", "runtime"],
-      "input": {"contract": "plenora-arcgis-write-input-v1", "content_types": ["application/json", "application/vnd.apache.arrow.stream"], "interchange_contracts": ["plenora-arrow-interchange-v1"]},
-      "output": {"contract": "plenora-arcgis-write-result-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "remote",
       "controls": {"cancellation": true, "deadline": true, "idempotency_key": false}
     }

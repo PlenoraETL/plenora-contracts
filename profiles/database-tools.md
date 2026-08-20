@@ -2,7 +2,7 @@
 
 Profile identifier: `plenora-database-tools-profile-v1`
 
-Normative target catalog:
+Provisional target catalog:
 [`database-tools-v1.json`](../catalogs/database-tools-v1.json)
 
 ## Applicable contracts
@@ -24,6 +24,10 @@ Normative target catalog:
 The component exposes discovery, reading, writing and query-oriented database
 functionality without requiring a consumer to understand provider internals.
 
+This profile remains provisional. `database-tools` MUST publish immutable
+component-owned operation schemas and capability-attribute schemas before an
+artifact can claim conformance to this profile.
+
 ## Required operation families
 
 The stable public catalog includes these baseline identifiers:
@@ -40,9 +44,31 @@ Public query and transaction entry points MUST also be discoverable under the
 `database.query` and `database.transaction.*` families when the released
 artifact exposes them.
 
-Provider-specific or product-specific extensions, including `arcgis.*`, MAY
-be exposed. They MUST be explicit operations or typed capability attributes and
-MUST NOT silently change the meaning of a `database.*` operation.
+`database.query` is read-only and has no remote mutation effect. Insert,
+update, delete and upsert entry points bind to `database.execute` or
+`database.write` and conservatively declare remote side effects.
+
+Session constructors such as `connect` and `aconnect` establish persistent
+sessions. They do not implement `database.test_connection`, which has dedicated
+sync and async entry points and returns a bounded redacted verification result.
+
+No `arcgis.*` operation is selected by this profile. ArcGIS operations,
+bindings and composition edges remain absent until ownership is ratified as
+REST operations, a dedicated component or another explicit public extension.
+
+## Component-owned contracts
+
+`database-tools` owns and immutably versions every
+`plenora-database-*-v1` input or output contract referenced by the catalog,
+including `plenora-database-capability-attributes-v1`. Their normative schemas
+and operation specifications live in the component repository; this repository
+owns their stable identities and cross-surface semantics.
+
+The capability-attributes contract describes the selected provider and the
+write modes actually available for that provider. Consumers MUST interpret
+`write_modes` only under that contract. A mode unavailable for a provider is
+omitted rather than accepted and failed later; the common catalog does not make
+every mode universally available.
 
 ## Public surfaces
 

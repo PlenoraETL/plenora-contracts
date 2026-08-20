@@ -14,6 +14,7 @@ Files under `invalid` are deliberate counterexamples and must fail that check.
 | `valid/adoption-manifest.json` | `adoption-manifest-v1.schema.json` |
 | `valid/adoption-manifest-v2.json` | `adoption-manifest-v2.schema.json` |
 | `valid/adoption-manifest-v3.json` | `adoption-manifest-v3.schema.json` |
+| `valid/adoption-manifest-v3-deviation.json` | Scoped v3 deviation with an affected artifact |
 | `valid/rest-runtime-artifact-request.json` | REST runtime boundary invariants |
 | `invalid/cli-missing-protocol.json` | `cli-envelope-v2.schema.json` |
 | `invalid/error-after-missing-delay.json` | `error-v1.schema.json` |
@@ -23,6 +24,7 @@ Files under `invalid` are deliberate counterexamples and must fail that check.
 | `invalid/adoption-floating-revision.json` | `adoption-manifest-v1.schema.json` |
 | `invalid/adoption-v2-floating-revision.json` | `adoption-manifest-v2.schema.json` |
 | `invalid/adoption-v3-python-missing-api-modes.json` | `adoption-manifest-v3.schema.json` |
+| `invalid/adoption-v3-deviation-missing-scope.json` | v3 deviation without an artifact or surface |
 | `invalid/runtime-correlation-not-uuid.json` | `runtime-vector-v1.schema.json` |
 | `invalid/runtime-message-id-missing.json` | `runtime-vector-v1.schema.json` |
 | `invalid/runtime-message-id-not-uuid.json` | `runtime-vector-v1.schema.json` |

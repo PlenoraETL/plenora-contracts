@@ -41,7 +41,8 @@ A deviation records:
 
 - the exact requirement identifier;
 - the externally observable difference;
-- the affected public artifact or surface;
+- the affected public artifact or surface, with at least one recorded
+  explicitly;
 - a tracking reference;
 - whether consumers can detect the difference before invocation.
 

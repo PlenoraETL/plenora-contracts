@@ -41,24 +41,6 @@
     },
     {
       "from": {
-        "component": "plenora-database-tools",
-        "operation": "arcgis.read",
-        "version": 1
-      },
-      "to": {
-        "component": "plenora-data-tools",
-        "operation": "data.run",
-        "version": 1
-      },
-      "mode": "direct",
-      "interchange_contract": "plenora-arrow-interchange-v1",
-      "content_type": "application/vnd.apache.arrow.stream",
-      "constraints": [
-        "The ArcGIS extension and all kernels required by the plan must be available."
-      ]
-    },
-    {
-      "from": {
         "component": "plenora-data-tools",
         "operation": "data.run",
         "version": 1
@@ -91,24 +73,6 @@
       "content_type": "application/vnd.apache.arrow.stream",
       "constraints": [
         "The write mapping policy and target schema must accept the result schema."
-      ]
-    },
-    {
-      "from": {
-        "component": "plenora-data-tools",
-        "operation": "data.run",
-        "version": 1
-      },
-      "to": {
-        "component": "plenora-database-tools",
-        "operation": "arcgis.write",
-        "version": 1
-      },
-      "mode": "direct",
-      "interchange_contract": "plenora-arrow-interchange-v1",
-      "content_type": "application/vnd.apache.arrow.stream",
-      "constraints": [
-        "The ArcGIS extension must be available and partial row outcomes remain observable."
       ]
     },
     {

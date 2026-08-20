@@ -55,8 +55,12 @@ Observed live-reference areas:
 
 The inventory identified these expected migrations:
 
-- `database-tools`: errors already use stdout and the four error axes, but exit
-  codes and success envelopes are not common protocol v2 yet.
+- `database-tools`: errors already use stdout and the four error axes, but the
+  CLI still uses protocol v1, lacks the canonical command set and does not
+  expose Capability Discovery 2.0. The Python SDK lacks the required
+  capability discovery surface, async close symmetry and structured retry
+  contract. Component-owned operation payload and capability-attribute schemas
+  must also be published before the provisional profile can be adopted.
 - `data-tools`: closest current implementation; its error stream and rich exit
   mapping are the basis for protocol v2, but success envelopes remain uneven.
 - `IO-tools`: errors currently use stderr and its exit mapping differs; this is

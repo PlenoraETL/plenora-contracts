@@ -57,7 +57,8 @@ CASES = {
             "examples/valid/adoption-manifest-v2.json"
         ],
         "adoption-manifest-v3.schema.json": [
-            "examples/valid/adoption-manifest-v3.json"
+            "examples/valid/adoption-manifest-v3.json",
+            "examples/valid/adoption-manifest-v3-deviation.json",
         ],
     },
     "invalid": {
@@ -79,7 +80,8 @@ CASES = {
             "examples/invalid/adoption-v2-floating-revision.json"
         ],
         "adoption-manifest-v3.schema.json": [
-            "examples/invalid/adoption-v3-python-missing-api-modes.json"
+            "examples/invalid/adoption-v3-python-missing-api-modes.json",
+            "examples/invalid/adoption-v3-deviation-missing-scope.json",
         ],
         "runtime-vector-v1.schema.json": [
             "examples/invalid/runtime-correlation-not-uuid.json",
@@ -100,6 +102,8 @@ COMPONENTS = {
 REST_COMPONENT = "plenora-rest-tools"
 REST_ATTRIBUTE_CONTRACT = "plenora-rest-capability-attributes-v1"
 REST_FILE_TRANSFER_INPUT = "plenora-rest-file-transfer-input-v1"
+DATABASE_COMPONENT = "plenora-database-tools"
+DATABASE_ATTRIBUTE_CONTRACT = "plenora-database-capability-attributes-v1"
 
 REQUIRED_OPERATIONS = {
     "plenora-database-tools": {
@@ -442,6 +446,39 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
                         "REST upload v1 embeds raw bytes in its JSON invocation envelope"
                     )
 
+        if component == DATABASE_COMPONENT:
+            database_operations = {
+                item["id"]: item for item in catalog["operations"]
+            }
+            if catalog["status"] != "provisional":
+                failures.append(
+                    "database-tools must remain provisional until its component-owned schemas exist"
+                )
+            if any(name.startswith("arcgis.") for name in database_operations):
+                failures.append(
+                    "database-tools must not own ArcGIS operations before ownership is ratified"
+                )
+            write = database_operations.get("database.write")
+            if write is not None:
+                attributes = write.get("attributes")
+                if (
+                    not isinstance(attributes, dict)
+                    or attributes.get("contract") != DATABASE_ATTRIBUTE_CONTRACT
+                ):
+                    failures.append(
+                        "database.write lacks its capability attributes contract"
+                    )
+                if "write_modes" in (attributes or {}):
+                    failures.append(
+                        "the common database catalog must not advertise provider-independent write modes"
+                    )
+            query = database_operations.get("database.query")
+            if query is not None and query["side_effect"] != "none":
+                failures.append("database.query must remain read-only")
+            execute = database_operations.get("database.execute")
+            if execute is not None and execute["side_effect"] != "remote":
+                failures.append("database.execute must declare remote side effects")
+
     storage = catalogs["plenora-storage-tools"]
     if storage["status"] != "provisional" or storage["operations"]:
         failures.append(
@@ -540,6 +577,45 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
             failures.append(
                 f"{path.name} binding coverage differs; missing={missing}, extra={extra}"
             )
+
+    python_document = load_json(ROOT / "bindings/python-sdk-v1.json")
+    database_section = next(
+        item
+        for item in python_document["components"]
+        if item["component"] == DATABASE_COMPONENT
+    )
+    database_bindings = {
+        item["operation"]: set(item["entrypoints"])
+        for item in database_section["bindings"]
+    }
+    if database_bindings.get("database.test_connection") != {
+        "plenora_database.test_connection",
+        "plenora_database.atest_connection",
+    }:
+        failures.append(
+            "database.test_connection must use dedicated SDK verification entrypoints"
+        )
+    if database_bindings.get("database.query") != {
+        "Session.select",
+        "AsyncSession.select",
+    }:
+        failures.append("database.query SDK bindings must remain read-only")
+    mutating_entrypoints = {
+        "Session.insert",
+        "Session.update",
+        "Session.delete",
+        "Session.upsert",
+        "AsyncSession.insert",
+        "AsyncSession.update",
+        "AsyncSession.delete",
+        "AsyncSession.upsert",
+    }
+    if not mutating_entrypoints.issubset(
+        database_bindings.get("database.execute", set())
+    ):
+        failures.append(
+            "mutating database SDK entrypoints must bind to database.execute"
+        )
     return failures
 
 
