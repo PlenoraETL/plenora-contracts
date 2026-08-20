@@ -19,6 +19,13 @@ Every adopting component verifies that:
    results;
 8. secret canaries never appear in discovery, results, errors or diagnostics.
 
+For every operation advertising idempotency-key support, the component also
+verifies stable delivery for repeated equivalent input and fail-closed reuse
+with different input. Components advertising asynchronous HTTP recovery verify
+submission, interrupted polling with a bounded recovery handle, resume without
+resubmission and best-effort remote cancellation. Queue broker behavior is not
+evidence for the HTTP component itself.
+
 The repository validator additionally checks that target catalogs, surface
 bindings and composition edges agree. Adopters consume those artifacts as test
 inputs; they do not maintain independent copies of operation names.

@@ -434,6 +434,10 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
                     failures.append(
                         f"rest-tools {operation['id']} lacks its capability attributes contract"
                     )
+                if not operation["controls"]["idempotency_key"]:
+                    failures.append(
+                        f"rest-tools {operation['id']} must accept idempotency keys"
+                    )
 
             download = rest_operations.get("rest.download")
             upload = rest_operations.get("rest.upload")

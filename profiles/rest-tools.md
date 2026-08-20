@@ -76,6 +76,44 @@ The file-transfer input carries the REST connection configuration, artifact
 source or sink, content type, size limits and optional integrity constraints.
 Raw file bytes are not embedded in persistable JSON requests.
 
+## Idempotency
+
+All five operations accept an opaque idempotency key. Rust and Python carry it
+as an execution control; serialized runtime requests carry it only as
+`plenora.execution.idempotency_key` metadata.
+
+The component MUST validate and bound the key, reject reuse with a different
+contract input while that key remains in its local execution scope, and deliver
+a stable key to the explicitly configured remote header, query field or body
+field. Multi-request operations derive stable child keys so different remote
+requests never share one provider key. Durable deduplication across process
+restarts remains a property of the target service or the owning runtime; the
+component MUST NOT claim that forwarding a key proves remote deduplication.
+
+## Asynchronous HTTP jobs
+
+Polling remains a behavior of the five stable operations, not a provider or
+queue-specific operation. A polling configuration MAY start a remote job or
+resume a previously observed job. Resume MUST skip the original submission and
+continue from the configured status endpoint.
+
+When an unfinished remote job has a bounded public identifier, an ambiguous or
+interrupted result exposes the component-owned
+`plenora-rest-async-job-recovery-v1` contract. The handle contains no
+credential, authorization material, private path or signed polling URL. The
+caller retains the original connection and credential reference and supplies
+the handle's job identifier to a later resume invocation.
+
+A polling configuration MAY declare a bounded best-effort remote cancellation
+request for cooperative cancellation, deadline expiry or polling timeout.
+Acceptance of that request is observable, but never proves rollback; the
+failure keeps a conservative remote effect and the recovery handle remains
+usable.
+
+Message brokers, worker leases, acknowledgement, visibility timeout,
+backpressure, durable scheduling and dead-letter queues remain owned by the
+runtime or remote service and are outside this component.
+
 ## Interchange
 
 JSON is the default structured representation. Binary and file transfer
