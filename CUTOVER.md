@@ -79,5 +79,5 @@ The inventory identified these expected migrations:
 
 Decision 0004 expanded the replacement from CLI/SDK conventions to all shared
 public surfaces. This does not change the cutover history above. New adoption
-uses component profiles and adoption manifest v3; no internal implementation
+uses component profiles and adoption manifest v4; no internal implementation
 architecture is centralized.

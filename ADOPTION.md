@@ -12,9 +12,17 @@ component internals.
 4. Verify each applicable contract through those public artifacts.
 5. Record the pin, verification commands and deviations in a component-owned
    adoption manifest that validates against the
-   [adoption manifest v3 schema](schemas/adoption-manifest-v3.schema.json).
+   [adoption manifest v4 schema](schemas/adoption-manifest-v4.schema.json).
 
 The adopting project decides how to implement the required behavior.
+
+## Immutable artifact identity
+
+Every manifest v4 artifact records a non-empty release `version` and a
+lowercase `sha256:<64-hex>` digest. The digest identifies the exact binary,
+crate archive, wheel, package or deployed runtime image exercised by the
+verification commands. A branch, mutable tag, rebuilt checkout or version
+string without the digest is not sufficient adoption evidence.
 
 ## Black-box evidence
 
@@ -55,6 +63,7 @@ This repository provides schemas, examples and black-box vectors. Each
 component owns the executable harness needed to invoke its artifact because
 build systems, provider fixtures and release environments differ.
 
-Manifest v1 remains available for the former CLI/SDK-only scope. Manifest v2
-remains immutable for existing cross-surface declarations. New adoption uses
-manifest v3, which records `api_modes` for every Python SDK artifact.
+Manifest v1 remains available for the former CLI/SDK-only scope. Manifests v2
+and v3 remain immutable for existing cross-surface declarations. New adoption
+uses manifest v4, which preserves Python `api_modes` and adds immutable artifact
+identity.

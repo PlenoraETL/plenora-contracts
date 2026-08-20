@@ -43,9 +43,11 @@ results and error axes.
 
 ## Rust checks
 
-Compile a consumer crate that depends only on documented public exports. Verify
-operation discovery, invocation and typed failures. Private modules, test-only
-features and source-relative imports are not valid evidence.
+Publish the component-owned operation-to-public-export mapping, then compile a
+consumer crate that depends only on those documented public exports. Verify
+operation discovery, invocation and typed failures against the exact crate
+version and digest recorded in manifest v4. Private modules, test-only features
+and source-relative imports are not valid evidence.
 
 ## Runtime checks
 

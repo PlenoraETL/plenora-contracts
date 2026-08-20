@@ -4,9 +4,10 @@ Status: normative
 
 Contract identifier: `plenora-surface-bindings-v1`
 
-The exact bindings are machine-readable in [`bindings`](../../bindings/) and
-validate against
+The exact CLI, Python and runtime bindings are machine-readable in
+[`bindings`](../../bindings/) and validate against
 [`surface-bindings-v1.schema.json`](../../schemas/surface-bindings-v1.schema.json).
+Rust operation-to-API mappings are component-owned as defined below.
 
 ## 1. One operation, multiple spellings
 
@@ -17,7 +18,20 @@ operation, not independent semantics. Each binding identifies exactly one
 A surface MAY wrap inputs and results in idiomatic types. It MUST preserve the
 catalog contracts, defaults, error axes, side effects and execution controls.
 
-## 2. CLI binding
+## 2. Rust binding
+
+The common catalog selects the Rust surface and its operation semantics, but
+this repository does not prescribe Rust module, trait, method or type names.
+Each component MUST publish a versioned operation-to-public-export mapping for
+its released crate and verify it through a consumer crate that imports only
+those documented exports.
+
+The component-owned mapping identifies each catalog `(operation, version)` and
+the corresponding public Rust entry point. Its adoption manifest identifies
+the exact crate artifact by version and digest. Private modules, test-only
+features and implementation traits are not valid mappings.
+
+## 3. CLI binding
 
 [`cli-v1.json`](../../bindings/cli-v1.json) defines canonical commands. Tokens
 written in uppercase denote caller-provided values; they are grammar
@@ -31,7 +45,7 @@ Deprecated aliases MAY remain callable only when listed under
 `deprecated_aliases`. They MUST resolve to the canonical operation and emit the
 same machine result. New integrations MUST use the canonical entrypoint.
 
-## 3. Python binding
+## 4. Python binding
 
 [`python-sdk-v1.json`](../../bindings/python-sdk-v1.json) defines distribution,
 import and symbol spellings. The required target packages are:
@@ -45,7 +59,7 @@ Sync and async symbols listed for the same operation are semantically
 equivalent. Lifecycle helpers and query builders may expose several idiomatic
 methods that all bind to one operation identity.
 
-## 4. Runtime binding
+## 5. Runtime binding
 
 [`runtime-v1.json`](../../bindings/runtime-v1.json) uses the canonical selector
 form `<capability>#<operation>@<operation-version>`. The capability name is
@@ -56,7 +70,7 @@ The selector is review notation. Serialized requests still carry the reserved
 metadata keys from Runtime Binding 1.0 and MUST NOT derive routing by parsing a
 CLI command or Python symbol.
 
-## 5. Adoption rule
+## 6. Adoption rule
 
 Target bindings describe what a conforming public artifact exposes. Existing
 legacy spellings do not become normative merely because they are implemented.

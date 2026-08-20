@@ -50,7 +50,7 @@ security behavior and capability checks.
 
 An SDK MAY expose only sync or only async operation where the component records
 that choice in the `api_modes` field of each Python artifact in adoption
-manifest v3. It MUST NOT expose a nominal async method that performs blocking
+manifest v4. It MUST NOT expose a nominal async method that performs blocking
 I/O on the event-loop thread.
 
 ## 5. Lifecycle

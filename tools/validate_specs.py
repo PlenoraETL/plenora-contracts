@@ -26,6 +26,7 @@ EXPECTED_SCHEMAS = {
     "adoption-manifest-v1.schema.json",
     "adoption-manifest-v2.schema.json",
     "adoption-manifest-v3.schema.json",
+    "adoption-manifest-v4.schema.json",
     "arrow-metadata-vector-v1.schema.json",
     "capabilities-v1.schema.json",
     "capabilities-v2.schema.json",
@@ -60,6 +61,9 @@ CASES = {
             "examples/valid/adoption-manifest-v3.json",
             "examples/valid/adoption-manifest-v3-deviation.json",
         ],
+        "adoption-manifest-v4.schema.json": [
+            "examples/valid/adoption-manifest-v4.json"
+        ],
     },
     "invalid": {
         "cli-envelope-v2.schema.json": ["examples/invalid/cli-missing-protocol.json"],
@@ -82,6 +86,11 @@ CASES = {
         "adoption-manifest-v3.schema.json": [
             "examples/invalid/adoption-v3-python-missing-api-modes.json",
             "examples/invalid/adoption-v3-deviation-missing-scope.json",
+        ],
+        "adoption-manifest-v4.schema.json": [
+            "examples/invalid/adoption-v4-artifact-missing-identity.json",
+            "examples/invalid/adoption-v4-python-missing-api-modes.json",
+            "examples/invalid/adoption-v4-deviation-missing-scope.json",
         ],
         "runtime-vector-v1.schema.json": [
             "examples/invalid/runtime-correlation-not-uuid.json",

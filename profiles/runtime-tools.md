@@ -49,7 +49,7 @@ operation semantics. No provider adapter belongs to `runtime-tools`.
 ## Adoption
 
 `runtime-tools` records a full immutable `plenora-contracts` revision and
-black-box verification commands in adoption manifest v3. It MUST NOT mark
+black-box verification commands in adoption manifest v4. It MUST NOT mark
 Runtime Binding 1.0 conforming while request, success or terminal-error vector
 coverage is incomplete. Temporary gaps are documented as deviations and do not
 count as conformance.

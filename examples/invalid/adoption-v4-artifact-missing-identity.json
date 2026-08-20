@@ -1,0 +1,29 @@
+{
+  "schema_version": 4,
+  "component": "plenora-example-tools",
+  "contracts_source": {
+    "repository": "https://github.com/PlenoraETL/plenora-contracts.git",
+    "revision": "0123456789abcdef0123456789abcdef01234567"
+  },
+  "profile": "plenora-example-tools-profile-v1",
+  "artifacts": [
+    {
+      "name": "plenora-example",
+      "surface": "python_sdk",
+      "api_modes": ["sync"],
+      "verification": [
+        "python -m pytest tests/public_contract"
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "id": "plenora-python-sdk-v1",
+      "status": "conforming",
+      "verification": [
+        "python -m pytest tests/public_contract"
+      ]
+    }
+  ],
+  "deviations": []
+}
