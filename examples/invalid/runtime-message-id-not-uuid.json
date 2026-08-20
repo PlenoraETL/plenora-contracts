@@ -4,13 +4,13 @@
   "kind": "request",
   "content_type": "application/json",
   "metadata": {
-    "plenora.message.id": "018f3d84-7b2c-7f00-8000-000000000104",
+    "plenora.message.id": "not-a-canonical-uuid",
     "plenora.capability.name": "plenora.database-tools",
     "plenora.capability.version": "1",
     "plenora.capability.operation": "database.read",
     "plenora.operation.version": "1",
     "plenora.input.contract": "plenora-database-read-input-v1",
-    "plenora.trace.correlation_id": "not-a-canonical-uuid"
+    "plenora.trace.correlation_id": "018f3d84-7b2c-7f00-8000-000000000106"
   },
   "payload": {}
 }

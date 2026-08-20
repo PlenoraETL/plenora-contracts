@@ -35,9 +35,9 @@ The released Rust and runtime artifacts MUST:
 - exercise the pinned runtime vectors through a public codec or transport
   boundary.
 
-Domain adapters remain responsible for checking requests against the exact
-released Capability Discovery 2.0 descriptor and mapping domain results and
-errors to their component-owned wire contracts.
+`runtime-tools` validates the envelope, routing and compatibility with
+registered capabilities. The black-box component validates its own payload and
+operation semantics. No provider adapter belongs to `runtime-tools`.
 
 ## Public surfaces
 

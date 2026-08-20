@@ -82,7 +82,9 @@ CASES = {
             "examples/invalid/adoption-v3-python-missing-api-modes.json"
         ],
         "runtime-vector-v1.schema.json": [
-            "examples/invalid/runtime-correlation-not-uuid.json"
+            "examples/invalid/runtime-correlation-not-uuid.json",
+            "examples/invalid/runtime-message-id-missing.json",
+            "examples/invalid/runtime-message-id-not-uuid.json",
         ],
     },
 }
@@ -668,6 +670,9 @@ def is_local_path(value: str) -> bool:
         re.match(r"^[A-Za-z]:[\\/]", value)
         or value.startswith(("/", "\\"))
         or value.lower().startswith("file:")
+        or any(
+            segment == ".." for segment in value.replace(chr(92), "/").split("/")
+        )
     )
 
 
@@ -705,11 +710,21 @@ def rest_boundary_errors(
                 f"REST runtime request contains inline credential field {key}"
             )
 
+    has_source = "artifact_source" in payload
+    has_sink = "artifact_sink" in payload
+    if operation["id"] == "rest.download":
+        if not has_sink:
+            errors.append("REST download requires artifact_sink")
+        if has_source:
+            errors.append("REST download forbids artifact_source")
+    if operation["id"] == "rest.upload":
+        if not has_source:
+            errors.append("REST upload requires artifact_source")
+        if has_sink:
+            errors.append("REST upload forbids artifact_sink")
     artifact_nodes = [
         payload[key] for key in ("artifact_source", "artifact_sink") if key in payload
     ]
-    if operation["id"] in {"rest.download", "rest.upload"} and not artifact_nodes:
-        errors.append("REST file transfer request lacks an artifact source or sink")
     for node in artifact_nodes:
         if any(is_local_path(value) for value in artifact_strings(node)):
             errors.append("REST runtime artifact contains a private local path")
@@ -758,6 +773,9 @@ def validate_rest_examples(
     boundary_cases = {
         "examples/valid/rest-runtime-artifact-request.json": None,
         "examples/invalid/rest-runtime-artifact-local-path.json": "private local path",
+        "examples/invalid/rest-runtime-artifact-relative-path.json": "private local path",
+        "examples/invalid/rest-download-artifact-source-only.json": "forbids artifact_source",
+        "examples/invalid/rest-upload-artifact-sink-only.json": "forbids artifact_sink",
         "examples/invalid/rest-runtime-upload-inline-credentials.json": "inline credential",
         "examples/invalid/rest-download-local-mutating-method.json": "mutating REST download",
     }
@@ -925,16 +943,24 @@ def validate_runtime_vectors(
         component, operation = resolved
         if metadata.get("plenora.operation.version") != str(operation["version"]):
             failures.append(f"{path.relative_to(ROOT)} has wrong operation version")
-        correlation_id = metadata.get("plenora.trace.correlation_id")
-        if correlation_id is None:
-            failures.append(f"{path.relative_to(ROOT)} lacks correlation identity")
-        else:
+        identities = (
+            ("plenora.message.id", "message"),
+            ("plenora.trace.correlation_id", "correlation"),
+        )
+        for metadata_key, identity_name in identities:
+            identity = metadata.get(metadata_key)
+            if identity is None:
+                failures.append(
+                    f"{path.relative_to(ROOT)} lacks {identity_name} identity"
+                )
+                continue
             try:
-                if str(UUID(correlation_id)) != correlation_id:
+                if str(UUID(identity)) != identity:
                     raise ValueError
             except (ValueError, AttributeError):
                 failures.append(
-                    f"{path.relative_to(ROOT)} has a non-canonical correlation UUID"
+                    f"{path.relative_to(ROOT)} has a non-canonical "
+                    f"{identity_name} UUID"
                 )
 
         if vector["kind"] == "request":

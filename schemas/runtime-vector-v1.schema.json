@@ -13,8 +13,10 @@
     "content_type": {"type": "string", "minLength": 3},
     "metadata": {
       "type": "object",
-      "required": ["plenora.trace.correlation_id"],
+      "required": ["plenora.message.id", "plenora.trace.correlation_id"],
       "properties": {
+        "plenora.message.id": {"$ref": "#/$defs/uuid"},
+        "plenora.message.causation_id": {"$ref": "#/$defs/uuid"},
         "plenora.capability.name": {
           "type": "string",
           "pattern": "^plenora\\.[a-z][a-z0-9-]*-tools$"

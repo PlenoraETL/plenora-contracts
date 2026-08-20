@@ -64,9 +64,8 @@ The inventory identified these expected migrations:
   cutover: the first conforming release is `2.0.0` or later in the `2.x` line,
   and one artifact does not serve both CLI JSON protocols. Deprecated command
   aliases may remain only when they emit protocol v2.
-- `runtime-tools`: use `plenora-runtime-tools-profile-v1`; CLI and Python SDK
-  remain not applicable, while runtime conformance requires request, result and
-  terminal-error vector coverage.
+- `runtime-tools`: no public common CLI or Python SDK surface was found; it may
+  declare both contracts not applicable until such a surface exists.
 - `rest-tools`: Python package naming, minimum Python version, lifecycle and
   error shape require alignment before it can claim SDK v1 adoption.
 - `storage-tools`: no operations or public surfaces are standardized yet; its

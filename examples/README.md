@@ -24,8 +24,13 @@ Files under `invalid` are deliberate counterexamples and must fail that check.
 | `invalid/adoption-v2-floating-revision.json` | `adoption-manifest-v2.schema.json` |
 | `invalid/adoption-v3-python-missing-api-modes.json` | `adoption-manifest-v3.schema.json` |
 | `invalid/runtime-correlation-not-uuid.json` | `runtime-vector-v1.schema.json` |
+| `invalid/runtime-message-id-missing.json` | `runtime-vector-v1.schema.json` |
+| `invalid/runtime-message-id-not-uuid.json` | `runtime-vector-v1.schema.json` |
 | `invalid/rest-capabilities-attributes-missing-contract.json` | REST capability semantics |
 | `invalid/rest-runtime-artifact-local-path.json` | REST runtime boundary invariants |
+| `invalid/rest-runtime-artifact-relative-path.json` | REST runtime boundary invariants |
+| `invalid/rest-download-artifact-source-only.json` | REST artifact direction invariants |
+| `invalid/rest-upload-artifact-sink-only.json` | REST artifact direction invariants |
 | `invalid/rest-runtime-upload-inline-credentials.json` | REST runtime boundary invariants |
 | `invalid/rest-download-local-mutating-method.json` | REST side-effect invariants |
 
