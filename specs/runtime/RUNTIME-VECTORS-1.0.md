@@ -52,3 +52,26 @@ The structural shape is defined by
 [`runtime-vector-v1.schema.json`](../../schemas/runtime-vector-v1.schema.json).
 The repository semantic validator also checks the vectors against the public
 catalogs and typed error schema.
+
+## 5. Required conformance matrix
+
+The runtime-v1 fixture set is a transport matrix, not a definition of any
+component-owned payload. It includes:
+
+- requests for database, data, IO and REST selectors;
+- JSON and Arrow success envelopes;
+- deadline and causation metadata;
+- opaque secret, endpoint, transaction and artifact references;
+- typed failures with `none` and `unknown` remote effects;
+- safe retry and recovery-required dispositions.
+
+An adopter MUST exercise every fixture whose operation it advertises. The
+runtime transport consumer MUST exercise the complete set. For every request
+fixture it MUST also demonstrate fail-closed rejection when capability,
+operation, operation version or input contract routing is missing or invalid.
+Those negative probes are mutations of the valid fixtures and are not stored
+as `plenora-runtime-vector-v1` documents.
+
+Fixture payload objects remain illustrative. A component validates them using
+its own immutable payload schema; runtime-tools preserves their serialized
+bytes and does not infer domain semantics from their fields.
