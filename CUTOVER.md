@@ -32,7 +32,8 @@ Observed live-reference areas:
   ownership statements;
 - `runtime-tools`: no current reference found;
 - `rest-tools`: no current reference found.
-- `storage-tools`: repository not yet developed; no live reference exists.
+- `storage-tools`: active experimental implementation with component-owned
+  schemas and no qualified release claim yet.
 
 ## Completed replacement sequence
 
@@ -72,8 +73,10 @@ The inventory identified these expected migrations:
   declare both contracts not applicable until such a surface exists.
 - `rest-tools`: Python package naming, minimum Python version, lifecycle and
   error shape require alignment before it can claim SDK v1 adoption.
-- `storage-tools`: no operations or public surfaces are standardized yet; its
-  provisional profile must be completed before the first stable release.
+- `storage-tools`: the normative seven-operation profile selects Rust, CLI and
+  runtime surfaces; Python is not required. Artifact capabilities remain
+  experimental until manifest v4, digests and a qualified release are handled
+  separately.
 
 ## Scope after cutover
 

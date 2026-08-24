@@ -77,12 +77,18 @@ semantics of the same operation version on its other public surfaces.
 **RT-013** — A persistable serialized input that identifies a file or other
 artifact MUST carry an opaque artifact reference. Private local paths MUST NOT
 cross the runtime boundary. The reference is resolved only through an
-authorized runtime resource.
+authorized runtime resource. When the component contract declares artifact
+metadata, it is bounded and keeps content type, byte size and a genuinely
+calculated SHA-256 separate from provider-specific identifiers.
 
 **RT-014** — An artifact result MUST preserve its output contract, content
 type, originating correlation identity, byte count and checksum algorithm and
 value. The concrete transport or storage mechanism for the artifact is
 implementation-specific.
+
+**RT-015** — Artifact source and sink resolution belongs to the final
+application boundary. A component may expose transport-neutral resolver traits
+but MUST NOT require a core runtime-tools crate to depend on the component.
 
 ## 6. Success result
 

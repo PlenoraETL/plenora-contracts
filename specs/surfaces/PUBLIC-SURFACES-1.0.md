@@ -37,8 +37,9 @@ explicit input or capability attribute.
 incompatible change.
 
 Examples of valid identity families are `database.query`, `geo.buffer`,
-`io.read` and `rest.execute`. Profiles define the required families without
-dictating internal APIs. No concrete `storage.*` action is standardized yet.
+`io.read`, `rest.execute` and `storage.get`. Profiles define the required
+families without dictating internal APIs; the storage profile standardizes its
+seven `storage.*` v1 operations.
 
 ## 4. Operation descriptor
 

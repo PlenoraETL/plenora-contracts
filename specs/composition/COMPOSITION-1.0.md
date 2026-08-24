@@ -53,8 +53,11 @@ partial errors, and must explicitly own field type inference or declaration,
 nullability, ordering and per-record error policy. No component may silently
 infer this edge from matching field names.
 
-Storage composition remains undefined until the provisional storage catalog is
-replaced by reviewed operations and artifact-reference contracts.
+Storage operations now define opaque artifact source and sink references, but
+those references and their bounded content type, size and optional SHA-256
+metadata do not define the bytes' semantic content. No storage edge is
+therefore added to the reviewed matrix until both endpoints share a reviewed
+content and integrity contract.
 
 ## 5. Validation
 

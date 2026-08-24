@@ -29,9 +29,11 @@ rename a required operation or change its contracts.
 - `extension`: the namespace and semantics are standardized, but an artifact
   may omit the extension entirely.
 
-`storage-tools-v1.json` is provisional and intentionally has no operations.
-An empty provisional catalog is preferable to inventing unstable storage
-semantics.
+`storage-tools-v1.json` is normative after ratification of its atomicity,
+publication, pagination, integrity and artifact-reference semantics. Normative
+catalog status fixes identities and testable boundaries; it is not a release
+or artifact conformance claim. Storage artifact capabilities may remain
+`experimental` until a qualified release exists.
 
 ## 3. Operation identity
 

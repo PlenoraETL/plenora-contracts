@@ -58,10 +58,12 @@ catalogs and typed error schema.
 The runtime-v1 fixture set is a transport matrix, not a definition of any
 component-owned payload. It includes:
 
-- requests for database, data, IO and REST selectors;
+- requests for database, data, IO, REST and storage selectors;
 - JSON and Arrow success envelopes;
 - deadline and causation metadata;
-- opaque secret, endpoint, transaction and artifact references;
+- opaque secret, endpoint, transaction and artifact references, including
+  storage source and sink roles with bounded metadata, explicit overwrite and
+  publication policy;
 - typed failures with `none` and `unknown` remote effects;
 - safe retry and recovery-required dispositions.
 

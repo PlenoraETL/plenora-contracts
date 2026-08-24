@@ -113,6 +113,17 @@ REST_ATTRIBUTE_CONTRACT = "plenora-rest-capability-attributes-v1"
 REST_FILE_TRANSFER_INPUT = "plenora-rest-file-transfer-input-v1"
 DATABASE_COMPONENT = "plenora-database-tools"
 DATABASE_ATTRIBUTE_CONTRACT = "plenora-database-capability-attributes-v1"
+STORAGE_COMPONENT = "plenora-storage-tools"
+STORAGE_ATTRIBUTE_CONTRACT = "plenora-storage-capability-attributes-v1"
+STORAGE_OPERATIONS = {
+    "storage.test",
+    "storage.list",
+    "storage.stat",
+    "storage.get",
+    "storage.put",
+    "storage.copy",
+    "storage.delete",
+}
 
 REQUIRED_OPERATIONS = {
     "plenora-database-tools": {
@@ -145,7 +156,7 @@ REQUIRED_OPERATIONS = {
         "rest.download",
         "rest.upload",
     },
-    "plenora-storage-tools": set(),
+    "plenora-storage-tools": STORAGE_OPERATIONS,
 }
 
 ARROW_TYPES = [
@@ -492,11 +503,69 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
             if execute is not None and execute["side_effect"] != "remote":
                 failures.append("database.execute must declare remote side effects")
 
-    storage = catalogs["plenora-storage-tools"]
-    if storage["status"] != "provisional" or storage["operations"]:
-        failures.append(
-            "storage-tools v1 must remain provisional and empty until reviewed"
-        )
+    storage = catalogs[STORAGE_COMPONENT]
+    if storage["status"] != "normative":
+        failures.append("storage-tools v1 must be normative after reviewed policy ratification")
+    expected_storage_surfaces = {
+        "rust": "required",
+        "cli": "required",
+        "python_sdk": "not_applicable",
+        "runtime": "required",
+    }
+    if storage["target_surfaces"] != expected_storage_surfaces:
+        failures.append("storage-tools has the wrong target surface selection")
+    storage_operations = {item["id"]: item for item in storage["operations"]}
+    if set(storage_operations) != STORAGE_OPERATIONS:
+        failures.append("storage-tools v1 must define exactly the seven reviewed operations")
+    for operation_id, operation in storage_operations.items():
+        action = operation_id.removeprefix("storage.")
+        if operation["version"] != 1:
+            failures.append(f"{operation_id} must remain at proposal version 1")
+        if set(operation["surfaces"]) != {"rust", "cli", "runtime"}:
+            failures.append(f"{operation_id} has the wrong selected surfaces")
+        if operation["input"]["contract"] != f"plenora-storage-{action}-input-v1":
+            failures.append(f"{operation_id} has the wrong input contract")
+        if operation["output"]["contract"] != f"plenora-storage-{action}-output-v1":
+            failures.append(f"{operation_id} has the wrong output contract")
+        for direction in ("input", "output"):
+            payload = operation[direction]
+            if payload["content_types"] != ["application/json"]:
+                failures.append(f"{operation_id} {direction} must use JSON")
+            if payload["interchange_contracts"]:
+                failures.append(
+                    f"{operation_id} must not imply an unreviewed interchange contract"
+                )
+        if operation["controls"] != {
+            "cancellation": True,
+            "deadline": True,
+            "idempotency_key": False,
+        }:
+            failures.append(f"{operation_id} has the wrong execution controls")
+        attributes = operation.get("attributes")
+        if (
+            not isinstance(attributes, dict)
+            or attributes.get("contract") != STORAGE_ATTRIBUTE_CONTRACT
+        ):
+            failures.append(f"{operation_id} lacks its capability attribute contract")
+
+    for operation_id in {"storage.test", "storage.list", "storage.stat"}:
+        if storage_operations.get(operation_id, {}).get("side_effect") != "none":
+            failures.append(f"{operation_id} must remain side-effect free")
+    for operation_id in {"storage.get", "storage.put", "storage.copy", "storage.delete"}:
+        if storage_operations.get(operation_id, {}).get("side_effect") != "remote":
+            failures.append(f"{operation_id} must use the conservative remote side effect")
+    if storage_operations.get("storage.get", {}).get("attributes", {}).get("artifact_role") != "sink":
+        failures.append("storage.get must declare its artifact sink")
+    if storage_operations.get("storage.put", {}).get("attributes", {}).get("artifact_role") != "source":
+        failures.append("storage.put must declare its artifact source")
+    for operation_id in {"storage.put", "storage.copy"}:
+        attributes = storage_operations.get(operation_id, {}).get("attributes", {})
+        if attributes.get("publication_policy") != "required":
+            failures.append(f"{operation_id} must require an explicit publication policy")
+        if attributes.get("create_if_absent") != "provider_operation_capability":
+            failures.append(
+                f"{operation_id} must scope create-if-absent to its provider operation capability"
+            )
 
     registry = load_json(ROOT / "catalogs/data-kernels-v1.json")
     kernel_ids = [item["id"] for item in registry["operations"]]
@@ -1004,6 +1073,158 @@ def validate_arrow_vectors() -> list[str]:
     return failures
 
 
+def storage_vector_errors(
+    vector: dict[str, Any], operation: dict[str, Any]
+) -> list[str]:
+    errors: list[str] = []
+    payload = vector.get("payload", {})
+    operation_id = operation["id"]
+
+    def validate_artifact_metadata(node: Any, label: str) -> None:
+        if not isinstance(node, dict) or set(node) != {
+            "content_type",
+            "size",
+            "sha256",
+        }:
+            errors.append(f"{label} requires bounded artifact metadata")
+            return
+        content_type = node["content_type"]
+        if content_type is not None and (
+            not isinstance(content_type, str)
+            or len(content_type) > 255
+            or re.fullmatch(
+                r"[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+",
+                content_type,
+            )
+            is None
+        ):
+            errors.append(f"{label} has invalid content type metadata")
+        size = node["size"]
+        if size is not None and (
+            not isinstance(size, int) or isinstance(size, bool) or size < 0
+        ):
+            errors.append(f"{label} has invalid size metadata")
+        sha256 = node["sha256"]
+        if sha256 is not None and (
+            not isinstance(sha256, str)
+            or re.fullmatch(r"[0-9a-f]{64}", sha256) is None
+        ):
+            errors.append(f"{label} has invalid SHA-256 metadata")
+
+    if vector["kind"] == "request":
+        if payload.get("schema_version") != 1:
+            errors.append("storage request lacks schema_version 1")
+        connection = payload.get("connection")
+        if not isinstance(connection, dict):
+            errors.append("storage request lacks its connection object")
+        else:
+            credential_ref = connection.get("credential_ref")
+            if not isinstance(credential_ref, str) or not re.match(
+                r"^[a-z][a-z0-9+.-]{1,31}:(//)?[^\s\\]+$", credential_ref
+            ):
+                errors.append("storage request has a non-opaque credential reference")
+
+        secret_keys = {
+            "authorization",
+            "credentials",
+            "password",
+            "passwd",
+            "token",
+            "api_key",
+            "secret",
+            "private_key",
+            "access_key",
+            "secret_key",
+        }
+        for key, _value in nested_items(payload):
+            if key.lower() in secret_keys:
+                errors.append(f"storage request contains inline credential field {key}")
+        if any(is_local_path(value) for value in artifact_strings(payload)):
+            errors.append("storage runtime request contains a private local path")
+
+        source = payload.get("artifact_source")
+        sink = payload.get("artifact_sink")
+        if operation_id == "storage.get":
+            if not isinstance(sink, dict):
+                errors.append("storage.get requires artifact_sink")
+            elif not isinstance(sink.get("overwrite"), bool):
+                errors.append("storage.get requires explicit sink overwrite")
+            if source is not None:
+                errors.append("storage.get forbids artifact_source")
+        if operation_id == "storage.put":
+            if not isinstance(source, dict):
+                errors.append("storage.put requires artifact_source")
+            if sink is not None:
+                errors.append("storage.put forbids artifact_sink")
+            if not isinstance(payload.get("overwrite"), bool):
+                errors.append("storage.put requires explicit overwrite")
+            if payload.get("publication_policy") not in {
+                "best_effort",
+                "atomic_required",
+            }:
+                errors.append("storage.put requires an explicit publication policy")
+        for name, node in (("artifact_source", source), ("artifact_sink", sink)):
+            if node is None:
+                continue
+            reference = node.get("reference") if isinstance(node, dict) else None
+            if not isinstance(reference, str) or not reference.startswith("artifact://"):
+                errors.append(f"storage {name} must use an opaque artifact reference")
+            if isinstance(node, dict):
+                validate_artifact_metadata(node.get("metadata"), name)
+        if operation_id == "storage.list":
+            cursor = payload.get("cursor")
+            if cursor is not None and (
+                not isinstance(cursor, str)
+                or re.fullmatch(r"cursor://[0-9a-f]{64}", cursor) is None
+                or len(cursor) > 512
+            ):
+                errors.append("storage.list cursor must be opaque and bounded")
+        if operation_id == "storage.copy":
+            if not isinstance(payload.get("overwrite"), bool):
+                errors.append("storage.copy requires explicit overwrite")
+            if payload.get("publication_policy") not in {
+                "best_effort",
+                "atomic_required",
+            }:
+                errors.append("storage.copy requires an explicit publication policy")
+        if operation_id == "storage.delete" and not isinstance(
+            payload.get("ignore_missing"), bool
+        ):
+            errors.append("storage.delete requires explicit missing behavior")
+
+    if vector["kind"] == "success" and operation_id in {
+        "storage.get",
+        "storage.put",
+    }:
+        checksum = payload.get("checksum")
+        if (
+            not isinstance(checksum, dict)
+            or checksum.get("algorithm") != "sha256"
+            or not isinstance(checksum.get("value"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", checksum["value"]) is None
+        ):
+            errors.append("storage transfer success lacks SHA-256 integrity metadata")
+        artifact = payload.get("artifact")
+        validate_artifact_metadata(artifact, "storage transfer result")
+        if isinstance(artifact, dict) and isinstance(checksum, dict):
+            if artifact.get("sha256") != checksum.get("value"):
+                errors.append("storage transfer artifact SHA-256 conflicts with checksum")
+            if artifact.get("size") != payload.get("bytes_transferred"):
+                errors.append("storage transfer artifact size conflicts with byte count")
+    if vector["kind"] == "success" and operation_id == "storage.list":
+        cursor = payload.get("next_cursor")
+        if cursor is not None and (
+            not isinstance(cursor, str)
+            or re.fullmatch(r"cursor://[0-9a-f]{64}", cursor) is None
+            or len(cursor) > 512
+        ):
+            errors.append("storage.list result cursor must be opaque and bounded")
+    if vector["kind"] == "error" and payload.get("remote_effect") == "unknown":
+        if payload.get("retry", {}).get("kind") != "requires_recovery":
+            errors.append("ambiguous storage errors must require recovery")
+    return errors
+
+
 def validate_runtime_vectors(
     catalogs: dict[str, dict[str, Any]],
     schemas: dict[str, dict[str, Any]],
@@ -1103,6 +1324,12 @@ def validate_runtime_vectors(
             if bound_errors:
                 failures.append(
                     f"{path.relative_to(ROOT)} has unbounded error: {bound_errors[0]}"
+                )
+        if component == STORAGE_COMPONENT:
+            errors = storage_vector_errors(vector, operation)
+            if errors:
+                failures.append(
+                    f"{path.relative_to(ROOT)} violates storage runtime semantics: {errors[0]}"
                 )
     return failures
 

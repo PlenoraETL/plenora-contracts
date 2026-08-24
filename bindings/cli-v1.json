@@ -206,9 +206,42 @@
     },
     {
       "component": "plenora-storage-tools",
-      "artifact": null,
-      "discovery": [],
-      "bindings": []
+      "artifact": "plenora-storage",
+      "discovery": [
+        "--help",
+        "--version --format json",
+        "capabilities --format json"
+      ],
+      "bindings": [
+        {
+          "operation": "storage.test", "version": 1, "requirement": "required",
+          "entrypoints": ["test --connection CONNECTION.json --allow-experimental-contracts --format json"]
+        },
+        {
+          "operation": "storage.list", "version": 1, "requirement": "required",
+          "entrypoints": ["list --connection CONNECTION.json --allow-experimental-contracts --format json"]
+        },
+        {
+          "operation": "storage.stat", "version": 1, "requirement": "required",
+          "entrypoints": ["stat --connection CONNECTION.json --key KEY --allow-experimental-contracts --format json"]
+        },
+        {
+          "operation": "storage.get", "version": 1, "requirement": "required",
+          "entrypoints": ["get --connection CONNECTION.json --key KEY --output OUTPUT --overwrite false --allow-experimental-contracts --format json"]
+        },
+        {
+          "operation": "storage.put", "version": 1, "requirement": "required",
+          "entrypoints": ["put --connection CONNECTION.json --key KEY --input INPUT --overwrite false --publication-policy atomic-required --allow-experimental-contracts --format json"]
+        },
+        {
+          "operation": "storage.copy", "version": 1, "requirement": "required",
+          "entrypoints": ["copy --connection CONNECTION.json --source-key SOURCE --destination-key DESTINATION --overwrite false --publication-policy atomic-required --allow-experimental-contracts --format json"]
+        },
+        {
+          "operation": "storage.delete", "version": 1, "requirement": "required",
+          "entrypoints": ["delete --connection CONNECTION.json --key KEY --ignore-missing false --allow-experimental-contracts --format json"]
+        }
+      ]
     }
   ]
 }
