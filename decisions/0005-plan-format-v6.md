@@ -34,7 +34,10 @@ added to version 5.
 - the field exists only in version 6, inside `limits`;
 - the field is optional; its absence means the isolated profile is not
   selectable for that plan, never an implied ceiling;
-- each plan format version has its own hash domain;
+- version 6 has a hash domain distinct from version 5. This is one relation
+  between two versions, not a general rule: identity relations among earlier
+  versions are untouched, including the published equivalence that migrates a
+  version 4 plan into the version 5 canonical form with the same plan hash;
 - an existing version 5 plan keeps its canonical form and its plan hash;
 - a version 6 plan belongs to the new domain, so a version 5 document and an
   otherwise identical version 6 document are different identities;
@@ -73,10 +76,10 @@ Required by [governance](../GOVERNANCE.md).
   compares plan hashes.
 - **Observable behavior before.** Plan format versions 4 and 5 are accepted,
   as are any earlier linear formats a component already accepts. No plan can
-  declare a domain memory ceiling. Every accepted plan hashes inside its own
-  version's domain.
+  declare a domain memory ceiling.
 - **Observable behavior after.** Unchanged for versions 4 and 5 and for every
-  earlier format, including their hashes. Version 6 is additionally accepted and may declare
+  earlier format, including their hashes and the identity relations already
+  published among them. Version 6 is additionally accepted and may declare
   `max_domain_memory_bytes`. A version 6 document has an identity distinct from
   an otherwise identical version 5 document.
 - **Compatible?** Yes as a contract change, because it is delivered as a new

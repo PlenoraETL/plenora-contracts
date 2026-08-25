@@ -126,25 +126,49 @@ difference shows up in the outcome instead of in the plan.
 an otherwise identical version `6` plan that omits it are **different plans**.
 When present, the field enters the canonical form and therefore the plan hash.
 
-**PLAN-018** — Each plan format version has its own hash domain. A version `5`
-document and a version `6` document that are otherwise identical have
-**different** identities.
+**PLAN-018** — Version `6` has a hash domain **distinct from version `5`**. A
+version `5` document and a version `6` document that are otherwise identical
+have **different** identities.
 
-**PLAN-019** — A version `5` plan MUST keep the canonical form, hash domain and
+This states one relation, between two versions. It is **not** a general rule
+that every plan format version has its own domain, and it must not be read as
+one: some components migrate an older version into a newer canonical form and
+publish the two as sharing an identity. That is exactly what happens today for
+version `4`, which is migrated into the version `5` canonical form and
+therefore shares its plan hash.
+
+**PLAN-019** — This contract does **not** modify, generalize or withdraw any
+identity relation among plan format versions below `6`. Migrations and
+equivalences that already exist between earlier versions stay owned by the
+accepting component, including the published equivalence between version `4`
+and version `5`.
+
+Rationale, informative. Introducing version `6` needs one new fact — that its
+identities are separate from version `5`'s — and nothing else. Stating it as
+«each version has its own domain» would have been shorter and would have
+contradicted both PLAN-003 and a guarantee already published and regression
+tested elsewhere. A contract that generalizes beyond what it needs revokes
+things nobody asked it to touch.
+
+**PLAN-020** — A version `5` plan MUST keep the canonical form, hash domain and
 plan hash it already had. This contract changes nothing about already published
 version `5` identities.
 
-**PLAN-020** — A migration from version `5` to version `6` MUST NOT present the
+**PLAN-021** — A migration from version `5` to version `6` MUST NOT present the
 two documents as having equivalent identity, and MUST NOT reuse the version `5`
 hash for the migrated document.
 
 Rationale, informative. The temptation is to say that a plan without the new
 field keeps its hash, because nothing about it changed. That is true within
-version `5` and false across the version boundary: the version participates in
-the identity, so the same nodes and edges expressed as version `6` are a
-different plan. Stating the narrow truth — existing version `5` plans keep
-their hashes — costs nothing. Stating the broad one would promise stability
-that the format change does not deliver.
+version `5` and false across **this** version boundary: version `6` canonicalizes
+into its own domain, so the same nodes and edges expressed as version `6` are a
+different plan.
+
+Note the boundary is what does the work, not a general principle that a version
+number always changes an identity — version `4` is evidence to the contrary,
+since it canonicalizes into version `5` and keeps that hash. Stating the narrow
+truth costs nothing. Stating the broad one would promise stability that the
+format change does not deliver, and would revoke a guarantee that does hold.
 
 ## 7. Machine-readable fragment
 
@@ -165,7 +189,7 @@ What the schema does **not** check:
   against a component default this contract does not own (PLAN-012);
 - PLAN-010, PLAN-014, PLAN-015 and PLAN-016, which are about behavior rather
   than document shape;
-- PLAN-017 to PLAN-020, which are about identity across documents.
+- PLAN-017 to PLAN-021, which are about identity across documents.
 
 `examples/invalid/plan-budget-domain-below-governed.json` exists to prove the
 distinction is real: the schema **accepts** it and the semantic check
