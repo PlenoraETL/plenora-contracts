@@ -13,6 +13,8 @@ Normative target catalog:
 - [Typed Errors 1.0](../specs/errors/ERRORS-1.0.md)
 - [Public Security 1.0](../specs/security/PUBLIC-SECURITY-1.0.md)
 - [Arrow Interchange 1.0](../specs/data/ARROW-INTERCHANGE-1.0.md)
+- [Plan Budget 1.0](../specs/data/PLAN-BUDGET-1.0.md), when plans are
+  accepted publicly
 - [Row Diagnostics 1.0](../specs/diagnostics/ROW-DIAGNOSTICS-1.0.md)
 - [CLI 2.0](../specs/cli/CLI-2.0.md)
 - [Runtime Binding 1.0](../specs/runtime/RUNTIME-BINDING-1.0.md), when exposed
@@ -63,7 +65,22 @@ Unavailable backends, unsupported CRS states and incompatible schemas fail
 closed with typed errors. A catalog entry MUST NOT claim availability when the
 released artifact lacks a required backend.
 
+## Plan identity
+
+[Plan Budget 1.0](../specs/data/PLAN-BUDGET-1.0.md) separates version `6`
+identities from version `5` identities, and touches nothing below that.
+
+For this component specifically, the published equivalence between plan format
+versions `4` and `5` **stands**: a version `4` plan is migrated into the
+version `5` canonical form and keeps the same plan hash as the equivalent
+version `5` document. Plan Budget does not withdraw that equivalence and must
+not be read as doing so.
+
 ## Not specified here
 
 This profile does not prescribe DAG representation, kernel implementation,
 fusion, scheduling, memory accounting or cancellation-token design.
+
+It does not prescribe the identity relations among plan format versions below
+`6` either: those are the component's, and Plan Budget leaves them where they
+are.

@@ -34,6 +34,7 @@ EXPECTED_SCHEMAS = {
     "composition-v1.schema.json",
     "error-v1.schema.json",
     "operation-registry-v1.schema.json",
+    "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
     "row-diagnostics-v1.schema.json",
     "runtime-vector-v1.schema.json",
@@ -63,6 +64,11 @@ CASES = {
         ],
         "adoption-manifest-v4.schema.json": [
             "examples/valid/adoption-manifest-v4.json"
+        ],
+        "plan-budget-v1.schema.json": [
+            "examples/valid/plan-budget-v6.json",
+            "examples/valid/plan-budget-v6-absent.json",
+            "examples/valid/plan-budget-v5.json",
         ],
     },
     "invalid": {
@@ -96,6 +102,11 @@ CASES = {
             "examples/invalid/runtime-correlation-not-uuid.json",
             "examples/invalid/runtime-message-id-missing.json",
             "examples/invalid/runtime-message-id-not-uuid.json",
+        ],
+        "plan-budget-v1.schema.json": [
+            "examples/invalid/plan-budget-v5-with-domain.json",
+            "examples/invalid/plan-budget-zero.json",
+            "examples/invalid/plan-budget-unknown-version.json",
         ],
     },
 }
@@ -1334,6 +1345,62 @@ def validate_runtime_vectors(
     return failures
 
 
+PLAN_BUDGET_CONFORMING = (
+    "examples/valid/plan-budget-v6.json",
+    "examples/valid/plan-budget-v6-absent.json",
+    "examples/valid/plan-budget-v5.json",
+)
+
+# Documenti che il JSON Schema ACCETTA e che il contratto rifiuta. Senza
+# almeno uno, `plan_budget_errors` potrebbe essere cancellata o invertita e la
+# suite resterebbe verde: visitare solo esempi gia' coerenti non prova nulla.
+PLAN_BUDGET_VIOLATING = ("examples/invalid/plan-budget-domain-below-governed.json",)
+
+
+def plan_budget_errors(document: dict[str, Any]) -> list[str]:
+    """PLAN-011: the domain ceiling is at least the governed budget.
+
+    JSON Schema cannot compare two sibling values, so the schema stops at
+    shape. Only the case where the document declares BOTH is checkable here:
+    when the governed budget is omitted the comparison is against a component
+    default this repository does not own, and the contract says so.
+    """
+    limits = document.get("limits", {})
+    domain = limits.get("max_domain_memory_bytes")
+    governed = limits.get("max_governed_memory_bytes")
+    if domain is None or governed is None:
+        return []
+    if domain < governed:
+        return [
+            f"max_domain_memory_bytes {domain} is below "
+            f"max_governed_memory_bytes {governed} (PLAN-011)"
+        ]
+    return []
+
+
+def validate_plan_budget(
+    schemas: dict[str, dict[str, Any]], registry: Registry
+) -> list[str]:
+    failures: list[str] = []
+    schema = schemas["plan-budget-v1.schema.json"]
+    for relative in PLAN_BUDGET_CONFORMING:
+        for problem in plan_budget_errors(load_json(ROOT / relative)):
+            failures.append(f"{relative} {problem}")
+    for relative in PLAN_BUDGET_VIOLATING:
+        document = load_json(ROOT / relative)
+        # Deve passare lo SCHEMA: se fallisse li', non proverebbe che il
+        # controllo semantico serve — proverebbe solo che lo schema funziona.
+        shape = instance_errors(schema, document, registry)
+        if shape:
+            failures.append(
+                f"{relative} must be accepted by the schema so that it probes "
+                f"the semantic check, but the schema rejected it: {shape[0]}"
+            )
+        if not plan_budget_errors(document):
+            failures.append(f"{relative} must be rejected by PLAN-011")
+    return failures
+
+
 def validate_markdown_links() -> list[str]:
     failures: list[str] = []
     for document in ROOT.rglob("*.md"):
@@ -1375,6 +1442,7 @@ def main() -> int:
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
+    failures.extend(validate_plan_budget(schemas, registry))
     failures.extend(validate_markdown_links())
     if failures:
         for failure in failures:
