@@ -13,6 +13,8 @@ Normative target catalog:
 - [Typed Errors 1.0](../specs/errors/ERRORS-1.0.md)
 - [Public Security 1.0](../specs/security/PUBLIC-SECURITY-1.0.md)
 - [Arrow Interchange 1.0](../specs/data/ARROW-INTERCHANGE-1.0.md)
+- [Plan Budget 1.0](../specs/data/PLAN-BUDGET-1.0.md), when plans are
+  accepted publicly
 - [Row Diagnostics 1.0](../specs/diagnostics/ROW-DIAGNOSTICS-1.0.md)
 - [CLI 2.0](../specs/cli/CLI-2.0.md)
 - [Runtime Binding 1.0](../specs/runtime/RUNTIME-BINDING-1.0.md), when exposed

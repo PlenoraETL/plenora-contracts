@@ -1,0 +1,6 @@
+{
+  "plan_format_version": 7,
+  "limits": {
+    "max_domain_memory_bytes": 1073741824
+  }
+}

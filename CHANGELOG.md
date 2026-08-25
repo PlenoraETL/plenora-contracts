@@ -20,3 +20,5 @@
 - Closed Arrow metadata vocabulary with valid and invalid interoperability vectors.
 - Runtime request, success and typed-error conformance vectors.
 - Semantic validation across catalogs, bindings, composition and vectors.
+- Plan Budget 1.0: `max_domain_memory_bytes`, plan format v6 and the plan
+  identity boundary, with schema, examples and a semantic budget check.

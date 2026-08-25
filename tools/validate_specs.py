@@ -34,6 +34,7 @@ EXPECTED_SCHEMAS = {
     "composition-v1.schema.json",
     "error-v1.schema.json",
     "operation-registry-v1.schema.json",
+    "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
     "row-diagnostics-v1.schema.json",
     "runtime-vector-v1.schema.json",
@@ -63,6 +64,11 @@ CASES = {
         ],
         "adoption-manifest-v4.schema.json": [
             "examples/valid/adoption-manifest-v4.json"
+        ],
+        "plan-budget-v1.schema.json": [
+            "examples/valid/plan-budget-v6.json",
+            "examples/valid/plan-budget-v6-absent.json",
+            "examples/valid/plan-budget-v5.json",
         ],
     },
     "invalid": {
@@ -96,6 +102,11 @@ CASES = {
             "examples/invalid/runtime-correlation-not-uuid.json",
             "examples/invalid/runtime-message-id-missing.json",
             "examples/invalid/runtime-message-id-not-uuid.json",
+        ],
+        "plan-budget-v1.schema.json": [
+            "examples/invalid/plan-budget-v5-with-domain.json",
+            "examples/invalid/plan-budget-zero.json",
+            "examples/invalid/plan-budget-unknown-version.json",
         ],
     },
 }
@@ -1334,6 +1345,39 @@ def validate_runtime_vectors(
     return failures
 
 
+PLAN_BUDGET_EXAMPLES = (
+    "examples/valid/plan-budget-v6.json",
+    "examples/valid/plan-budget-v6-absent.json",
+    "examples/valid/plan-budget-v5.json",
+)
+
+
+def validate_plan_budget() -> list[str]:
+    """PLAN-009: the domain ceiling is at least the governed budget.
+
+    JSON Schema cannot compare two sibling values, so the schema stops at
+    shape. Leaving the rule to prose alone would mean the examples could
+    contradict the contract they illustrate without anything noticing.
+
+    Only the case where the example declares BOTH is checkable here. When the
+    governed budget is omitted the comparison is against a component default
+    this repository does not own, and the contract says so.
+    """
+    failures: list[str] = []
+    for relative in PLAN_BUDGET_EXAMPLES:
+        limits = load_json(ROOT / relative).get("limits", {})
+        domain = limits.get("max_domain_memory_bytes")
+        governed = limits.get("max_governed_memory_bytes")
+        if domain is None or governed is None:
+            continue
+        if domain < governed:
+            failures.append(
+                f"{relative} declares max_domain_memory_bytes {domain} below "
+                f"max_governed_memory_bytes {governed} (PLAN-009)"
+            )
+    return failures
+
+
 def validate_markdown_links() -> list[str]:
     failures: list[str] = []
     for document in ROOT.rglob("*.md"):
@@ -1375,6 +1419,7 @@ def main() -> int:
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
+    failures.extend(validate_plan_budget())
     failures.extend(validate_markdown_links())
     if failures:
         for failure in failures:
