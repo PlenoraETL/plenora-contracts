@@ -1,5 +1,5 @@
 {
-  "plan_format_version": 5,
+  "schema_version": 5,
   "limits": {
     "max_governed_memory_bytes": 536870912
   },

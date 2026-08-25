@@ -28,6 +28,9 @@ migration and a schema version increment, for exactly this reason.
 added to version 5.
 
 - versions 4 and 5 remain accepted under the rules that already governed them;
+- earlier linear formats stay outside the fragment and keep being accepted
+  wherever they already are; they simply cannot declare the new field, and so
+  cannot select the isolated profile;
 - the field exists only in version 6, inside `limits`;
 - the field is optional; its absence means the isolated profile is not
   selectable for that plan, never an implied ceiling;
@@ -68,11 +71,12 @@ Required by [governance](../GOVERNANCE.md).
 - **Affected public consumer.** Any caller or orchestrator that submits plan
   documents to a component accepting them publicly, and anyone who stores or
   compares plan hashes.
-- **Observable behavior before.** Plan format versions 4 and 5 are accepted. No
-  plan can declare a domain memory ceiling. Every accepted plan hashes inside
-  its own version's domain.
-- **Observable behavior after.** Unchanged for versions 4 and 5, including
-  their hashes. Version 6 is additionally accepted and may declare
+- **Observable behavior before.** Plan format versions 4 and 5 are accepted,
+  as are any earlier linear formats a component already accepts. No plan can
+  declare a domain memory ceiling. Every accepted plan hashes inside its own
+  version's domain.
+- **Observable behavior after.** Unchanged for versions 4 and 5 and for every
+  earlier format, including their hashes. Version 6 is additionally accepted and may declare
   `max_domain_memory_bytes`. A version 6 document has an identity distinct from
   an otherwise identical version 5 document.
 - **Compatible?** Yes as a contract change, because it is delivered as a new
@@ -80,8 +84,10 @@ Required by [governance](../GOVERNANCE.md).
   additive field change: adding the member to version 5 would have been
   forward incompatible, which is why the version exists.
 - **Schemas, examples and profiles affected.**
-  [`plan-budget-v1.schema.json`](../schemas/plan-budget-v1.schema.json), six new
-  examples, the semantic budget check in `tools/validate_specs.py`, and the
+  [`plan-budget-v1.schema.json`](../schemas/plan-budget-v1.schema.json), seven
+  new examples — six for the schema and one that the schema must accept so it
+  can probe the semantic check — the budget check in
+  `tools/validate_specs.py`, and the
   [data-tools profile](../profiles/data-tools.md).
 - **Adoption impact.** Only components whose profile lists Plan Budget 1.0.
   Today that is data-tools, which must add an explicit version 6 path, publish

@@ -33,8 +33,25 @@ version `5` with an added field.
 that already governed them. This contract does not deprecate them and does not
 change what they accept.
 
-**PLAN-004** — A component MUST reject a plan whose declared
-`plan_format_version` it does not support. It MUST NOT interpret an unknown
+**PLAN-004** — Earlier plan formats — the linear shapes a component may accept
+below `schema_version` `4` — are **outside** this fragment entirely. This
+contract does not describe them, does not require them, does not deprecate them
+and does not change what they accept. A component that accepts them today keeps
+accepting them.
+
+**PLAN-005** — Those earlier formats cannot declare
+`max_domain_memory_bytes`, and therefore cannot select the isolated execution
+profile. That follows from PLAN-007 and PLAN-010 rather than being a new
+restriction on them.
+
+Rationale, informative. The version list in the machine-readable fragment stops
+at `4` because that is where this contract starts governing, not because
+anything below it is withdrawn. Reading a narrow fragment as a complete
+enumeration of what a component may accept would turn a targeted ratification
+into a silent revocation of existing compatibility.
+
+**PLAN-006** — A component MUST reject a plan whose declared
+`schema_version` it does not support. It MUST NOT interpret an unknown
 version as the nearest known one.
 
 Rationale, informative. The general consumer rule — ignore unknown optional
@@ -52,32 +69,32 @@ version number exists to prevent.
 
 ## 3. The field
 
-**PLAN-005** — `max_domain_memory_bytes` exists **only** in plan format
+**PLAN-007** — `max_domain_memory_bytes` exists **only** in plan format
 version `6`, inside the `limits` block. A version `4` or version `5` document
 that declares it MUST be rejected.
 
-**PLAN-006** — The value MUST be a positive integer representable in an
+**PLAN-008** — The value MUST be a positive integer representable in an
 unsigned 64-bit integer. Zero, negative values, fractional values and values
 outside that range MUST be rejected.
 
-**PLAN-007** — The field is OPTIONAL. Its absence MUST NOT be treated as an
+**PLAN-009** — The field is OPTIONAL. Its absence MUST NOT be treated as an
 error, and MUST NOT be replaced by a default ceiling.
 
-**PLAN-008** — When the field is absent, the isolated execution profile is not
+**PLAN-010** — When the field is absent, the isolated execution profile is not
 selectable for that plan. A request to run that plan under the isolated profile
 MUST be rejected rather than served with an implied ceiling.
 
 ## 4. Relation to the governed budget
 
-**PLAN-009** — `max_domain_memory_bytes` MUST be greater than or equal to the
+**PLAN-011** — `max_domain_memory_bytes` MUST be greater than or equal to the
 **effective** governed memory budget of the same plan.
 
-**PLAN-010** — The effective governed budget is the value declared in the plan
+**PLAN-012** — The effective governed budget is the value declared in the plan
 when present, and the accepting component's documented default when the plan
 omits it. The comparison is made against the effective value in both cases.
 
-**PLAN-011** — A component MUST publish the default it applies. Without a
-published default, PLAN-009 is not checkable by a caller before submission.
+**PLAN-013** — A component MUST publish the default it applies. Without a
+published default, PLAN-011 is not checkable by a caller before submission.
 
 Rationale, informative. A domain ceiling below the budget the plan is allowed
 to govern describes an execution that cannot succeed as declared. Rejecting it
@@ -86,15 +103,15 @@ at run time.
 
 ## 5. What the value means
 
-**PLAN-012** — The value is the ceiling the plan **requests**. It is not the
+**PLAN-014** — The value is the ceiling the plan **requests**. It is not the
 ceiling the host grants and it is not a guarantee that the plan will receive
 it.
 
-**PLAN-013** — The effective ceiling is `min(requested, host policy)`. The host
+**PLAN-015** — The effective ceiling is `min(requested, host policy)`. The host
 policy, how it is configured, how it is discovered and by what mechanism the
 ceiling is enforced are **outside** this contract and outside the plan format.
 
-**PLAN-014** — A component MUST NOT rewrite the declared value to the granted
+**PLAN-016** — A component MUST NOT rewrite the declared value to the granted
 one inside the plan document. The plan states the request; the granted ceiling
 is reported through the component's own result surfaces.
 
@@ -105,19 +122,19 @@ difference shows up in the outcome instead of in the plan.
 
 ## 6. Identity
 
-**PLAN-015** — A version `6` plan that declares `max_domain_memory_bytes` and
+**PLAN-017** — A version `6` plan that declares `max_domain_memory_bytes` and
 an otherwise identical version `6` plan that omits it are **different plans**.
 When present, the field enters the canonical form and therefore the plan hash.
 
-**PLAN-016** — Each plan format version has its own hash domain. A version `5`
+**PLAN-018** — Each plan format version has its own hash domain. A version `5`
 document and a version `6` document that are otherwise identical have
 **different** identities.
 
-**PLAN-017** — A version `5` plan MUST keep the canonical form, hash domain and
+**PLAN-019** — A version `5` plan MUST keep the canonical form, hash domain and
 plan hash it already had. This contract changes nothing about already published
 version `5` identities.
 
-**PLAN-018** — A migration from version `5` to version `6` MUST NOT present the
+**PLAN-020** — A migration from version `5` to version `6` MUST NOT present the
 two documents as having equivalent identity, and MUST NOT reuse the version `5`
 hash for the migrated document.
 
@@ -133,16 +150,27 @@ that the format change does not deliver.
 
 The schema [`plan-budget-v1.schema.json`](../../schemas/plan-budget-v1.schema.json)
 validates the **fragment** of a plan this contract governs:
-`plan_format_version` and the two budget members of `limits`. It permits the
+`schema_version` and the two budget members of `limits`. It permits the
 members it does not govern, because a real plan carries many more.
 
-What the schema does **not** check, and prose carries instead:
+Its `schema_version` enumeration lists `4`, `5` and `6`: the versions this
+contract governs. A document below `4` is **out of scope** (PLAN-004), not
+invalid — this schema is simply not the one that describes it.
 
-- PLAN-009 when the plan omits the governed budget, because the effective value
-  then depends on a component default the schema cannot know;
-- PLAN-008, PLAN-012, PLAN-013 and PLAN-014, which are about behavior rather
+What the schema does **not** check:
+
+- **PLAN-011**, because JSON Schema cannot compare two sibling values. It is
+  enforced as a **semantic check** alongside the schema, and only for documents
+  declaring both budgets: when the governed budget is omitted the comparison is
+  against a component default this contract does not own (PLAN-012);
+- PLAN-010, PLAN-014, PLAN-015 and PLAN-016, which are about behavior rather
   than document shape;
-- PLAN-015 to PLAN-018, which are about identity across documents.
+- PLAN-017 to PLAN-020, which are about identity across documents.
+
+`examples/invalid/plan-budget-domain-below-governed.json` exists to prove the
+distinction is real: the schema **accepts** it and the semantic check
+**rejects** it. Without such a document, a check that only visited already
+consistent examples could be deleted or inverted while the suite stayed green.
 
 A validator that reports a document as conforming to this schema has checked
 shape, not conformance to the contract.

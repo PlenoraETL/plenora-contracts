@@ -1345,36 +1345,59 @@ def validate_runtime_vectors(
     return failures
 
 
-PLAN_BUDGET_EXAMPLES = (
+PLAN_BUDGET_CONFORMING = (
     "examples/valid/plan-budget-v6.json",
     "examples/valid/plan-budget-v6-absent.json",
     "examples/valid/plan-budget-v5.json",
 )
 
+# Documenti che il JSON Schema ACCETTA e che il contratto rifiuta. Senza
+# almeno uno, `plan_budget_errors` potrebbe essere cancellata o invertita e la
+# suite resterebbe verde: visitare solo esempi gia' coerenti non prova nulla.
+PLAN_BUDGET_VIOLATING = ("examples/invalid/plan-budget-domain-below-governed.json",)
 
-def validate_plan_budget() -> list[str]:
-    """PLAN-009: the domain ceiling is at least the governed budget.
+
+def plan_budget_errors(document: dict[str, Any]) -> list[str]:
+    """PLAN-011: the domain ceiling is at least the governed budget.
 
     JSON Schema cannot compare two sibling values, so the schema stops at
-    shape. Leaving the rule to prose alone would mean the examples could
-    contradict the contract they illustrate without anything noticing.
-
-    Only the case where the example declares BOTH is checkable here. When the
-    governed budget is omitted the comparison is against a component default
-    this repository does not own, and the contract says so.
+    shape. Only the case where the document declares BOTH is checkable here:
+    when the governed budget is omitted the comparison is against a component
+    default this repository does not own, and the contract says so.
     """
+    limits = document.get("limits", {})
+    domain = limits.get("max_domain_memory_bytes")
+    governed = limits.get("max_governed_memory_bytes")
+    if domain is None or governed is None:
+        return []
+    if domain < governed:
+        return [
+            f"max_domain_memory_bytes {domain} is below "
+            f"max_governed_memory_bytes {governed} (PLAN-011)"
+        ]
+    return []
+
+
+def validate_plan_budget(
+    schemas: dict[str, dict[str, Any]], registry: Registry
+) -> list[str]:
     failures: list[str] = []
-    for relative in PLAN_BUDGET_EXAMPLES:
-        limits = load_json(ROOT / relative).get("limits", {})
-        domain = limits.get("max_domain_memory_bytes")
-        governed = limits.get("max_governed_memory_bytes")
-        if domain is None or governed is None:
-            continue
-        if domain < governed:
+    schema = schemas["plan-budget-v1.schema.json"]
+    for relative in PLAN_BUDGET_CONFORMING:
+        for problem in plan_budget_errors(load_json(ROOT / relative)):
+            failures.append(f"{relative} {problem}")
+    for relative in PLAN_BUDGET_VIOLATING:
+        document = load_json(ROOT / relative)
+        # Deve passare lo SCHEMA: se fallisse li', non proverebbe che il
+        # controllo semantico serve — proverebbe solo che lo schema funziona.
+        shape = instance_errors(schema, document, registry)
+        if shape:
             failures.append(
-                f"{relative} declares max_domain_memory_bytes {domain} below "
-                f"max_governed_memory_bytes {governed} (PLAN-009)"
+                f"{relative} must be accepted by the schema so that it probes "
+                f"the semantic check, but the schema rejected it: {shape[0]}"
             )
+        if not plan_budget_errors(document):
+            failures.append(f"{relative} must be rejected by PLAN-011")
     return failures
 
 
@@ -1419,7 +1442,7 @@ def main() -> int:
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
-    failures.extend(validate_plan_budget())
+    failures.extend(validate_plan_budget(schemas, registry))
     failures.extend(validate_markdown_links())
     if failures:
         for failure in failures:
