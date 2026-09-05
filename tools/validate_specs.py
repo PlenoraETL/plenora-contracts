@@ -485,9 +485,9 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
             database_operations = {
                 item["id"]: item for item in catalog["operations"]
             }
-            if catalog["status"] != "provisional":
+            if catalog["status"] != "normative":
                 failures.append(
-                    "database-tools must remain provisional until its component-owned schemas exist"
+                    "database-tools v1 must be normative after component-owned schema publication"
                 )
             if any(name.startswith("arcgis.") for name in database_operations):
                 failures.append(
