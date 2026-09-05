@@ -4,7 +4,7 @@
   "contract": "plenora-public-catalog-v1",
   "component": "plenora-database-tools",
   "profile": "plenora-database-tools-profile-v1",
-  "status": "provisional",
+  "status": "normative",
   "target_surfaces": {
     "rust": "required",
     "cli": "required",

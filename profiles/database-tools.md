@@ -2,7 +2,7 @@
 
 Profile identifier: `plenora-database-tools-profile-v1`
 
-Provisional target catalog:
+Normative target catalog:
 [`database-tools-v1.json`](../catalogs/database-tools-v1.json)
 
 ## Applicable contracts
@@ -24,9 +24,11 @@ Provisional target catalog:
 The component exposes discovery, reading, writing and query-oriented database
 functionality without requiring a consumer to understand provider internals.
 
-This profile remains provisional. `database-tools` MUST publish immutable
-component-owned operation schemas and capability-attribute schemas before an
-artifact can claim conformance to this profile.
+This profile and its operation catalog are normative targets. That status fixes
+the expected public boundary; it does not claim that any component release
+conforms. An artifact claims conformance only through immutable component-owned
+operation and capability-attribute schemas plus the adoption manifest described
+in [`ADOPTION.md`](../ADOPTION.md).
 
 ## Required operation families
 

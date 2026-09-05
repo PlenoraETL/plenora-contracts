@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Changed
+
+- Promoted the database-tools public profile and operation catalog from
+  provisional to normative. Component release status and evidence remain in
+  the component-owned adoption manifest.
+
 ### Added
 
 - Public-surface contract and profiles for the five domain libraries.
