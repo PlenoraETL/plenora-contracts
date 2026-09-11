@@ -4,6 +4,10 @@
 
 ### Changed
 
+- Corrected the IO-tools first conforming release from the `2.x` line to
+  `4.0.0`. The `2.x` and `3.x` lines shipped without claiming the profile and
+  are now listed as historical alongside `1.x`. No contract, schema or
+  requirement identifier changes.
 - Promoted the database-tools public profile and operation catalog from
   provisional to normative. Component release status and evidence remain in
   the component-owned adoption manifest.
