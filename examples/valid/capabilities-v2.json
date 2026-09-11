@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "component": "plenora-io-tools",
-  "component_version": "2.0.0",
+  "component_version": "4.0.0",
   "interfaces": [
     {
       "kind": "rust",

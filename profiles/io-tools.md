@@ -97,16 +97,24 @@ those states are observable.
 
 ## First conforming release and cutover
 
-The first release claiming this profile is IO-tools `2.0.0` or a later `2.x`
-release. It is a breaking component release.
+The first release claiming this profile is IO-tools `4.0.0`. It is a breaking
+component release.
+
+The `2.x` and `3.x` lines shipped without claiming this profile and remain
+historical alongside `1.x`. The original cutover statement named `2.0.0` because
+that was the next planned major at the time; those releases were published
+before the adoption work was carried out, so the statement described an intent
+rather than an artifact. Naming the release that actually performs the cutover
+keeps the profile verifiable: a consumer can ask whether a given artifact claims
+the profile and get an answer that matches what was shipped.
 
 CLI protocol v1 and v2 JSON MUST NOT coexist in the same artifact. In the
 conforming release, every `--format json` response uses CLI protocol v2.
 Historical command spellings MAY remain only as deprecated aliases declared in
 the surface bindings; an alias invokes the same operation and emits the same v2
 contract. Consumers MUST NOT receive an automatic fallback to the former error
-stream or exit-code mapping. The existing `1.x` line remains historical and
-does not claim this profile.
+stream or exit-code mapping. The existing `1.x`, `2.x` and `3.x` lines remain
+historical and do not claim this profile.
 
 ## Not specified here
 
