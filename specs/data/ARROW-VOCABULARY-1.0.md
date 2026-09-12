@@ -33,7 +33,6 @@ Field identity is independent of field name and ordinal position.
 | `plenora.geometry.srid` | signed 32-bit decimal integer |
 | `plenora.geometry.types_declaration` | `exact`, `mixed`, `unresolved` |
 | `plenora.geometry.types` | comma-separated canonical geometry types |
-| `plenora.geometry.types_scan` | `complete`, `partial` |
 | `plenora.geometry.crs_resolution` | `resolved`, `declared_unresolved`, `missing` |
 | `plenora.geometry.crs_id` | non-empty authority identifier such as `EPSG:4326` |
 | `plenora.geometry.crs_definition` | non-empty WKT, WKT2 or PROJJSON text |
@@ -57,17 +56,6 @@ in canonical order.
   semantics, precision, type declaration and CRS resolution.
 - `types_declaration=exact` requires a non-empty type list.
 - `types_declaration=unresolved` forbids a type list.
-- `types_scan` is optional. It states whether the producer examined the whole
-  source when determining geometry types, and it is meaningful only together
-  with `types_declaration=unresolved`.
-- `types_scan=complete` with `types_declaration=unresolved` means the producer
-  examined the entire source and found no geometry. The absence is established,
-  not unknown.
-- `types_scan=partial`, or an absent `types_scan`, means the types were not
-  determined. A consumer MUST NOT read this as an established absence.
-- A consumer that does not recognize `types_scan` behaves exactly as before:
-  `unresolved` alone remains "not determined", which is the safe reading of
-  both cases.
 - `crs_resolution=resolved` requires a CRS id or definition and requires axis
   order.
 - `crs_resolution=declared_unresolved` requires a CRS id or definition and
@@ -80,19 +68,6 @@ in canonical order.
 
 Contradictory metadata fails with category `schema` or `crs`; consumers MUST NOT
 choose one of the conflicting values.
-
-`types_scan` exists because `types_declaration` alone cannot separate two states
-that carry different guarantees. A source scanned in full and carrying no
-geometry, and a source whose types could not be determined, are both forced to
-`unresolved`: `exact` requires a non-empty list, so "exactly none" has no
-spelling. A sink that restricts which geometry types it accepts can safely take
-the first and must refuse the second, and today it cannot tell them apart.
-
-A fourth value of `types_declaration` would have expressed the same thing and
-would have been incompatible: adding a value to a closed enumeration changes the
-meaning of the field for an existing consumer, which `COMPATIBILITY.md` lists as
-incompatible. An optional key whose absence preserves the previous behavior is
-listed as compatible, and that is what this is.
 
 ## 5. Native metadata
 
