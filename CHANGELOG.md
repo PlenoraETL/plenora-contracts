@@ -14,6 +14,10 @@
 
 ### Added
 
+- Surface Bindings 1.0: how a surface that cannot return a result in process
+  declares the materialization of that result without changing the operation.
+- Decision 0006: why an established absence of geometry needs a vocabulary
+  version rather than an optional key in the closed 1.0 vocabulary.
 - Public-surface contract and profiles for the five domain libraries.
 - Operation-level capability discovery v2.
 - Shared Arrow/GeoArrow interchange and row-diagnostics contracts.
