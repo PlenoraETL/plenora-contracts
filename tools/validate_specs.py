@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+from conformance_checks import example_inventory_errors, public_semantic_errors
+
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
@@ -109,6 +111,53 @@ CASES = {
             "examples/invalid/plan-budget-unknown-version.json",
         ],
     },
+}
+
+ERROR_BOUND_CASES = {
+    "examples/valid/error-details-bounded.json": False,
+    "examples/invalid/error-details-too-deep.json": True,
+}
+
+REST_CAPABILITY_CASES = {
+    "examples/valid/capabilities-rest-v2.json": None,
+    "examples/invalid/rest-capabilities-attributes-missing-contract.json": "attribute contract ID",
+}
+
+REST_BOUNDARY_CASES = {
+    "examples/valid/rest-runtime-artifact-request.json": None,
+    "examples/invalid/rest-runtime-artifact-local-path.json": "private local path",
+    "examples/invalid/rest-runtime-artifact-relative-path.json": "private local path",
+    "examples/invalid/rest-download-artifact-source-only.json": "forbids artifact_source",
+    "examples/invalid/rest-upload-artifact-sink-only.json": "forbids artifact_sink",
+    "examples/invalid/rest-runtime-upload-inline-credentials.json": "inline credential",
+    "examples/invalid/rest-download-local-mutating-method.json": "mutating REST download",
+}
+
+PUBLIC_SEMANTIC_CASES = {
+    "examples/invalid/capabilities-v2-duplicate-identity.json": [
+        "capabilities-v2.schema.json",
+        "CAP-005"
+    ],
+    "examples/invalid/capabilities-v2-undeclared-surface.json": [
+        "capabilities-v2.schema.json",
+        "CAP-007"
+    ],
+    "examples/invalid/adoption-v4-duplicate-contract.json": [
+        "adoption-manifest-v4.schema.json",
+        "duplicate contract"
+    ],
+    "examples/invalid/adoption-v4-undeclared-artifact.json": [
+        "adoption-manifest-v4.schema.json",
+        "undeclared artifact"
+    ],
+    "examples/invalid/adoption-v4-duplicate-artifact.json": [
+        "adoption-manifest-v4.schema.json",
+        "ambiguous artifact"
+    ],
+    "examples/invalid/adoption-v4-conflicting-surface.json": [
+        "adoption-manifest-v4.schema.json",
+        "surface differs"
+    ]
 }
 
 COMPONENTS = {
@@ -226,14 +275,45 @@ def validate_examples(
     for expectation, schema_cases in CASES.items():
         for schema_name, relative_paths in schema_cases.items():
             for relative_path in relative_paths:
-                errors = instance_errors(
-                    schemas[schema_name], load_json(ROOT / relative_path), registry
-                )
+                document = load_json(ROOT / relative_path)
+                errors = instance_errors(schemas[schema_name], document, registry)
+                if expectation == "valid" and not errors:
+                    errors.extend(public_semantic_errors(schema_name, document))
                 if expectation == "valid" and errors:
                     failures.append(f"{relative_path} must validate: {errors[0]}")
                 if expectation == "invalid" and not errors:
                     failures.append(f"{relative_path} must be rejected")
     return failures
+
+
+def validate_public_semantics(schemas, registry) -> list[str]:
+    failures = []
+    for relative, (schema_name, expected) in PUBLIC_SEMANTIC_CASES.items():
+        document = load_json(ROOT / relative)
+        if instance_errors(schemas[schema_name], document, registry):
+            failures.append(f"{relative} must satisfy its structural schema")
+            continue
+        errors = public_semantic_errors(schema_name, document)
+        if not any(expected in error for error in errors):
+            failures.append(f"{relative} did not exercise {expected}")
+    return failures
+
+
+def validate_example_inventory() -> list[str]:
+    registrations = []
+    for expectation, schemas in CASES.items():
+        for schema, paths in schemas.items():
+            registrations.extend((path, expectation, f"schema:{schema}") for path in paths)
+    registrations.extend(
+        (path, "invalid" if invalid else "valid", "error-bounds")
+        for path, invalid in ERROR_BOUND_CASES.items()
+    )
+    for name, cases in [("rest-capabilities", REST_CAPABILITY_CASES), ("rest-boundary", REST_BOUNDARY_CASES)]:
+        registrations.extend((path, "valid" if error is None else "invalid", name) for path, error in cases.items())
+    registrations.extend((path, "valid", "plan-budget") for path in PLAN_BUDGET_CONFORMING)
+    registrations.extend((path, "invalid", "plan-budget") for path in PLAN_BUDGET_VIOLATING)
+    registrations.extend((path, "invalid", "public-semantics") for path in PUBLIC_SEMANTIC_CASES)
+    return example_inventory_errors(ROOT, registrations)
 
 
 def compact_json_size(value: Any) -> int:
@@ -287,11 +367,7 @@ def validate_error_bound_vectors(
     schemas: dict[str, dict[str, Any]], registry: Registry
 ) -> list[str]:
     failures: list[str] = []
-    cases = {
-        "examples/valid/error-details-bounded.json": False,
-        "examples/invalid/error-details-too-deep.json": True,
-    }
-    for relative_path, must_violate in cases.items():
+    for relative_path, must_violate in ERROR_BOUND_CASES.items():
         error = load_json(ROOT / relative_path)
         schema_errors = instance_errors(
             schemas["error-v1.schema.json"], error, registry
@@ -915,11 +991,7 @@ def validate_rest_examples(
     catalog: dict[str, Any],
 ) -> list[str]:
     failures: list[str] = []
-    capability_cases = {
-        "examples/valid/capabilities-rest-v2.json": None,
-        "examples/invalid/rest-capabilities-attributes-missing-contract.json": "attribute contract ID",
-    }
-    for relative_path, expected_error in capability_cases.items():
+    for relative_path, expected_error in REST_CAPABILITY_CASES.items():
         document = load_json(ROOT / relative_path)
         structural = instance_errors(
             schemas["capabilities-v2.schema.json"], document, registry
@@ -939,16 +1011,7 @@ def validate_rest_examples(
         ):
             failures.append(f"{relative_path} did not exercise {expected_error}")
 
-    boundary_cases = {
-        "examples/valid/rest-runtime-artifact-request.json": None,
-        "examples/invalid/rest-runtime-artifact-local-path.json": "private local path",
-        "examples/invalid/rest-runtime-artifact-relative-path.json": "private local path",
-        "examples/invalid/rest-download-artifact-source-only.json": "forbids artifact_source",
-        "examples/invalid/rest-upload-artifact-sink-only.json": "forbids artifact_sink",
-        "examples/invalid/rest-runtime-upload-inline-credentials.json": "inline credential",
-        "examples/invalid/rest-download-local-mutating-method.json": "mutating REST download",
-    }
-    for relative_path, expected_error in boundary_cases.items():
+    for relative_path, expected_error in REST_BOUNDARY_CASES.items():
         errors = rest_boundary_errors(load_json(ROOT / relative_path), catalog)
         if expected_error is None and errors:
             failures.append(
@@ -1417,6 +1480,11 @@ def validate_markdown_links() -> list[str]:
 
 
 def main() -> int:
+    inventory_errors = validate_example_inventory()
+    if inventory_errors:
+        for error in inventory_errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        return 1
     schemas = {
         path.name: load_json(path) for path in sorted(SCHEMA_DIR.glob("*.schema.json"))
     }
@@ -1434,6 +1502,7 @@ def main() -> int:
     registry = schema_registry(schemas)
     catalogs = load_catalogs()
     failures = validate_examples(schemas, registry)
+    failures.extend(validate_public_semantics(schemas, registry))
     failures.extend(validate_error_bound_vectors(schemas, registry))
     failures.extend(validate_machine_documents(schemas, registry))
     failures.extend(validate_catalog_semantics(catalogs))
@@ -1455,7 +1524,8 @@ def main() -> int:
     composition_count = len(load_json(ROOT / "composition/pipelines-v1.json")["edges"])
     print(
         f"validated {len(schemas)} schemas, {valid_count} valid examples, "
-        f"{invalid_count} schema-rejected examples, 7 semantic error-bound probes, "
+        f"{invalid_count} schema-rejected examples, "
+        f"{len(PUBLIC_SEMANTIC_CASES)} public semantic counterexamples, 7 semantic error-bound probes, "
         f"{len(catalogs)} public catalogs, "
         f"3 binding maps, {composition_count} composition edges and "
         f"{vector_count} conformance vectors"

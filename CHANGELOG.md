@@ -4,6 +4,13 @@
 
 ### Changed
 
+- Added semantic conformance checks for capability identities and surfaces,
+  adoption identities and deviation references, with counterexamples exercised
+  in CI. Retained versioned JSON Schemas are unchanged.
+- Made example registration exhaustive and added a CI guard against changes
+  to published schema assertions, removals and duplicate schema identifiers.
+- Documented the retained component-version grammar and a separate, unratified
+  SemVer successor proposal.
 - Corrected the IO-tools first conforming release from the `2.x` line to
   `4.0.0`. The `2.x` and `3.x` lines shipped without claiming the profile and
   are now listed as historical alongside `1.x`. No contract, schema or

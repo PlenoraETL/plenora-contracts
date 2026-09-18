@@ -53,3 +53,10 @@ closed on unknown required contract versions.
 A versioned JSON Schema may be changed in place only when the edit cannot alter
 whether an existing instance validates. Otherwise a new schema identifier and
 file are required.
+
+CI compares schema assertions against the event's immutable base revision and
+the ratified floor recorded in `tools/check_schema_immutability.py`. It rejects
+removed schemas, changed assertions and reused schema identifiers. A new branch
+without an event base still checks the ratified floor. The guard treats only
+schema annotations as editable prose; a property or literal named `description`
+remains part of the validation rules.

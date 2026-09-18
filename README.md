@@ -41,6 +41,7 @@ The normative sources are:
 - [typed error contract](specs/errors/ERRORS-1.0.md);
 - [Arrow interchange contract](specs/data/ARROW-INTERCHANGE-1.0.md);
 - [Arrow metadata vocabulary and vectors](specs/data/ARROW-VOCABULARY-1.0.md);
+- [plan budget fragment](specs/data/PLAN-BUDGET-1.0.md), for components accepting plan documents;
 - [row diagnostics contract](specs/diagnostics/ROW-DIAGNOSTICS-1.0.md);
 - [public security contract](specs/security/PUBLIC-SECURITY-1.0.md);
 - [runtime binding contract](specs/runtime/RUNTIME-BINDING-1.0.md);
