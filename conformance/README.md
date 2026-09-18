@@ -30,6 +30,22 @@ The repository validator additionally checks that target catalogs, surface
 bindings and composition edges agree. Adopters consume those artifacts as test
 inputs; they do not maintain independent copies of operation names.
 
+Schema validation is necessary but does not establish cross-field conformance.
+Capability documents also require unique `(id, version)` operation identities
+(CAP-005) and operation surfaces present in `interfaces` (CAP-007).
+Adoption manifests require unambiguous contract and artifact identities and
+resolvable deviation references, as described in [ADOPTION.md](../ADOPTION.md).
+The data-only checks in `tools/conformance_checks.py` run after structural
+validation and are exercised by positive examples and semantic counterexamples.
+
+The repository CI runs `tools/check_schema_immutability.py`, the regression
+tests under `tools/test_*.py`, and `tools/validate_specs.py`. The example inventory
+must include every JSON file under `examples/`; an unregistered example fails
+the gate. The schema guard compares published assertions with immutable Git
+revisions. It conservatively rejects assertion rewrites even if a reviewer
+believes them equivalent; descriptive annotations can change without changing
+the contract version.
+
 ## CLI checks
 
 Invoke the installed or released binary as a subprocess. Verify help, version,

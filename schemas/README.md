@@ -19,6 +19,7 @@ These schemas are normative and use JSON Schema draft 2020-12.
 | `composition-v1.schema.json` | Cross-component direct and adapter-required handoffs |
 | `arrow-metadata-vector-v1.schema.json` | Arrow metadata conformance fixtures |
 | `runtime-vector-v1.schema.json` | Runtime request, success and error fixtures |
+| `plan-budget-v1.schema.json` | Plan-format versions and declared memory-budget fragment |
 
 Schema identifiers are immutable. Modify a schema in place only for a change
 that cannot alter whether an existing instance validates. Otherwise add a new
@@ -26,3 +27,8 @@ version.
 
 Manifest v1 is retained for the historical CLI/SDK-only scope; manifests v2
 and v3 remain immutable. New component adoption uses manifest v4.
+
+The shared CLI and capability version patterns retain their published grammar;
+they are not complete SemVer validators. The compatibility constraints and
+proposed successor grammar are documented in
+[the version-syntax proposal](../proposals/version-syntax.md).

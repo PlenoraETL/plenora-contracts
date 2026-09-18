@@ -57,6 +57,16 @@ A deviation records:
 A deviation does not redefine the common contract and does not count as
 conformance for that requirement.
 
+A manifest is an unambiguous declaration: a contract cannot be both conforming
+and not applicable, and an artifact name cannot identify conflicting artifact
+descriptions. Repeated entries with consistent identities and different
+verification evidence remain accepted. An artifact-scoped deviation refers to
+a declared artifact name. If both artifact and
+surface are given, the surface agrees with the named artifact. A surface-only
+deviation can describe a missing surface and does not require inventing an
+artifact for it. These cross-reference checks supplement structural schema
+validation; they do not change the retained JSON Schemas.
+
 ## No central implementation harness
 
 This repository provides schemas, examples and black-box vectors. Each

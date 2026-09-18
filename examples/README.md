@@ -1,46 +1,31 @@
 # Examples
 
-Files under `valid` must satisfy the indicated structural or semantic check.
-Files under `invalid` are deliberate counterexamples and must fail that check.
+Files under `valid` must satisfy their registered structural and semantic
+checks. Files under `invalid` are deliberate counterexamples and must fail the
+specific check they exercise.
 
-| Example | Validation |
-|---|---|
-| `valid/cli-success.json` | `cli-envelope-v2.schema.json` |
-| `valid/cli-error.json` | `cli-envelope-v2.schema.json` |
-| `valid/capabilities.json` | `capabilities-v1.schema.json` |
-| `valid/capabilities-v2.json` | `capabilities-v2.schema.json` |
-| `valid/capabilities-rest-v2.json` | `capabilities-v2.schema.json` plus REST catalog semantics |
-| `valid/row-diagnostics.json` | `row-diagnostics-v1.schema.json` |
-| `valid/adoption-manifest.json` | `adoption-manifest-v1.schema.json` |
-| `valid/adoption-manifest-v2.json` | `adoption-manifest-v2.schema.json` |
-| `valid/adoption-manifest-v3.json` | `adoption-manifest-v3.schema.json` |
-| `valid/adoption-manifest-v3-deviation.json` | Scoped v3 deviation with an affected artifact |
-| `valid/adoption-manifest-v4.json` | Current manifest with immutable artifact identity |
-| `valid/rest-runtime-artifact-request.json` | REST runtime boundary invariants |
-| `invalid/cli-missing-protocol.json` | `cli-envelope-v2.schema.json` |
-| `invalid/error-after-missing-delay.json` | `error-v1.schema.json` |
-| `invalid/capabilities-unavailable-without-reason.json` | `capabilities-v1.schema.json` |
-| `invalid/capabilities-v2-unavailable-without-reason.json` | `capabilities-v2.schema.json` |
-| `invalid/row-diagnostics-redacted-value.json` | `row-diagnostics-v1.schema.json` |
-| `invalid/adoption-floating-revision.json` | `adoption-manifest-v1.schema.json` |
-| `invalid/adoption-v2-floating-revision.json` | `adoption-manifest-v2.schema.json` |
-| `invalid/adoption-v3-python-missing-api-modes.json` | `adoption-manifest-v3.schema.json` |
-| `invalid/adoption-v3-deviation-missing-scope.json` | v3 deviation without an artifact or surface |
-| `invalid/adoption-v4-artifact-missing-identity.json` | v4 artifact without immutable version and digest |
-| `invalid/adoption-v4-python-missing-api-modes.json` | v4 Python artifact without API modes |
-| `invalid/adoption-v4-deviation-missing-scope.json` | v4 deviation without an artifact or surface |
-| `invalid/runtime-correlation-not-uuid.json` | `runtime-vector-v1.schema.json` |
-| `invalid/runtime-message-id-missing.json` | `runtime-vector-v1.schema.json` |
-| `invalid/runtime-message-id-not-uuid.json` | `runtime-vector-v1.schema.json` |
-| `invalid/rest-capabilities-attributes-missing-contract.json` | REST capability semantics |
-| `invalid/rest-runtime-artifact-local-path.json` | REST runtime boundary invariants |
-| `invalid/rest-runtime-artifact-relative-path.json` | REST runtime boundary invariants |
-| `invalid/rest-download-artifact-source-only.json` | REST artifact direction invariants |
-| `invalid/rest-upload-artifact-sink-only.json` | REST artifact direction invariants |
-| `invalid/rest-runtime-upload-inline-credentials.json` | REST runtime boundary invariants |
-| `invalid/rest-download-local-mutating-method.json` | REST side-effect invariants |
+The executable inventory is maintained in
+[`tools/validate_specs.py`](../tools/validate_specs.py). `CASES` registers
+structural cases; the named semantic registries cover public capabilities,
+adoption manifests, error bounds, REST boundaries and plan budgets. The
+validator compares their union with every JSON example on disk and rejects
+unregistered files, missing files and conflicting classifications.
 
-Examples use fictional components and revisions. They are not component status
-records. REST runtime boundary examples cover only shared security and
-interoperability invariants; they do not define the component-owned REST input
-schemas.
+A semantic counterexample must satisfy its structural schema before exercising
+its rejection. For example, a duplicated operation identity with differing
+availability is structurally valid but violates CAP-005; a plan whose domain
+budget is below its governed budget violates PLAN-011. These examples prove
+that schema validation alone is not conformance.
+
+An example may be registered for several different checks, such as schema
+validation and error bounds. The same registration cannot be repeated.
+Regression tests for the inventory and semantic checks run in CI with:
+
+```sh
+python -m unittest discover -s tools -p 'test_*.py'
+python tools/validate_specs.py
+```
+
+Examples use fictional artifact versions and revisions. They are not component
+status records. REST runtime examples cover shared security and interoperability
+invariants rather than the complete component-owned REST input schema.
