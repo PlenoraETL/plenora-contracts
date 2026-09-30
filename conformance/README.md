@@ -81,6 +81,32 @@ error mapping at the receiving boundary.
 Run the fixtures in [`vectors/runtime-v1`](../vectors/runtime-v1/) for one
 request, result and typed failure before claiming the runtime surface.
 
+## Storage checks
+
+The storage target includes all seven operations on Rust, CLI, Python SDK and
+runtime. The common Python binding map names both `Engine` and `AsyncEngine`
+entrypoints; the repository gate rejects a missing mode or discovery symbol.
+An adopter still verifies the installed wheel and released artifacts itself.
+
+The runtime fixtures include a request for every storage operation, success
+results for list and both transfer directions, and partial/unknown error
+outcomes. `tools/validate_specs.py` validates their metadata, catalog identity,
+artifact roles, explicit policies, integrity and retry semantics. Missing
+operation request coverage fails the gate.
+
+`tools/test_storage_contracts.py`, run by the existing
+[spec-validation workflow](../.github/workflows/spec-validation.yml), mutates
+these fixtures to demonstrate rejection of missing policies, inline secrets,
+local paths, invalid artifact references, inconsistent integrity/byte counts,
+invalid cursors and unsafe retry. Positive boundary cases cover zero bytes,
+maximum reference/metadata lengths and unknown optional source/sink metadata.
+These checks do not replace validation against component-owned payload schemas.
+
+Component evidence additionally exercises provider-specific create-if-absent
+and atomic publication, pagination scope, cancellation and failures after a
+possible write. Offline checks, local service fixtures and real-system
+compatibility are separate claims. A missing real-account run is not a pass.
+
 ## Arrow checks
 
 For every operation advertising Arrow:

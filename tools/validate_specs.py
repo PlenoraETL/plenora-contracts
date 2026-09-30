@@ -596,7 +596,7 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
     expected_storage_surfaces = {
         "rust": "required",
         "cli": "required",
-        "python_sdk": "not_applicable",
+        "python_sdk": "required",
         "runtime": "required",
     }
     if storage["target_surfaces"] != expected_storage_surfaces:
@@ -607,8 +607,8 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
     for operation_id, operation in storage_operations.items():
         action = operation_id.removeprefix("storage.")
         if operation["version"] != 1:
-            failures.append(f"{operation_id} must remain at proposal version 1")
-        if set(operation["surfaces"]) != {"rust", "cli", "runtime"}:
+            failures.append(f"{operation_id} must remain at operation version 1")
+        if set(operation["surfaces"]) != {"rust", "cli", "python_sdk", "runtime"}:
             failures.append(f"{operation_id} has the wrong selected surfaces")
         if operation["input"]["contract"] != f"plenora-storage-{action}-input-v1":
             failures.append(f"{operation_id} has the wrong input contract")
@@ -749,10 +749,11 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
 
     python_document = load_json(ROOT / "bindings/python-sdk-v1.json")
     database_section = next(
-        item
-        for item in python_document["components"]
-        if item["component"] == DATABASE_COMPONENT
+        (item for item in python_document["components"]
+         if item["component"] == DATABASE_COMPONENT), None
     )
+    if database_section is None:
+        return failures
     database_bindings = {
         item["operation"]: set(item["entrypoints"])
         for item in database_section["bindings"]
@@ -785,6 +786,28 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
         failures.append(
             "mutating database SDK entrypoints must bind to database.execute"
         )
+    storage_section = next(
+        (item for item in python_document["components"]
+         if item["component"] == STORAGE_COMPONENT), None
+    )
+    if storage_section is None:
+        return failures
+    if storage_section["artifact"] != "plenora-storage / plenora_storage":
+        failures.append("storage SDK must declare its distribution and import identity")
+    if set(storage_section["discovery"]) != {
+        "plenora_storage.version", "Engine.capabilities", "AsyncEngine.capabilities"
+    }:
+        failures.append("storage SDK must expose version and discovery in both API modes")
+    storage_bindings = {
+        item["operation"]: set(item["entrypoints"])
+        for item in storage_section["bindings"]
+    }
+    for operation_id in sorted(STORAGE_OPERATIONS):
+        action = operation_id.removeprefix("storage.")
+        if storage_bindings.get(operation_id) != {
+            f"Engine.{action}", f"AsyncEngine.{action}"
+        }:
+            failures.append(f"{operation_id} must bind both canonical SDK API modes")
     return failures
 
 
@@ -1241,7 +1264,17 @@ def storage_vector_errors(
             if node is None:
                 continue
             reference = node.get("reference") if isinstance(node, dict) else None
-            if not isinstance(reference, str) or not reference.startswith("artifact://"):
+            # The component-owned artifact reference v1 is opaque and bounded;
+            # accepting the scheme alone would allow an empty or unsafe handle.
+            if (
+                not isinstance(reference, str)
+                or len(reference) > 512
+                or re.fullmatch(
+                    r"artifact://[A-Za-z0-9][A-Za-z0-9._~!$&'()*+,;=:@/?#%-]*",
+                    reference,
+                ) is None
+                or is_local_path(reference)
+            ):
                 errors.append(f"storage {name} must use an opaque artifact reference")
             if isinstance(node, dict):
                 validate_artifact_metadata(node.get("metadata"), name)
@@ -1270,6 +1303,9 @@ def storage_vector_errors(
         "storage.get",
         "storage.put",
     }:
+        byte_count = payload.get("bytes_transferred")
+        if not isinstance(byte_count, int) or isinstance(byte_count, bool) or byte_count < 0:
+            errors.append("storage transfer success has an invalid byte count")
         checksum = payload.get("checksum")
         if (
             not isinstance(checksum, dict)
@@ -1296,6 +1332,11 @@ def storage_vector_errors(
     if vector["kind"] == "error" and payload.get("remote_effect") == "unknown":
         if payload.get("retry", {}).get("kind") != "requires_recovery":
             errors.append("ambiguous storage errors must require recovery")
+    if vector["kind"] == "error" and payload.get("remote_effect") == "partial":
+        if payload.get("retry", {}).get("kind") not in {
+            "never", "quarantine", "requires_recovery"
+        }:
+            errors.append("partial storage errors must forbid automatic retry")
     return errors
 
 
@@ -1314,6 +1355,7 @@ def validate_runtime_vectors(
                 )
             operations[operation["id"]] = (component, operation)
 
+    storage_coverage = set()
     for path in sorted((ROOT / "vectors/runtime-v1").glob("*.json")):
         vector = load_json(path)
         metadata = vector["metadata"]
@@ -1400,11 +1442,20 @@ def validate_runtime_vectors(
                     f"{path.relative_to(ROOT)} has unbounded error: {bound_errors[0]}"
                 )
         if component == STORAGE_COMPONENT:
+            storage_coverage.add((operation_id, vector["kind"]))
             errors = storage_vector_errors(vector, operation)
             if errors:
                 failures.append(
                     f"{path.relative_to(ROOT)} violates storage runtime semantics: {errors[0]}"
                 )
+    required_storage = {(operation, "request") for operation in STORAGE_OPERATIONS}
+    required_storage.update({
+        ("storage.list", "success"), ("storage.get", "success"),
+        ("storage.put", "success"), ("storage.get", "error"), ("storage.put", "error"),
+    })
+    missing_storage = required_storage - storage_coverage
+    if missing_storage:
+        failures.append(f"storage runtime vector coverage is incomplete: {sorted(missing_storage)}")
     return failures
 
 

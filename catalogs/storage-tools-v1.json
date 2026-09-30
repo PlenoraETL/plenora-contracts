@@ -8,14 +8,14 @@
   "target_surfaces": {
     "rust": "required",
     "cli": "required",
-    "python_sdk": "not_applicable",
+    "python_sdk": "required",
     "runtime": "required"
   },
   "operations": [
     {
       "id": "storage.test", "version": 1, "requirement": "required",
       "summary": "Probe a configured storage provider with bounded work and return reachability evidence.",
-      "surfaces": ["rust", "cli", "runtime"],
+      "surfaces": ["rust", "cli", "python_sdk", "runtime"],
       "input": {"contract": "plenora-storage-test-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-storage-test-output-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "none",
@@ -25,7 +25,7 @@
     {
       "id": "storage.list", "version": 1, "requirement": "required",
       "summary": "List bounded provider objects using an opaque, request-scoped continuation cursor without snapshot isolation.",
-      "surfaces": ["rust", "cli", "runtime"],
+      "surfaces": ["rust", "cli", "python_sdk", "runtime"],
       "input": {"contract": "plenora-storage-list-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-storage-list-output-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "none",
@@ -35,7 +35,7 @@
     {
       "id": "storage.stat", "version": 1, "requirement": "required",
       "summary": "Read bounded metadata for one provider object without retrieving its bytes.",
-      "surfaces": ["rust", "cli", "runtime"],
+      "surfaces": ["rust", "cli", "python_sdk", "runtime"],
       "input": {"contract": "plenora-storage-stat-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-storage-stat-output-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "none",
@@ -45,7 +45,7 @@
     {
       "id": "storage.get", "version": 1, "requirement": "required",
       "summary": "Transfer one object to an explicitly authorized artifact sink and report integrity metadata.",
-      "surfaces": ["rust", "cli", "runtime"],
+      "surfaces": ["rust", "cli", "python_sdk", "runtime"],
       "input": {"contract": "plenora-storage-get-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-storage-get-output-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "remote",
@@ -55,7 +55,7 @@
     {
       "id": "storage.put", "version": 1, "requirement": "required",
       "summary": "Transfer an explicitly authorized artifact source to one object with explicit overwrite policy.",
-      "surfaces": ["rust", "cli", "runtime"],
+      "surfaces": ["rust", "cli", "python_sdk", "runtime"],
       "input": {"contract": "plenora-storage-put-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-storage-put-output-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "remote",
@@ -65,7 +65,7 @@
     {
       "id": "storage.copy", "version": 1, "requirement": "required",
       "summary": "Copy one provider object to another key with explicit overwrite policy.",
-      "surfaces": ["rust", "cli", "runtime"],
+      "surfaces": ["rust", "cli", "python_sdk", "runtime"],
       "input": {"contract": "plenora-storage-copy-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-storage-copy-output-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "remote",
@@ -75,7 +75,7 @@
     {
       "id": "storage.delete", "version": 1, "requirement": "required",
       "summary": "Delete one provider object with explicit missing-object behavior.",
-      "surfaces": ["rust", "cli", "runtime"],
+      "surfaces": ["rust", "cli", "python_sdk", "runtime"],
       "input": {"contract": "plenora-storage-delete-input-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "output": {"contract": "plenora-storage-delete-output-v1", "content_types": ["application/json"], "interchange_contracts": []},
       "side_effect": "remote",

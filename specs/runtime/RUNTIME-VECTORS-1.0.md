@@ -67,6 +67,14 @@ component-owned payload. It includes:
 - typed failures with `none` and `unknown` remote effects;
 - safe retry and recovery-required dispositions.
 
+The storage subset includes requests for all seven selected operations, list
+and get/put success envelopes, and partial/unknown transfer errors. Its payload
+counterexamples are exercised as mutations by
+[`test_storage_contracts.py`](../../tools/test_storage_contracts.py); they cover
+explicit policies, source/sink roles, bounded artifact references, secret/path
+rejection, integrity, byte counts, cursors and unsafe retry. These tests validate
+the fixture semantics, not a provider implementation.
+
 An adopter MUST exercise every fixture whose operation it advertises. The
 runtime transport consumer MUST exercise the complete set. For every request
 fixture it MUST also demonstrate fail-closed rejection when capability,
