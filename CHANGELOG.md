@@ -4,6 +4,13 @@
 
 ### Changed
 
+- Selected the storage Python SDK surface with canonical sync/async bindings
+  for all seven v1 operations. Existing operation contracts and schema assertions
+  are unchanged; adoption requires a new immutable pin and wheel evidence.
+  See [decision 0006](decisions/0006-storage-python-surface.md).
+- Removed implementation topology and obsolete development milestones from the
+  storage profile. Added complete storage runtime request coverage and regression
+  checks for artifact boundaries, explicit policies, integrity and unsafe retry.
 - Added semantic conformance checks for capability identities and surfaces,
   adoption identities and deviation references, with counterexamples exercised
   in CI. Retained versioned JSON Schemas are unchanged.

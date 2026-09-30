@@ -54,6 +54,7 @@ import and symbol spellings. The required target packages are:
 |---|---|---|
 | database-tools | `plenora-database` | `plenora_database` |
 | rest-tools | `plenora-rest` | `plenora_rest` |
+| storage-tools | `plenora-storage` | `plenora_storage` |
 
 Sync and async symbols listed for the same operation are semantically
 equivalent. Lifecycle helpers and query builders may expose several idiomatic
