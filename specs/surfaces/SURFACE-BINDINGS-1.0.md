@@ -18,6 +18,35 @@ operation, not independent semantics. Each binding identifies exactly one
 A surface MAY wrap inputs and results in idiomatic types. It MUST preserve the
 catalog contracts, defaults, error axes, side effects and execution controls.
 
+### Materializing a result that the surface cannot return in process
+
+The catalog describes the **operation**, not the mechanics a particular surface
+needs in order to deliver its result. A surface that cannot return an output in
+process — a process-level CLI whose machine stream already carries exactly one
+JSON document, per CLI 2.0 §4 — must place that output somewhere the caller can
+reach it.
+
+Writing it to a location the caller named is a property of the **binding**, not
+a change to the operation. Such a surface:
+
+- MUST accept the destination as a declared input of its binding, never infer
+  it, and never write to a location the caller did not name;
+- MUST declare the resulting effect on its own surface, so that discovery
+  describes the artifact that is running rather than the abstract operation;
+- MUST NOT change the operation identifier, version, contracts, error axes or
+  execution controls.
+
+The operation's declared side effect continues to describe the operation. A
+binding that materializes a result therefore declares a local effect while the
+catalog entry keeps the effect of the operation itself, and the two are not in
+conflict: they describe different things, and a consumer reads the one that
+belongs to the surface it is calling.
+
+Without this distinction an operation whose output is a dataset could not be
+bound to a process-level CLI at all: the catalog would say the operation has no
+side effect, the surface would have to write a file, and no truthful
+declaration would exist.
+
 ## 2. Rust binding
 
 The common catalog selects the Rust surface and its operation semantics, but
