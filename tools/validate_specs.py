@@ -1635,7 +1635,7 @@ def validate_runtime_vectors(
             )
             continue
         component, operation = resolved
-        if component == DATA_COMPONENT and "runtime" not in operation["surfaces"]:
+        if "runtime" not in operation["surfaces"]:
             failures.append(
                 f"{path.relative_to(ROOT)} exercises {operation_id} on runtime, "
                 "which its catalog version does not select"

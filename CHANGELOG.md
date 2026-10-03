@@ -4,6 +4,15 @@
 
 ### Changed
 
+- Replaced the runtime vector `database-transaction-commit-success.json`
+  with `database-query-success.json`: the database-tools catalog selects the
+  `database.transaction.*` operations only on the Rust and Python surfaces,
+  and the runtime binding map has no transaction selector, so the vector
+  exercised an operation the runtime does not carry. The runtime vector
+  matrix no longer lists transaction references. The validator now rejects a
+  runtime vector whose operation version does not select the runtime surface,
+  for every component. No catalog, binding or schema changes.
+
 - Published data-tools version 2 next to version 1: profile
   `plenora-data-tools-profile-v2` and catalog `data-tools-v2.json`, with
   `data.catalog`, `data.validate` and `data.run` at operation version 2 and
