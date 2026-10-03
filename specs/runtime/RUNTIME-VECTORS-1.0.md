@@ -61,9 +61,9 @@ component-owned payload. It includes:
 - requests for database, data, IO, REST and storage selectors;
 - JSON and Arrow success envelopes;
 - deadline and causation metadata;
-- opaque secret, endpoint, transaction and artifact references, including
-  storage source and sink roles with bounded metadata, explicit overwrite and
-  publication policy;
+- opaque secret, endpoint and artifact references, including storage source
+  and sink roles with bounded metadata, explicit overwrite and publication
+  policy;
 - typed failures with `none` and `unknown` remote effects;
 - safe retry and recovery-required dispositions.
 
