@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "inputs": [
+    "points"
+  ],
+  "crs": "EPSG:32632",
+  "steps": [
+    {
+      "out": "geom",
+      "op": "geo.from_coords",
+      "in": [
+        "points"
+      ],
+      "config": {
+        "x_column": "x",
+        "y_column": "y"
+      }
+    },
+    {
+      "out": "buffered",
+      "op": "geo.buffer",
+      "in": [
+        "geom"
+      ],
+      "config": {
+        "distance": 5.0
+      }
+    }
+  ],
+  "outputs": [
+    "buffered"
+  ]
+}

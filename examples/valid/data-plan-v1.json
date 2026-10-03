@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "inputs": [
+    "orders",
+    "customers"
+  ],
+  "limits": {
+    "max_governed_memory_bytes": 1073741824,
+    "max_rows_per_edge": 1000000
+  },
+  "steps": [
+    {
+      "out": "valid",
+      "op": "table.filter",
+      "in": [
+        "orders"
+      ],
+      "config": {
+        "column": "amount",
+        "operator": ">",
+        "value": 0
+      }
+    },
+    {
+      "out": "totals",
+      "op": "table.aggregate",
+      "in": [
+        "valid"
+      ],
+      "config": {
+        "group_by": [
+          "region"
+        ],
+        "aggregations": [
+          {
+            "column": "amount",
+            "function": "sum"
+          }
+        ]
+      }
+    },
+    {
+      "out": "joined",
+      "op": "table.join",
+      "in": [
+        "valid",
+        "customers"
+      ],
+      "config": {
+        "left_keys": [
+          "customer"
+        ],
+        "right_keys": [
+          "id"
+        ],
+        "how": "inner"
+      }
+    }
+  ],
+  "outputs": [
+    "totals",
+    "joined"
+  ]
+}

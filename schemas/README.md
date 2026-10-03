@@ -20,6 +20,7 @@ These schemas are normative and use JSON Schema draft 2020-12.
 | `arrow-metadata-vector-v1.schema.json` | Arrow metadata conformance fixtures |
 | `runtime-vector-v1.schema.json` | Runtime request, success and error fixtures |
 | `plan-budget-v1.schema.json` | Plan-format versions and declared memory-budget fragment |
+| `data-plan-v1.schema.json` | Data-tools plan format `plenora-data-plan-v1` (Data Plan 1.0) |
 
 Schema identifiers are immutable. Modify a schema in place only for a change
 that cannot alter whether an existing instance validates. Otherwise add a new

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "inputs": [
+    "t"
+  ],
+  "steps": [
+    {
+      "out": "g",
+      "op": "geo.generate_grid",
+      "in": [],
+      "config": {}
+    }
+  ],
+  "outputs": [
+    "g"
+  ]
+}

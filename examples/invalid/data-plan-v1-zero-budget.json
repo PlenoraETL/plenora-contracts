@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "inputs": [
+    "t"
+  ],
+  "limits": {
+    "max_governed_memory_bytes": 0
+  },
+  "steps": [],
+  "outputs": [
+    "t"
+  ]
+}

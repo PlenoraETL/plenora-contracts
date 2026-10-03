@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "inputs": ["t"],
+  "limits": {"max_expansion_factor": 2.0000000000000000001},
+  "steps": [],
+  "outputs": ["t"]
+}

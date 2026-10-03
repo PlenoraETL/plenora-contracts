@@ -18,6 +18,13 @@ operation, not independent semantics. Each binding identifies exactly one
 A surface MAY wrap inputs and results in idiomatic types. It MUST preserve the
 catalog contracts, defaults, error axes, side effects and execution controls.
 
+When a component publishes several catalog versions, an artifact implements
+exactly one of them, the one its profile and capability document declare. A
+spelling MAY then be listed for several versions of the same operation that no
+single catalog version selects together; on a given artifact it identifies the
+version that artifact's catalog selects. An artifact exposing two versions of
+one operation on the same surface needs a distinct spelling for each.
+
 ## 2. Rust binding
 
 The common catalog selects the Rust surface and its operation semantics, but
@@ -48,11 +55,13 @@ same machine result. New integrations MUST use the canonical entrypoint.
 ## 4. Python binding
 
 [`python-sdk-v1.json`](../../bindings/python-sdk-v1.json) defines distribution,
-import and symbol spellings. The required target packages are:
+import and symbol spellings. The target packages, required or selected by
+their profile, are:
 
 | Component | Distribution | Import |
 |---|---|---|
 | database-tools | `plenora-database` | `plenora_database` |
+| data-tools | `plenora-data` | `plenora_data` |
 | rest-tools | `plenora-rest` | `plenora_rest` |
 | storage-tools | `plenora-storage` | `plenora_storage` |
 
