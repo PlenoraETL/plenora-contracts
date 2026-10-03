@@ -4,6 +4,20 @@
 
 ### Changed
 
+- Published data-tools version 2 next to version 1: profile
+  `plenora-data-tools-profile-v2` and catalog `data-tools-v2.json`, with
+  `data.catalog`, `data.validate` and `data.run` at operation version 2 and
+  new input and output contract identifiers; `data.run` declares `local`,
+  returns named outputs and is not bound on the runtime surface; Python SDK
+  is a conditional surface bound by `plenora-data` / `plenora_data`. New Data
+  Plan 1.0 (`plenora-data-plan-v1`, `data-plan-v1.schema.json`) without plan
+  hash; registry `data-kernels-v2.json` with the same 146 kernels at their
+  semantic versions; Arrow rules for the version 2 operations in the profile
+  (DT-ARROW-001 to DT-ARROW-004). Bindings, composition edges and runtime
+  vectors add version 2 entries; every version 1 entry and file is
+  unchanged. No existing schema changes. See
+  [decision 0007](decisions/0007-data-tools-v2.md).
+
 - Selected the storage Python SDK surface with canonical sync/async bindings
   for all seven v1 operations. Existing operation contracts and schema assertions
   are unchanged; adoption requires a new immutable pin and wheel evidence.

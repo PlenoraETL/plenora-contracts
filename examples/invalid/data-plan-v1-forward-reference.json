@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "inputs": [
+    "t"
+  ],
+  "steps": [
+    {
+      "out": "a",
+      "op": "table.sort",
+      "in": [
+        "b"
+      ],
+      "config": {
+        "columns": [
+          "x"
+        ]
+      }
+    },
+    {
+      "out": "b",
+      "op": "table.limit",
+      "in": [
+        "t"
+      ],
+      "config": {
+        "n": 10
+      }
+    }
+  ],
+  "outputs": [
+    "a"
+  ]
+}

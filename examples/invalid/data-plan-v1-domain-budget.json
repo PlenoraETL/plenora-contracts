@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "inputs": [
+    "t"
+  ],
+  "limits": {
+    "max_domain_memory_bytes": 1073741824
+  },
+  "steps": [],
+  "outputs": [
+    "t"
+  ]
+}

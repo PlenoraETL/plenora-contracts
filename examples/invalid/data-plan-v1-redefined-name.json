@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "inputs": [
+    "t"
+  ],
+  "steps": [
+    {
+      "out": "t",
+      "op": "table.limit",
+      "in": [
+        "t"
+      ],
+      "config": {
+        "n": 10
+      }
+    }
+  ],
+  "outputs": [
+    "t"
+  ]
+}

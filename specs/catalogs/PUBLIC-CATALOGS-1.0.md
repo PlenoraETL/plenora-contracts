@@ -6,7 +6,10 @@ Contract identifier: `plenora-public-catalog-v1`
 
 The machine shape is defined by
 [`public-catalog-v1.schema.json`](../../schemas/public-catalog-v1.schema.json).
-The five target catalogs are in [`catalogs`](../../catalogs/).
+The target catalogs are in [`catalogs`](../../catalogs/), named
+`<component>-v<N>.json`. The highest version of a component is its current
+target; an earlier version stays as an available identity when a later one
+changes operations incompatibly.
 
 ## 1. Purpose
 
@@ -82,15 +85,20 @@ The exact CLI, Python and runtime spellings are defined by
 
 `data.run` is the externally invocable plan operation. The table and geo
 kernels selected inside a plan are not 146 artificial CLI commands. Their
-stable identifiers and versions live in
-[`data-kernels-v1.json`](../../catalogs/data-kernels-v1.json), whose machine
-shape is
+stable identifiers and versions live in the registry the catalog's
+`data.catalog` operation names: [`data-kernels-v2.json`](../../catalogs/data-kernels-v2.json)
+for the current data-tools catalog, where a kernel's `version` is the version
+of its observable semantics, and
+[`data-kernels-v1.json`](../../catalogs/data-kernels-v1.json) for version 1.
+Their machine shape is
 [`operation-registry-v1.schema.json`](../../schemas/operation-registry-v1.schema.json).
 
 Capability discovery for `data.catalog` MUST report only kernels present in the
 answering artifact. Kernel parameters and logical result shape are described by
 the component-owned kernel descriptor returned by `data.catalog`; the stable
-kernel identity and version MUST agree with the common registry.
+kernel identity and version MUST agree with the common registry. How the
+version 2 result reports a registered kernel the artifact cannot execute is
+defined by the data-tools profile version 2 (DT-001).
 
 ## 7. External verification
 

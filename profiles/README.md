@@ -25,8 +25,11 @@ current implementation status.
 The exact target operations are machine-readable in:
 
 - [`database-tools-v1.json`](../catalogs/database-tools-v1.json);
-- [`data-tools-v1.json`](../catalogs/data-tools-v1.json) and the
-  [`data kernel registry`](../catalogs/data-kernels-v1.json);
+- [`data-tools-v2.json`](../catalogs/data-tools-v2.json) and the
+  [`data kernel registry v2`](../catalogs/data-kernels-v2.json), current
+  target; [`data-tools-v1.json`](../catalogs/data-tools-v1.json) with
+  [`data-kernels-v1.json`](../catalogs/data-kernels-v1.json) remains
+  available;
 - [`io-tools-v1.json`](../catalogs/io-tools-v1.json);
 - [`rest-tools-v1.json`](../catalogs/rest-tools-v1.json);
 - [`storage-tools-v1.json`](../catalogs/storage-tools-v1.json).
@@ -63,7 +66,7 @@ temporary deviations.
 ## Profiles
 
 - [database-tools](database-tools.md)
-- [data-tools](data-tools.md)
+- [data-tools](data-tools-v2.md) (version 2; [version 1](data-tools.md))
 - [io-tools](io-tools.md)
 - [rest-tools](rest-tools.md)
 - [storage-tools](storage-tools.md)
