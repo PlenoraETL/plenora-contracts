@@ -287,8 +287,15 @@ class DataRun3Tests(unittest.TestCase):
         ):
             with self.subTest(message=message):
                 self.assertTrue(self.location_errors(lambda p, m=message: p.update(message=m)))
-        for details in ({"path": "/tmp/private.arrow"}, {"/tmp/private.arrow": True}):
+        for details in (
+            {"path": "/tmp/private.arrow"},
+            {"/tmp/private.arrow": True},
+            {"path": "private"},
+            {"output": "not-a-plan-name"},
+            {"output": "large", "reason": "x"},
+        ):
             self.assertTrue(self.location_errors(lambda p, d=details: p.update(details=d)))
+        self.assertEqual(self.location_errors(lambda p: p.update(details={"output": "large"})), [])
         self.assertEqual(self.location_errors(
             lambda p: p.update(message="The sink rejected the publication.")), [])
 
@@ -334,6 +341,10 @@ class DataRun3Tests(unittest.TestCase):
         self.assertTrue(validator.contains_location(
             "Output /tmp/a b/c failed.", frozenset({"/tmp/a b", "b/c"}),
         ))
+        # Locations without a mark.
+        for text in ("Could not write C:private.arrow.", "Could not write private.arrow."):
+            with self.subTest(text=text):
+                self.assertTrue(validator.contains_location(text))
         # Overlapping occurrences of one name are all exempt.
         self.assertFalse(validator.contains_location("/a /a /a", frozenset({"/a /a"})))
         # Marks without a slash, anywhere in what the names leave.
@@ -390,7 +401,7 @@ class DataRun3Tests(unittest.TestCase):
             "data-run-success-v3.json",
             mutate=lambda document: document["payload"]["outputs"][0]["artifact"].pop("sha256"),
         ))
-        for message in ("Could not write /secret.", "See https://example.org/help,/secret."):
+        for message in ("Could not write /secret.", "See https://example.org/help,/secret.", "Could not write private.arrow."):
             self.assertIn("DT-RUN-008", self.gate_errors(
                 "data-run-partial-error-v3.json",
                 mutate=lambda document, m=message: document["payload"].update(message=m),

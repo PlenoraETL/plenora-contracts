@@ -1898,6 +1898,14 @@ def data_run_3_error_location_errors(vectors: list[dict[str, Any]]) -> list[str]
             + [step.get("out") for step in plan.get("steps", []) if isinstance(step.get("out"), str)]
         )
         payload = vector["payload"]
+        details = payload.get("details", {})
+        if not isinstance(details, dict) or any(
+            key not in ERROR_DETAIL_KEYS or value not in names
+            for key, value in details.items()
+        ):
+            failures.append(
+                "a data.run 3 error carries details other than plan names (DT-RUN-008)"
+            )
         texts = [key for key, _ in nested_items(payload)] + list(artifact_strings(payload))
         if any(contains_location(text, names) for text in texts):
             failures.append(
@@ -1968,6 +1976,12 @@ def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
 # public link) rather than guess which spelling is a location; a heuristic
 # on free text cannot be made exact.
 LOCATION_MARKS = ("/", "\\", "://", "file:", "..")
+# Locations without a mark: a drive prefix (`C:private.arrow`) or a word with
+# a file extension (`private.arrow`). Conservative: `e.g.` is rejected too.
+UNMARKED_LOCATION = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:|[A-Za-z0-9_-]\.[A-Za-z][A-Za-z0-9]{0,7}(?![A-Za-z0-9])")
+# The only `details` keys a data.run 3 error vector may carry: the plan input,
+# step or output it concerns, by name.
+ERROR_DETAIL_KEYS = frozenset({"input", "step", "output"})
 NAME_BEFORE = r"(?:(?<=^)|(?<=[\s\"'`(\[{<]))"
 NAME_AFTER = r"(?=$|[\s\"'`)\]}>]|[.,;:!?]+(?:$|[\s\"'`)\]}>]))"
 
@@ -1988,7 +2002,11 @@ def contains_location(value: str, names: frozenset[str] = frozenset()) -> bool:
     rest = "".join(" " if hidden else char for char, hidden in zip(value, covered))
     # Every mark anywhere in the rest, not only at its start: `file:` and `..`
     # have no slash.
-    return any(mark in rest.lower() for mark in LOCATION_MARKS) or is_local_path(rest)
+    return (
+        any(mark in rest.lower() for mark in LOCATION_MARKS)
+        or UNMARKED_LOCATION.search(rest) is not None
+        or is_local_path(rest)
+    )
 
 
 def data_run_3_vector_errors(
