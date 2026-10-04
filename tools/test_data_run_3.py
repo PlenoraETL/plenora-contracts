@@ -315,6 +315,25 @@ class DataRun3Tests(unittest.TestCase):
             lambda p: p.update(message="Output /tmp/x y`z was not published."), spaced), [])
         self.assertTrue(self.location_errors(
             lambda p: p.update(message="Output /tmp/x y`z was not published to /secret."), spaced))
+        # Two names whose removal one after the other would create a boundary
+        # (`/tmp/private[` is not delimited in the original text).
+        for first, second in (
+            ("/tmp/private[", "secretlonglonglong]"),
+            ("\\\\srv\\share[", "secretlonglonglong]"),
+            ("https://a/[", "secretlonglonglong]"),
+        ):
+            with self.subTest(first=first):
+                self.assertTrue(validator.contains_location(
+                    f"Could not write {first}secretlonglonglong].",
+                    frozenset({first, second}),
+                ))
+        self.assertFalse(validator.contains_location(
+            "Inputs /tmp/a and /tmp/a b, output /tmp/.* failed.",
+            frozenset({"/tmp/a", "/tmp/a b", "/tmp/.*"}),
+        ))
+        self.assertTrue(validator.contains_location(
+            "Output /tmp/a b/c failed.", frozenset({"/tmp/a b", "b/c"}),
+        ))
         prefix = copy.deepcopy(self.request)
         payload = prefix["payload"]
         payload["plan"]["outputs"] = ["/tmp/private"]

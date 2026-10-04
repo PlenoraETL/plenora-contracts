@@ -1974,10 +1974,16 @@ NAME_AFTER = r"(?=$|[\s\"'`)\]}>]|[.,;:!?]+(?:$|[\s\"'`)\]}>]))"
 
 def contains_location(value: str, names: frozenset[str] = frozenset()) -> bool:
     """`names` are the caller's plan names: data, not locations (DT-RUN-008).
-    Only whole, delimited occurrences are exempt, longest first."""
-    for name in sorted(names, key=len, reverse=True):
-        value = re.sub(NAME_BEFORE + re.escape(name) + NAME_AFTER, " ", value)
-    return any(mark in value for mark in LOCATION_MARKS) or is_local_path(value)
+
+    Only whole occurrences delimited in the original text are exempt: every
+    name is matched on the unchanged text and the covered spans are removed
+    together, so removing one name never creates a boundary for another."""
+    covered = [False] * len(value)
+    for name in names:
+        for match in re.finditer(NAME_BEFORE + re.escape(name) + NAME_AFTER, value):
+            covered[match.start():match.end()] = [True] * (match.end() - match.start())
+    rest = "".join(" " if hidden else char for char, hidden in zip(value, covered))
+    return any(mark in rest for mark in LOCATION_MARKS) or is_local_path(rest)
 
 
 def data_run_3_vector_errors(
