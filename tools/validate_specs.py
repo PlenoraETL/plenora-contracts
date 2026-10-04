@@ -34,6 +34,8 @@ EXPECTED_SCHEMAS = {
     "capabilities-v2.schema.json",
     "cli-envelope-v2.schema.json",
     "composition-v1.schema.json",
+    "data-execution-input-v3.schema.json",
+    "data-execution-result-v3.schema.json",
     "data-plan-v1.schema.json",
     "error-v1.schema.json",
     "operation-registry-v1.schema.json",
@@ -838,7 +840,11 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     files and is not bound on the runtime surface.
     """
     failures: list[str] = []
-    operations = {item["id"]: item for item in catalog["operations"]}
+    # The first entry of an identifier is its lowest version: `data.run` 3
+    # sits next to `data.run` 2 in catalog v2 and is checked on its own below.
+    operations: dict[str, dict[str, Any]] = {}
+    for item in catalog["operations"]:
+        operations.setdefault(item["id"], item)
     catalog_operation = operations.get("data.catalog")
     if catalog_operation is None:
         return [f"data-tools v{version} has no data.catalog operation"]
@@ -872,6 +878,61 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
         failures.append(
             "data.run with named outputs has no runtime representation (profile v2)"
         )
+    failures.extend(data_run_3_errors(catalog, version, registry_id))
+    return failures
+
+
+DATA_RUN_3 = {
+    "requirement": "conditional",
+    "surfaces": ["rust", "runtime"],
+    "input": {
+        "contract": "plenora-data-execution-input-v3",
+        "content_types": ["application/json"],
+        "interchange_contracts": [],
+    },
+    "output": {
+        "contract": "plenora-data-execution-result-v3",
+        "content_types": ["application/json"],
+        "interchange_contracts": [],
+    },
+    "side_effect": "remote",
+}
+
+
+def data_run_3_errors(catalog: dict[str, Any], version: int, registry_id: str) -> list[str]:
+    """`data.run` 3 (profile v2, DT-RUN-001..DT-RUN-008): the runtime
+    representation with named outputs. Its sources and sinks are artifacts,
+    so its payloads are JSON; publication to sinks that may be remote makes
+    it `remote`, and it is conditional on the runtime surface."""
+    entries = [
+        item for item in catalog["operations"]
+        if item["id"] == "data.run" and item["version"] == 3
+    ]
+    if version < 2:
+        return ["data-tools v1 cannot declare data.run 3"] if entries else []
+    if len(entries) != 1:
+        return [f"data-tools v{version} must declare data.run 3 once"]
+    run = entries[0]
+    failures = [
+        f"data-tools v{version} data.run 3 has the wrong {field}"
+        for field, expected in DATA_RUN_3.items()
+        if run.get(field) != expected
+    ]
+    attributes = run.get("attributes", {})
+    if attributes.get("kernel_registry") != registry_id:
+        failures.append(f"data-tools v{version} data.run 3 names a different kernel registry")
+    if attributes.get("plan_contract") != DATA_PLAN_CONTRACT:
+        failures.append(f"data-tools v{version} data.run 3 must declare plan contract {DATA_PLAN_CONTRACT}")
+    if attributes.get("bounded_materialization") is not True:
+        failures.append(f"data-tools v{version} data.run 3 must declare bounded materialization")
+    arrow = ["application/vnd.apache.arrow.stream", "application/vnd.apache.arrow.file"]
+    if attributes.get("artifact_content_types") != {"source": arrow, "sink": arrow}:
+        failures.append(f"data-tools v{version} data.run 3 has the wrong artifact content types")
+    if attributes.get("artifact_interchange_contracts") != ["plenora-arrow-interchange-v1"]:
+        failures.append(f"data-tools v{version} data.run 3 must carry Arrow Interchange artifacts")
+    parquet = ["application/vnd.apache.parquet"]
+    if attributes.get("extension_content_types") != {"source": parquet, "sink": parquet}:
+        failures.append(f"data-tools v{version} data.run 3 has the wrong extension content types")
     return failures
 
 
@@ -1623,6 +1684,7 @@ def validate_runtime_vectors(
         operations[key] = (component, operation)
 
     storage_coverage = set()
+    data_run_3_coverage: set[str] = set()
     for path in sorted((ROOT / "vectors/runtime-v1").glob("*.json")):
         vector = load_json(path)
         metadata = vector["metadata"]
@@ -1714,6 +1776,13 @@ def validate_runtime_vectors(
                 failures.append(
                     f"{path.relative_to(ROOT)} has unbounded error: {bound_errors[0]}"
                 )
+        if (operation_id, operation["version"]) == ("data.run", 3):
+            data_run_3_coverage.add(vector["kind"])
+            errors = data_run_3_vector_errors(vector, schemas, registry)
+            if errors:
+                failures.append(
+                    f"{path.relative_to(ROOT)} violates data.run 3 semantics: {errors[0]}"
+                )
         if component == STORAGE_COMPONENT:
             storage_coverage.add((operation_id, vector["kind"]))
             errors = storage_vector_errors(vector, operation)
@@ -1729,7 +1798,61 @@ def validate_runtime_vectors(
     missing_storage = required_storage - storage_coverage
     if missing_storage:
         failures.append(f"storage runtime vector coverage is incomplete: {sorted(missing_storage)}")
+    missing_run = {"request", "success", "error"} - data_run_3_coverage
+    if missing_run:
+        failures.append(f"data.run 3 runtime vector coverage is incomplete: {sorted(missing_run)}")
     return failures
+
+
+def data_run_3_vector_errors(
+    vector: dict[str, Any],
+    schemas: dict[str, dict[str, Any]],
+    registry: Registry,
+) -> list[str]:
+    """Payload semantics of a `data.run` 3 vector (profile v2, DT-RUN-*)."""
+    payload = vector["payload"]
+    if vector["kind"] == "request":
+        errors = instance_errors(schemas["data-execution-input-v3.schema.json"], payload, registry)
+        if errors:
+            return [errors[0]]
+        plan = payload["plan"]
+        registries = data_registries()
+        kernel_ids = {item["id"] for item in registries[max(registries)]["operations"]}
+        errors = data_plan_errors(plan, kernel_ids)
+        if set(payload["inputs"]) != set(plan["inputs"]):
+            errors.append("sources do not name exactly the plan inputs (DT-RUN-001)")
+        if set(payload["outputs"]) != set(plan["outputs"]):
+            errors.append("sinks do not name exactly the plan outputs (DT-RUN-001)")
+        references = [
+            item["reference"]
+            for group in ("inputs", "outputs")
+            for item in payload[group].values()
+        ]
+        if any(is_local_path(reference) for reference in references):
+            errors.append("an artifact reference is a private local path (DT-RUN-002)")
+        sinks = [item["reference"] for item in payload["outputs"].values()]
+        if len(set(sinks)) != len(sinks):
+            errors.append("two sinks share one artifact reference (DT-RUN-002)")
+        return errors
+    if vector["kind"] == "success":
+        errors = instance_errors(schemas["data-execution-result-v3.schema.json"], payload, registry)
+        if errors:
+            return [errors[0]]
+        names = [item["name"] for item in payload["outputs"]]
+        references = [item["reference"] for item in payload["outputs"]]
+        if len(set(names)) != len(names) or len(set(references)) != len(references):
+            return ["outputs repeat a name or an artifact reference (DT-RUN-005)"]
+        if any(is_local_path(reference) for reference in references):
+            return ["an artifact reference is a private local path (DT-RUN-002)"]
+        return []
+    errors = []
+    if payload.get("remote_effect") == "partial" and payload.get("retry", {}).get("kind") not in {
+        "never", "quarantine", "requires_recovery"
+    }:
+        errors.append("a partial publication must forbid automatic retry (DT-RUN-006)")
+    if payload.get("remote_effect") == "unknown" and payload.get("retry", {}).get("kind") != "requires_recovery":
+        errors.append("an unknown publication outcome must require recovery (DT-RUN-006)")
+    return errors
 
 
 PLAN_BUDGET_CONFORMING = (

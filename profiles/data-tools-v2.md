@@ -73,10 +73,13 @@ They do not expose executor internals.
 - Python SDK: optional; when published it is governed by Python SDK 1.0 and
   binds all four operations in both API modes.
 - Runtime: conditional. `data.catalog` version 2, `data.describe` version 1
-  and `data.validate` version 2 list it. `data.run` version 2 does not: its result names any
-  number of outputs, and Runtime Binding 1.0 carries one payload per
-  response. Orchestrated execution uses `data.run` version 1 until a later
-  `data.run` version defines a named-output runtime representation.
+  and `data.validate` version 2 list it. `data.run` version 2 does not: its
+  result names any number of outputs, and Runtime Binding 1.0 carries one
+  payload per response. `data.run` version 3 is the named-output runtime
+  representation ([«Runtime execution»](#runtime-execution-datarun-version-3)):
+  sources and sinks are artifacts, and its one response is the manifest of
+  the published outputs. It is conditional and lists the Rust and runtime
+  surfaces only.
 
 ## Interchange
 
@@ -144,6 +147,63 @@ Every surface of `data.run` version 2 names each output (CLI
 `--output NAME=OUTPUT.arrow`, Rust and Python mappings), so each accepts any
 number of outputs; on the CLI the unnamed `--output OUTPUT.arrow` is accepted
 for a plan with exactly one output.
+
+## Runtime execution (`data.run` version 3)
+
+`data.run` version 3 executes the same plans as version 2 where the caller
+cannot hand tables or paths across the boundary. The request
+(`plenora-data-execution-input-v3`,
+[`data-execution-input-v3.schema.json`](../schemas/data-execution-input-v3.schema.json))
+carries the plan, one artifact source per plan input and one artifact sink
+per plan output. The result (`plenora-data-execution-result-v3`,
+[`data-execution-result-v3.schema.json`](../schemas/data-execution-result-v3.schema.json))
+is the manifest of the published artifacts. Both are JSON; the tables
+travel only as artifacts, Arrow IPC under Arrow Interchange 1.0 or Parquet as
+an extension (`artifact_content_types`, `extension_content_types`).
+
+**DT-RUN-001** — The source names are exactly the plan `inputs` and the sink
+names exactly the plan `outputs`. A missing, extra or unknown name fails
+before any source is read (`invalid_configuration`, as in version 2, phase
+`validate`, `remote_effect: none`).
+
+**DT-RUN-002** — Every source and sink carries an opaque artifact reference
+(RT-013), never a private local path; two sinks never share one reference.
+The component resolves references only through the resolver the final
+application provides (RT-015). A reference that does not resolve, or that the
+resolver does not authorize, fails before the plan executes
+(`not_found` or `authorization`, `remote_effect: none`).
+
+**DT-RUN-003** — A source is read as the content type it declares. When it
+declares `expected` size or SHA-256, the bytes read are checked against them
+before the plan executes; a mismatch fails (`data_mapping`, phase `read`,
+`remote_effect: none`).
+
+**DT-RUN-004** — The plan executes with the semantics of `data.run` version
+2 on the same plan and the same input tables: the same kernels, limits,
+budget, Arrow rules (DT-ARROW-001 to DT-ARROW-004) and typed errors. The
+tables a version 3 sink receives are those version 2 returns.
+
+**DT-RUN-005** — No sink is written before every output is computed and
+encoded: a failure while reading, executing or encoding publishes nothing
+(`remote_effect: none`). On success the result lists every plan output in
+plan order, with its sink reference, rows, columns and the artifact
+published: content type, exact byte size and the SHA-256 calculated over the
+published bytes, followed by the per-step counts of version 2.
+
+**DT-RUN-006** — Sinks are published one at a time, in plan output order.
+A sink with `overwrite: false` whose artifact already exists fails
+(`conflict`). A failure on the first sink reports `remote_effect: none`
+only when the resolver proves nothing was written. After one publication
+succeeded, a failure reports `partial` with retry `never`, `quarantine` or
+`requires_recovery`; an unproven outcome reports `unknown` with
+`requires_recovery`. No result is returned unless every sink was published.
+
+**DT-RUN-007** — Deadline and cancellation behave as in version 2 until
+publication starts; after it starts they follow DT-RUN-006. Idempotency keys
+are not accepted.
+
+**DT-RUN-008** — Neither the result nor an error carries what a reference
+resolved to, a local path or a row value.
 
 ## External behavior
 
