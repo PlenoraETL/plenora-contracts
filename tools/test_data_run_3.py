@@ -105,6 +105,12 @@ class DataRun3Tests(unittest.TestCase):
 
     def test_result_is_checked(self):
         cases = {
+            "reference with newline": lambda p: p["outputs"][0].update(reference="artifact://output/x\n"),
+            "dot-dot reference": lambda p: p["outputs"][0].update(reference="artifact://output/%2e%2e/x"),
+            "relative reference": lambda p: p["outputs"][0].update(reference="tmp:./large.arrow"),
+            "digest with newline": lambda p: p["outputs"][0]["artifact"].update(
+                sha256=p["outputs"][0]["artifact"]["sha256"] + "\n"
+            ),
             "repeated output": lambda p: p["outputs"].append(copy.deepcopy(p["outputs"][0])),
             "no digest": lambda p: p["outputs"][0]["artifact"].pop("sha256"),
             "negative size": lambda p: p["outputs"][0]["artifact"].update(size=-1),
@@ -165,14 +171,55 @@ class DataRun3Tests(unittest.TestCase):
         catalog["operations"].reverse()
         self.assertEqual(validator.data_catalog_errors(catalog, 2), [])
 
-    def test_other_components_cannot_hold_two_versions(self):
-        catalogs = copy.deepcopy(validator.load_catalogs())
-        storage = catalogs[validator.STORAGE_COMPONENT]["operations"]
-        extra = copy.deepcopy(storage[0])
-        extra["version"] = 2
-        storage.insert(0, extra)
-        errors = validator.validate_catalog_semantics(catalogs)
-        self.assertTrue(any("two versions of one operation" in error for error in errors), errors)
+    def test_every_version_of_an_operation_is_checked(self):
+        """Two versions of one operation may coexist (COMPATIBILITY.md); each
+        is checked, in any order, and none hides the other."""
+        def with_version_2(component, operation_id, mutate):
+            catalogs = copy.deepcopy(validator.load_catalogs())
+            operations = catalogs[component]["operations"]
+            extra = copy.deepcopy(next(item for item in operations if item["id"] == operation_id))
+            extra["version"] = 2
+            mutate(extra)
+            operations.insert(0, extra)
+            return validator.validate_catalog_semantics(catalogs)
+
+        unchanged = lambda op: None
+        self.assertEqual(with_version_2(validator.REST_COMPONENT, "rest.download", unchanged), [])
+        self.assertEqual(with_version_2(validator.DATABASE_COMPONENT, "database.query", unchanged), [])
+        cases = [
+            (validator.REST_COMPONENT, "rest.download", lambda op: op.update(side_effect="local"), "conservative remote"),
+            (validator.REST_COMPONENT, "rest.upload", lambda op: op["controls"].update(idempotency_key=False), "idempotency keys"),
+            (validator.DATABASE_COMPONENT, "database.query", lambda op: op.update(side_effect="remote"), "read-only"),
+            (validator.DATABASE_COMPONENT, "database.execute", lambda op: op.update(side_effect="local"), "remote side effects"),
+            (validator.STORAGE_COMPONENT, "storage.get", unchanged, "at version 1"),
+        ]
+        for component, operation_id, mutate, fragment in cases:
+            with self.subTest(operation=operation_id):
+                errors = with_version_2(component, operation_id, mutate)
+                self.assertTrue(any(fragment in error for error in errors), errors)
+
+    def test_every_sdk_binding_version_is_checked(self):
+        original = validator.load_json
+
+        def loader(path):
+            document = original(path)
+            if path.name == "python-sdk-v1.json":
+                document = copy.deepcopy(document)
+                section = next(
+                    item for item in document["components"]
+                    if item["component"] == validator.DATABASE_COMPONENT
+                )
+                extra = copy.deepcopy(next(
+                    item for item in section["bindings"] if item["operation"] == "database.query"
+                ))
+                extra["version"] = 2
+                extra["entrypoints"] = ["Session.insert", "AsyncSession.insert"]
+                section["bindings"].insert(0, extra)
+            return document
+
+        with patch.object(validator, "load_json", loader):
+            errors = validator.validate_bindings(validator.load_catalogs())
+        self.assertTrue(any("read-only" in error for error in errors), errors)
 
     def test_reference_spellings_that_are_paths_are_rejected(self):
         for reference in (
@@ -219,11 +266,66 @@ class DataRun3Tests(unittest.TestCase):
         for mutate in (
             lambda p: p.update(details={"path": "/tmp/private.arrow"}),
             lambda p: p.update(details={"sink": "artifact://output/data-run-v3-large"}),
+            lambda p: p.update(details={"/tmp/private.arrow": True}),
             lambda p: p.update(message="Could not write C:\\data\\out.arrow."),
+            lambda p: p.update(message="Could not write /secret."),
+            lambda p: p.update(message="Could not write relative/private.arrow."),
         ):
             vector = copy.deepcopy(self.error)
             mutate(vector["payload"])
             self.assertTrue(self.vector_errors(vector))
+        for message in (
+            "/ is not a supported arithmetic operator.",
+            "Publication failed; consult https://example.org/help.",
+            "Rows and/or columns exceed the budget.",
+        ):
+            with self.subTest(message=message):
+                vector = copy.deepcopy(self.error)
+                vector["payload"]["message"] = message
+                self.assertEqual(self.vector_errors(vector), [])
+
+    def gate_errors(self, name, mutate=None, text=None):
+        """The whole gate with one vector changed, as a document or as text."""
+        original_json = validator.load_json
+        original_text = validator.read_text
+
+        def loader(path):
+            document = original_json(path)
+            if mutate is not None and path.name == name:
+                document = copy.deepcopy(document)
+                mutate(document)
+            return document
+
+        def reader(path):
+            content = original_text(path)
+            return text(content) if text is not None and path.name == name else content
+
+        stderr = io.StringIO()
+        with patch.object(validator, "load_json", loader), patch.object(
+            validator, "read_text", reader
+        ), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+            self.assertNotEqual(validator.main(), 0)
+        return stderr.getvalue()
+
+    def test_gate_checks_request_text_manifest_and_coverage(self):
+        self.assertIn("DPLAN-003", self.gate_errors(
+            "data-run-request-v3.json",
+            text=lambda content: content.replace('"value": 1000', '"value": 18446744073709551616'),
+        ))
+        self.assertIn("DPLAN-002", self.gate_errors(
+            "data-run-request-v3.json",
+            text=lambda content: content.replace('"value": 1000', '"value": 1000, "value": 2'),
+        ))
+        self.assertIn("manifest differs", self.gate_errors(
+            "data-run-success-v3.json",
+            mutate=lambda document: document["payload"]["outputs"][0].update(name="other"),
+        ))
+        self.assertIn("error:unknown", self.gate_errors(
+            "data-run-unknown-error-v3.json",
+            mutate=lambda document: document["payload"].update(
+                remote_effect="partial", retry={"kind": "never"}
+            ),
+        ))
 
     def test_gate_rejects_unsupported_idempotency(self):
         original = validator.load_json

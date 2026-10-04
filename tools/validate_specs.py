@@ -266,6 +266,10 @@ def reject_constant(name: str) -> Any:
     raise ValueError(f"{name} is not JSON")
 
 
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
 def load_json(path: Path) -> Any:
     with path.open(encoding="utf-8") as handle:
         return json.load(handle, parse_constant=reject_constant)
@@ -624,15 +628,6 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
         identities = [(item["id"], item["version"]) for item in catalog["operations"]]
         if len(identities) != len(set(identities)):
             failures.append(f"{component} has duplicate operation identities")
-        identifiers = [item["id"] for item in catalog["operations"]]
-        if component != DATA_COMPONENT and len(identifiers) != len(set(identifiers)):
-            # The REST, database, storage and IO checks below look operations
-            # up by identifier: two versions of one operation would let one
-            # hide the other. Index them by (id, version) before allowing it.
-            failures.append(
-                f"{component} v{version} declares two versions of one operation, "
-                "which its checks look up by identifier"
-            )
 
         required = {
             item["id"]
@@ -665,8 +660,9 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
                     "rest-tools required runtime operations require a required runtime target"
                 )
 
-            rest_operations = {item["id"]: item for item in catalog["operations"]}
-            for operation in rest_operations.values():
+            # Every version of every operation is checked; a lookup by
+            # identifier alone would let one version hide another.
+            for operation in catalog["operations"]:
                 attributes = operation.get("attributes")
                 if (
                     not isinstance(attributes, dict)
@@ -680,40 +676,49 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
                         f"rest-tools {operation['id']} must accept idempotency keys"
                     )
 
-            download = rest_operations.get("rest.download")
-            upload = rest_operations.get("rest.upload")
-            if download is not None and upload is not None:
-                if download["input"]["contract"] != upload["input"]["contract"]:
-                    failures.append(
-                        "REST download and upload use different transfer inputs"
-                    )
-                if download["input"]["contract"] != REST_FILE_TRANSFER_INPUT:
+            transfers = {
+                (item["id"], item["version"]): item
+                for item in catalog["operations"]
+                if item["id"] in {"rest.download", "rest.upload"}
+            }
+            # Each transfer operation on its own, then each version pair.
+            for (operation_id, operation_version), operation in sorted(transfers.items()):
+                if operation["input"]["contract"] != REST_FILE_TRANSFER_INPUT:
                     failures.append(
                         "REST file transfer operations use the wrong input contract"
                     )
-                if download["side_effect"] != "remote":
+                if operation_id == "rest.download" and operation["side_effect"] != "remote":
                     failures.append(
                         "REST download must use the conservative remote side-effect class"
                     )
-                if "application/octet-stream" in upload["input"]["content_types"]:
+                if (
+                    operation_id == "rest.upload"
+                    and "application/octet-stream" in operation["input"]["content_types"]
+                ):
                     failures.append(
                         "REST upload v1 embeds raw bytes in its JSON invocation envelope"
                     )
+                other = transfers.get(("rest.upload", operation_version))
+                if (
+                    operation_id == "rest.download"
+                    and other is not None
+                    and operation["input"]["contract"] != other["input"]["contract"]
+                ):
+                    failures.append(
+                        "REST download and upload use different transfer inputs"
+                    )
 
         if component == DATABASE_COMPONENT:
-            database_operations = {
-                item["id"]: item for item in catalog["operations"]
-            }
+            database_operations = catalog["operations"]
             if catalog["status"] != "normative":
                 failures.append(
                     "database-tools v1 must be normative after component-owned schema publication"
                 )
-            if any(name.startswith("arcgis.") for name in database_operations):
+            if any(item["id"].startswith("arcgis.") for item in database_operations):
                 failures.append(
                     "database-tools must not own ArcGIS operations before ownership is ratified"
                 )
-            write = database_operations.get("database.write")
-            if write is not None:
+            for write in (item for item in database_operations if item["id"] == "database.write"):
                 attributes = write.get("attributes")
                 if (
                     not isinstance(attributes, dict)
@@ -726,12 +731,11 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
                     failures.append(
                         "the common database catalog must not advertise provider-independent write modes"
                     )
-            query = database_operations.get("database.query")
-            if query is not None and query["side_effect"] != "none":
-                failures.append("database.query must remain read-only")
-            execute = database_operations.get("database.execute")
-            if execute is not None and execute["side_effect"] != "remote":
-                failures.append("database.execute must declare remote side effects")
+            for item in database_operations:
+                if item["id"] == "database.query" and item["side_effect"] != "none":
+                    failures.append("database.query must remain read-only")
+                if item["id"] == "database.execute" and item["side_effect"] != "remote":
+                    failures.append("database.execute must declare remote side effects")
 
     storage = catalogs[STORAGE_COMPONENT]
     if storage["status"] != "normative":
@@ -744,10 +748,20 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
     }
     if storage["target_surfaces"] != expected_storage_surfaces:
         failures.append("storage-tools has the wrong target surface selection")
-    storage_operations = {item["id"]: item for item in storage["operations"]}
-    if set(storage_operations) != STORAGE_OPERATIONS:
-        failures.append("storage-tools v1 must define exactly the seven reviewed operations")
-    for operation_id, operation in storage_operations.items():
+    storage_identities = [(item["id"], item["version"]) for item in storage["operations"]]
+    if sorted(storage_identities) != sorted((name, 1) for name in STORAGE_OPERATIONS):
+        # The reviewed v1 content; another operation version is a reviewed
+        # change of this check, not an identity it may overlook.
+        failures.append(
+            "storage-tools v1 must define exactly the seven reviewed operations at version 1"
+        )
+    # Pinned above to version 1 of each reviewed operation: the version is
+    # part of the key, so no other version can stand in for it.
+    storage_operations = {
+        item["id"]: item for item in storage["operations"] if item["version"] == 1
+    }
+    for operation in storage["operations"]:
+        operation_id = operation["id"]
         action = operation_id.removeprefix("storage.")
         if operation["version"] != 1:
             failures.append(f"{operation_id} must remain at operation version 1")
@@ -1085,24 +1099,30 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
     )
     if database_section is None:
         return failures
-    database_bindings = {
-        item["operation"]: set(item["entrypoints"])
-        for item in database_section["bindings"]
-    }
-    if len(database_bindings) != len(database_section["bindings"]):
-        # The checks below look bindings up by operation alone.
-        failures.append("database SDK binds two versions of one operation")
-    if database_bindings.get("database.test_connection") != {
+    def entrypoint_sets(section: dict[str, Any], operation_id: str) -> list[set[str]]:
+        """The entrypoints of every version of one operation: each version is
+        checked, none hides another."""
+        return [
+            set(item["entrypoints"])
+            for item in section["bindings"]
+            if item["operation"] == operation_id
+        ]
+
+    def every_binding(section: dict[str, Any], operation_id: str, expected: set[str]) -> bool:
+        found = entrypoint_sets(section, operation_id)
+        return bool(found) and all(entrypoints == expected for entrypoints in found)
+
+    if not every_binding(database_section, "database.test_connection", {
         "plenora_database.test_connection",
         "plenora_database.atest_connection",
-    }:
+    }):
         failures.append(
             "database.test_connection must use dedicated SDK verification entrypoints"
         )
-    if database_bindings.get("database.query") != {
+    if not every_binding(database_section, "database.query", {
         "Session.select",
         "AsyncSession.select",
-    }:
+    }):
         failures.append("database.query SDK bindings must remain read-only")
     mutating_entrypoints = {
         "Session.insert",
@@ -1114,8 +1134,9 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
         "AsyncSession.delete",
         "AsyncSession.upsert",
     }
-    if not mutating_entrypoints.issubset(
-        database_bindings.get("database.execute", set())
+    execute_sets = entrypoint_sets(database_section, "database.execute")
+    if not execute_sets or not all(
+        mutating_entrypoints.issubset(entrypoints) for entrypoints in execute_sets
     ):
         failures.append(
             "mutating database SDK entrypoints must bind to database.execute"
@@ -1132,18 +1153,11 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
         "plenora_storage.version", "Engine.capabilities", "AsyncEngine.capabilities"
     }:
         failures.append("storage SDK must expose version and discovery in both API modes")
-    storage_bindings = {
-        item["operation"]: set(item["entrypoints"])
-        for item in storage_section["bindings"]
-    }
-    if len(storage_bindings) != len(storage_section["bindings"]):
-        # The checks below look bindings up by operation alone.
-        failures.append("storage SDK binds two versions of one operation")
     for operation_id in sorted(STORAGE_OPERATIONS):
         action = operation_id.removeprefix("storage.")
-        if storage_bindings.get(operation_id) != {
+        if not every_binding(storage_section, operation_id, {
             f"Engine.{action}", f"AsyncEngine.{action}"
-        }:
+        }):
             failures.append(f"{operation_id} must bind both canonical SDK API modes")
     failures.extend(data_python_errors(python_document))
     return failures
@@ -1309,8 +1323,13 @@ def rest_boundary_errors(
     document: dict[str, Any], catalog: dict[str, Any]
 ) -> list[str]:
     errors: list[str] = []
-    operations = {item["id"]: item for item in catalog["operations"]}
-    operation = operations.get(document.get("operation"))
+    candidates = [
+        item for item in catalog["operations"] if item["id"] == document.get("operation")
+    ]
+    if len(candidates) > 1:
+        # Several versions: the example names the one it exercises.
+        candidates = [item for item in candidates if item["version"] == document.get("version")]
+    operation = candidates[0] if len(candidates) == 1 else None
     if document.get("surface") != "runtime":
         errors.append("REST artifact boundary example is not a runtime request")
     if operation is None or "runtime" not in operation["surfaces"]:
@@ -1832,7 +1851,7 @@ def validate_runtime_vectors(
             data_run_3_vectors.append(vector)
             errors = data_run_3_vector_errors(vector, schemas, registry)
             if vector["kind"] == "request":
-                errors.extend(data_run_3_text_errors(path.read_text(encoding="utf-8")))
+                errors.extend(data_run_3_text_errors(read_text(path)))
             if errors:
                 failures.append(
                     f"{path.relative_to(ROOT)} violates data.run 3 semantics: {errors[0]}"
@@ -1916,16 +1935,32 @@ def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
     return failures
 
 
-# A location inside free text: a drive or UNC path, an absolute POSIX path
-# of at least two segments, a URI or a `file:` reference.
-LOCATION_IN_TEXT = re.compile(
-    r"(?:^|[\s\"'(=])(?:[A-Za-z]:[\\/]|\\\\|/[^\s/]+/)|[a-z][a-z0-9+.-]*://|\bfile:",
-    re.IGNORECASE,
-)
+# Free text may name locations; a fixture guard, not a proof of redaction.
+# A token is a location when it is an absolute or drive path, a UNC or
+# `file:` path, a URI other than a public http(s) link, or a relative path
+# whose last segment has an extension. `/` alone, `and/or` or a link to
+# public documentation are not.
+TOKEN_SEPARATORS = re.compile(r"[\s\"'(),;<>\[\]{}=]+")
+URI_SCHEME = re.compile(r"^([a-z][a-z0-9+.-]*)://", re.IGNORECASE)
+RELATIVE_FILE = re.compile(r"[\\/][^\\/]*\.[A-Za-z0-9]{1,8}$")
+
+
+def token_is_location(token: str) -> bool:
+    token = token.rstrip(".:!?")
+    if len(token) < 2:
+        return False
+    scheme = URI_SCHEME.match(token)
+    if scheme is not None:
+        return scheme.group(1).lower() not in {"http", "https"}
+    return (
+        is_local_path(token)
+        or (token[0] == "/" and len(token) > 1)
+        or RELATIVE_FILE.search(token) is not None
+    )
 
 
 def contains_location(value: str) -> bool:
-    return is_local_path(value) or LOCATION_IN_TEXT.search(value) is not None
+    return any(token_is_location(token) for token in TOKEN_SEPARATORS.split(value))
 
 
 def data_run_3_vector_errors(
@@ -1970,7 +2005,8 @@ def data_run_3_vector_errors(
             return ["an artifact reference is a private local path (DT-RUN-002)"]
         return []
     errors = []
-    if any(contains_location(value) for value in artifact_strings(payload)):
+    texts = [key for key, _ in nested_items(payload)] + list(artifact_strings(payload))
+    if any(contains_location(text) for text in texts):
         errors.append("an error carries a path or a reference location (DT-RUN-008)")
     if payload.get("remote_effect") == "partial" and payload.get("retry", {}).get("kind") not in {
         "never", "quarantine", "requires_recovery"

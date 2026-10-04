@@ -39,9 +39,9 @@ Add `data.run` version 3 to `data-tools-v2.json`, next to version 2:
   with an instrumented resolver;
 - the runtime binding map adds `plenora.data-tools#data.run@3`; new vectors
   cover a request, its manifest, a partial and an unknown publication error;
-- the validator looks data-tools operations up by `(id, version)`, and
-  rejects two versions of one operation in the other components, whose
-  checks still look operations up by identifier.
+- the validator looks operations and SDK bindings up by `(id, version)` in
+  every component, so each version of an operation is checked and none
+  hides another; coexisting versions stay allowed (COMPATIBILITY.md).
 
 ## Alternatives
 

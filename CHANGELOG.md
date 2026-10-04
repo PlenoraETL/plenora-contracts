@@ -12,10 +12,10 @@
   `data-execution-result-v3.schema.json`, profile rules DT-RUN-001 to
   DT-RUN-008, runtime selector `plenora.data-tools#data.run@3` and four
   runtime vectors. No existing operation, schema or vector changes. The
-  validator looks data-tools operations up by `(id, version)`, rejects two
-  versions of one operation in the components whose checks look operations
-  up by identifier, and rejects runtime vectors that use an idempotency key
-  the operation does not accept (RT-006, ERR-008). See
+  validator checks every version of an operation and of its SDK bindings
+  (it looked some up by identifier, letting one version hide another), and
+  rejects runtime vectors that use an idempotency key the operation does
+  not accept (RT-006, ERR-008). See
   [decision 0008](decisions/0008-data-run-runtime.md).
 
 ### Changed

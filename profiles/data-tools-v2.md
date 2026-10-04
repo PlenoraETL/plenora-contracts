@@ -167,7 +167,10 @@ before any source is read (`invalid_configuration`, as in version 2, phase
 `validate`, `remote_effect: none`).
 
 **DT-RUN-002** — Every source and sink carries an opaque artifact reference
-(RT-013), never a private local path; two sinks never share one reference.
+(RT-013), never a private local path; two sinks never share one reference,
+and the resolver rejects, before the plan executes, two sinks that resolve
+to the same artifact under different references (`invalid_configuration`,
+`remote_effect: none`).
 The schema rejects the spellings that are paths on their face (`file:`,
 `.` and `..` segments, percent-encoded dots, whitespace), but a reference
 is opaque by how it is resolved, not by its spelling: the component hands
@@ -200,22 +203,27 @@ published bytes, followed by the per-step counts of version 2.
 `overwrite: false` is enforced by the sink atomically with the publication
 (create only if absent); a resolver that cannot do so rejects such a sink
 before the plan executes (`unsupported`, `remote_effect: none`). A sink
-whose artifact already exists fails (`conflict`). A failure on the first
-sink reports `remote_effect: none` only when the resolver proves nothing was
-written. When the outcome of a publication is not proven, the error reports
-`unknown` with `requires_recovery` whatever was published before it
-(ERR-004: uncertainty prevails); when every earlier publication succeeded
-and the failed one provably wrote nothing, it reports `partial` with retry
-`never`, `quarantine` or `requires_recovery`. No result is returned unless
-every sink was published.
+with `overwrite: false` whose artifact already exists fails (`conflict`); a
+sink with `overwrite: true` replaces it. The outcome of a failed
+publication:
+
+- not proven: `unknown` with `requires_recovery`, whatever was published
+  before it (ERR-004: uncertainty prevails);
+- proven to have written nothing, with no earlier publication: `none`;
+- proven to have written nothing, after at least one successful earlier
+  publication: `partial`, with retry `never`, `quarantine` or
+  `requires_recovery`.
+
+No result is returned unless every sink was published.
 
 **DT-RUN-007** — Deadline and cancellation behave as in version 2 until
 publication starts; after it starts they follow DT-RUN-006. Idempotency keys
 are not accepted.
 
 **DT-RUN-008** — Neither the result nor an error carries what a reference
-resolved to, a local path or a row value. Output names are the caller's
-plan names and are returned as given; they are not locations.
+resolved to, a local path or a row value. Plan names (inputs, steps,
+outputs) are the caller's data, not locations: a result returns them as
+given, and an error may name the plan input, step or output it concerns.
 
 Conformance: the vectors fix the payloads; the ordering guarantees
 (DT-RUN-001, DT-RUN-003, DT-RUN-005, DT-RUN-006) are demonstrated by an
