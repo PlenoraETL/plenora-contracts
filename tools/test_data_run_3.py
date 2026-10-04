@@ -334,6 +334,12 @@ class DataRun3Tests(unittest.TestCase):
         self.assertTrue(validator.contains_location(
             "Output /tmp/a b/c failed.", frozenset({"/tmp/a b", "b/c"}),
         ))
+        # Overlapping occurrences of one name are all exempt.
+        self.assertFalse(validator.contains_location("/a /a /a", frozenset({"/a /a"})))
+        # Marks without a slash, anywhere in what the names leave.
+        for text in ("/a file:secret.arrow", "/a ..", "/a FILE:secret", "x /a ..\\y"):
+            with self.subTest(text=text):
+                self.assertTrue(validator.contains_location(text, frozenset({"/a"})))
         prefix = copy.deepcopy(self.request)
         payload = prefix["payload"]
         payload["plan"]["outputs"] = ["/tmp/private"]

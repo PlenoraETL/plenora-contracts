@@ -1967,7 +1967,7 @@ def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
 # messages of an implementation, and rejects some harmless text (`and/or`, a
 # public link) rather than guess which spelling is a location; a heuristic
 # on free text cannot be made exact.
-LOCATION_MARKS = ("/", "\\", "://")
+LOCATION_MARKS = ("/", "\\", "://", "file:", "..")
 NAME_BEFORE = r"(?:(?<=^)|(?<=[\s\"'`(\[{<]))"
 NAME_AFTER = r"(?=$|[\s\"'`)\]}>]|[.,;:!?]+(?:$|[\s\"'`)\]}>]))"
 
@@ -1980,10 +1980,15 @@ def contains_location(value: str, names: frozenset[str] = frozenset()) -> bool:
     together, so removing one name never creates a boundary for another."""
     covered = [False] * len(value)
     for name in names:
-        for match in re.finditer(NAME_BEFORE + re.escape(name) + NAME_AFTER, value):
-            covered[match.start():match.end()] = [True] * (match.end() - match.start())
+        # A lookahead finds overlapping occurrences too (`/a /a /a`).
+        pattern = NAME_BEFORE + "(?=(" + re.escape(name) + "))" + r"(?=\1" + NAME_AFTER + ")"
+        for match in re.finditer(pattern, value):
+            start, end = match.start(), match.start() + len(name)
+            covered[start:end] = [True] * (end - start)
     rest = "".join(" " if hidden else char for char, hidden in zip(value, covered))
-    return any(mark in rest for mark in LOCATION_MARKS) or is_local_path(rest)
+    # Every mark anywhere in the rest, not only at its start: `file:` and `..`
+    # have no slash.
+    return any(mark in rest.lower() for mark in LOCATION_MARKS) or is_local_path(rest)
 
 
 def data_run_3_vector_errors(
