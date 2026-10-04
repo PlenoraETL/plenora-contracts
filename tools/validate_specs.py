@@ -1900,7 +1900,7 @@ def data_run_3_error_location_errors(vectors: list[dict[str, Any]]) -> list[str]
         payload = vector["payload"]
         details = payload.get("details", {})
         if not isinstance(details, dict) or any(
-            key not in ERROR_DETAIL_KEYS or value not in names
+            key not in ERROR_DETAIL_KEYS or not isinstance(value, str) or value not in names
             for key, value in details.items()
         ):
             failures.append(

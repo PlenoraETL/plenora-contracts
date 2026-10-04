@@ -293,6 +293,9 @@ class DataRun3Tests(unittest.TestCase):
             {"path": "private"},
             {"output": "not-a-plan-name"},
             {"output": "large", "reason": "x"},
+            {"output": []},
+            {"output": {}},
+            {"output": None},
         ):
             self.assertTrue(self.location_errors(lambda p, d=details: p.update(details=d)))
         self.assertEqual(self.location_errors(lambda p: p.update(details={"output": "large"})), [])
@@ -406,6 +409,11 @@ class DataRun3Tests(unittest.TestCase):
                 "data-run-partial-error-v3.json",
                 mutate=lambda document, m=message: document["payload"].update(message=m),
             ))
+        # An unhashable detail is a violation, not a crash of the gate.
+        self.assertIn("DT-RUN-008", self.gate_errors(
+            "data-run-partial-error-v3.json",
+            mutate=lambda document: document["payload"].update(details={"output": []}),
+        ))
         self.assertIn("error:unknown", self.gate_errors(
             "data-run-unknown-error-v3.json",
             mutate=lambda document: document["payload"].update(
