@@ -210,9 +210,10 @@ publication:
 - not proven: `unknown` with `requires_recovery`, whatever was published
   before it (ERR-004: uncertainty prevails);
 - proven to have written nothing, with no earlier publication: `none`;
-- proven to have written nothing, after at least one successful earlier
-  publication: `partial`, with retry `never`, `quarantine` or
-  `requires_recovery`.
+- proven to have written part of its artifact (the first sink included,
+  an `overwrite: true` replacement included), or proven to have written
+  nothing after at least one successful earlier publication: `partial`,
+  with retry `never`, `quarantine` or `requires_recovery`.
 
 No result is returned unless every sink was published.
 
@@ -222,8 +223,10 @@ are not accepted.
 
 **DT-RUN-008** — Neither the result nor an error carries what a reference
 resolved to, a local path or a row value. Plan names (inputs, steps,
-outputs) are the caller's data, not locations: a result returns them as
-given, and an error may name the plan input, step or output it concerns.
+outputs) are the caller's data, not locations, whatever their spelling: a
+result returns them as given, and an error may name, as given, the plan
+input, step or output it concerns. Any other path or reference spelling in
+an error is a location.
 
 Conformance: the vectors fix the payloads; the ordering guarantees
 (DT-RUN-001, DT-RUN-003, DT-RUN-005, DT-RUN-006) are demonstrated by an

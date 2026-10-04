@@ -186,12 +186,16 @@ class DataRun3Tests(unittest.TestCase):
         unchanged = lambda op: None
         self.assertEqual(with_version_2(validator.REST_COMPONENT, "rest.download", unchanged), [])
         self.assertEqual(with_version_2(validator.DATABASE_COMPONENT, "database.query", unchanged), [])
+        self.assertEqual(with_version_2(validator.STORAGE_COMPONENT, "storage.get", unchanged), [])
         cases = [
             (validator.REST_COMPONENT, "rest.download", lambda op: op.update(side_effect="local"), "conservative remote"),
             (validator.REST_COMPONENT, "rest.upload", lambda op: op["controls"].update(idempotency_key=False), "idempotency keys"),
             (validator.DATABASE_COMPONENT, "database.query", lambda op: op.update(side_effect="remote"), "read-only"),
             (validator.DATABASE_COMPONENT, "database.execute", lambda op: op.update(side_effect="local"), "remote side effects"),
-            (validator.STORAGE_COMPONENT, "storage.get", unchanged, "at version 1"),
+            (validator.STORAGE_COMPONENT, "storage.get", lambda op: op.update(side_effect="none"), "conservative remote"),
+            (validator.STORAGE_COMPONENT, "storage.get", lambda op: op["attributes"].update(artifact_role="source"), "artifact sink"),
+            (validator.STORAGE_COMPONENT, "storage.put", lambda op: op["attributes"].update(publication_policy="optional"), "publication policy"),
+            (validator.STORAGE_COMPONENT, "storage.list", lambda op: op.update(side_effect="remote"), "side-effect free"),
         ]
         for component, operation_id, mutate, fragment in cases:
             with self.subTest(operation=operation_id):
@@ -262,6 +266,11 @@ class DataRun3Tests(unittest.TestCase):
         orphan["metadata"]["plenora.trace.correlation_id"] = "018f3d84-7b2c-7f00-8000-0000000000ff"
         self.assertTrue(validator.data_run_3_manifest_errors([self.request, orphan]))
 
+    def location_errors(self, mutate, request=None):
+        vector = copy.deepcopy(self.error)
+        mutate(vector["payload"])
+        return validator.data_run_3_error_location_errors([request or self.request, vector])
+
     def test_errors_carry_no_location(self):
         for mutate in (
             lambda p: p.update(details={"path": "/tmp/private.arrow"}),
@@ -269,24 +278,33 @@ class DataRun3Tests(unittest.TestCase):
             lambda p: p.update(details={"/tmp/private.arrow": True}),
             lambda p: p.update(message="Could not write C:\\data\\out.arrow."),
             lambda p: p.update(message="Could not write /secret."),
+            lambda p: p.update(message="Could not write path:/secret."),
             lambda p: p.update(message="Could not write relative/private.arrow."),
             lambda p: p.update(message="Publication failed for `artifact://private/output`."),
             lambda p: p.update(message="Publication failed for `/tmp/private.arrow`."),
             lambda p: p.update(message="Publication failed for x:artifact://private/output."),
             lambda p: p.update(message="See https://example.org/help and artifact://private/x."),
         ):
-            vector = copy.deepcopy(self.error)
-            mutate(vector["payload"])
-            self.assertTrue(self.vector_errors(vector))
+            self.assertTrue(self.location_errors(mutate))
         for message in (
             "/ is not a supported arithmetic operator.",
             "Publication failed; consult https://example.org/help.",
             "Rows and/or columns exceed the budget.",
         ):
             with self.subTest(message=message):
-                vector = copy.deepcopy(self.error)
-                vector["payload"]["message"] = message
-                self.assertEqual(self.vector_errors(vector), [])
+                self.assertEqual(self.location_errors(lambda p, m=message: p.update(message=m)), [])
+
+    def test_plan_names_may_appear_in_errors(self):
+        request = copy.deepcopy(self.request)
+        payload = request["payload"]
+        payload["plan"]["outputs"] = ["/tmp/x"]
+        payload["plan"]["steps"][0]["out"] = "/tmp/x"
+        payload["outputs"] = {"/tmp/x": payload["outputs"].pop("large")}
+        self.assertEqual(self.vector_errors(request), [])
+        named = lambda p: p.update(details={"output": "/tmp/x"}, message="Output /tmp/x was not published.")
+        self.assertEqual(self.location_errors(named, request), [])
+        # The same spelling is a location for a request without that name.
+        self.assertTrue(self.location_errors(named))
 
     def gate_errors(self, name, mutate=None, text=None):
         """The whole gate with one vector changed, as a document or as text."""
@@ -323,6 +341,14 @@ class DataRun3Tests(unittest.TestCase):
         self.assertIn("manifest differs", self.gate_errors(
             "data-run-success-v3.json",
             mutate=lambda document: document["payload"]["outputs"][0].update(name="other"),
+        ))
+        self.assertIn("sha256", self.gate_errors(
+            "data-run-success-v3.json",
+            mutate=lambda document: document["payload"]["outputs"][0]["artifact"].pop("sha256"),
+        ))
+        self.assertIn("DT-RUN-008", self.gate_errors(
+            "data-run-partial-error-v3.json",
+            mutate=lambda document: document["payload"].update(message="Could not write /secret."),
         ))
         self.assertIn("error:unknown", self.gate_errors(
             "data-run-unknown-error-v3.json",

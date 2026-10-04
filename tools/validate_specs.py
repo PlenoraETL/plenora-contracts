@@ -748,29 +748,28 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
     }
     if storage["target_surfaces"] != expected_storage_surfaces:
         failures.append("storage-tools has the wrong target surface selection")
-    storage_identities = [(item["id"], item["version"]) for item in storage["operations"]]
-    if sorted(storage_identities) != sorted((name, 1) for name in STORAGE_OPERATIONS):
-        # The reviewed v1 content; another operation version is a reviewed
-        # change of this check, not an identity it may overlook.
+    # Every reviewed operation keeps its version 1; another version of one of
+    # them may coexist (COMPATIBILITY.md) and every rule below applies to each
+    # version, so none stands in for another.
+    storage_identities = {(item["id"], item["version"]) for item in storage["operations"]}
+    if {item["id"] for item in storage["operations"]} != STORAGE_OPERATIONS or not {
+        (name, 1) for name in STORAGE_OPERATIONS
+    } <= storage_identities:
         failures.append(
-            "storage-tools v1 must define exactly the seven reviewed operations at version 1"
+            "storage-tools v1 must define the seven reviewed operations, each at version 1"
         )
-    # Pinned above to version 1 of each reviewed operation: the version is
-    # part of the key, so no other version can stand in for it.
-    storage_operations = {
-        item["id"]: item for item in storage["operations"] if item["version"] == 1
-    }
     for operation in storage["operations"]:
         operation_id = operation["id"]
         action = operation_id.removeprefix("storage.")
-        if operation["version"] != 1:
-            failures.append(f"{operation_id} must remain at operation version 1")
+        suffix = f"v{operation['version']}" if operation["version"] == 1 else r"v[1-9][0-9]*"
         if set(operation["surfaces"]) != {"rust", "cli", "python_sdk", "runtime"}:
             failures.append(f"{operation_id} has the wrong selected surfaces")
-        if operation["input"]["contract"] != f"plenora-storage-{action}-input-v1":
-            failures.append(f"{operation_id} has the wrong input contract")
-        if operation["output"]["contract"] != f"plenora-storage-{action}-output-v1":
-            failures.append(f"{operation_id} has the wrong output contract")
+        for direction in ("input", "output"):
+            if not re.fullmatch(
+                rf"plenora-storage-{action}-{direction}-{suffix}",
+                operation[direction]["contract"],
+            ):
+                failures.append(f"{operation_id} has the wrong {direction} contract")
         for direction in ("input", "output"):
             payload = operation[direction]
             if payload["content_types"] != ["application/json"]:
@@ -791,25 +790,23 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
             or attributes.get("contract") != STORAGE_ATTRIBUTE_CONTRACT
         ):
             failures.append(f"{operation_id} lacks its capability attribute contract")
-
-    for operation_id in {"storage.test", "storage.list", "storage.stat"}:
-        if storage_operations.get(operation_id, {}).get("side_effect") != "none":
-            failures.append(f"{operation_id} must remain side-effect free")
-    for operation_id in {"storage.get", "storage.put", "storage.copy", "storage.delete"}:
-        if storage_operations.get(operation_id, {}).get("side_effect") != "remote":
+        attributes = attributes if isinstance(attributes, dict) else {}
+        if operation_id in {"storage.test", "storage.list", "storage.stat"}:
+            if operation["side_effect"] != "none":
+                failures.append(f"{operation_id} must remain side-effect free")
+        elif operation["side_effect"] != "remote":
             failures.append(f"{operation_id} must use the conservative remote side effect")
-    if storage_operations.get("storage.get", {}).get("attributes", {}).get("artifact_role") != "sink":
-        failures.append("storage.get must declare its artifact sink")
-    if storage_operations.get("storage.put", {}).get("attributes", {}).get("artifact_role") != "source":
-        failures.append("storage.put must declare its artifact source")
-    for operation_id in {"storage.put", "storage.copy"}:
-        attributes = storage_operations.get(operation_id, {}).get("attributes", {})
-        if attributes.get("publication_policy") != "required":
-            failures.append(f"{operation_id} must require an explicit publication policy")
-        if attributes.get("create_if_absent") != "provider_operation_capability":
-            failures.append(
-                f"{operation_id} must scope create-if-absent to its provider operation capability"
-            )
+        if operation_id == "storage.get" and attributes.get("artifact_role") != "sink":
+            failures.append("storage.get must declare its artifact sink")
+        if operation_id == "storage.put" and attributes.get("artifact_role") != "source":
+            failures.append("storage.put must declare its artifact source")
+        if operation_id in {"storage.put", "storage.copy"}:
+            if attributes.get("publication_policy") != "required":
+                failures.append(f"{operation_id} must require an explicit publication policy")
+            if attributes.get("create_if_absent") != "provider_operation_capability":
+                failures.append(
+                    f"{operation_id} must scope create-if-absent to its provider operation capability"
+                )
 
     failures.extend(data_registry_errors())
     for version, catalog in sorted(versions[DATA_COMPONENT].items()):
@@ -1877,6 +1874,35 @@ def validate_runtime_vectors(
     if missing_run:
         failures.append(f"data.run 3 runtime vector coverage is incomplete: {sorted(missing_run)}")
     failures.extend(data_run_3_manifest_errors(data_run_3_vectors))
+    failures.extend(data_run_3_error_location_errors(data_run_3_vectors))
+    return failures
+
+
+def data_run_3_error_location_errors(vectors: list[dict[str, Any]]) -> list[str]:
+    """No error carries a path or a reference location (DT-RUN-008); the plan
+    names of the request with the same correlation are the caller's data and
+    may appear as given."""
+    plans = {
+        vector["metadata"]["plenora.trace.correlation_id"]: vector["payload"].get("plan", {})
+        for vector in vectors
+        if vector["kind"] == "request"
+    }
+    failures: list[str] = []
+    for vector in vectors:
+        if vector["kind"] != "error":
+            continue
+        plan = plans.get(vector["metadata"]["plenora.trace.correlation_id"], {})
+        names = frozenset(
+            list(plan.get("inputs", []))
+            + list(plan.get("outputs", []))
+            + [step.get("out") for step in plan.get("steps", []) if isinstance(step.get("out"), str)]
+        )
+        payload = vector["payload"]
+        texts = [key for key, _ in nested_items(payload)] + list(artifact_strings(payload))
+        if any(contains_location(text, names) for text in texts):
+            failures.append(
+                "a data.run 3 error carries a path or a reference location (DT-RUN-008)"
+            )
     return failures
 
 
@@ -1953,15 +1979,25 @@ def token_is_location(token: str) -> bool:
     schemes = [match.group(1).lower() for match in URI_SCHEME.finditer(token)]
     if schemes:
         return any(scheme not in {"http", "https"} for scheme in schemes)
-    return (
-        is_local_path(token)
-        or (token[0] == "/" and len(token) > 1)
-        or RELATIVE_FILE.search(token) is not None
+    # A prefix such as `path:` must not hide what follows it.
+    return any(
+        is_local_path(part)
+        or (part[:1] == "/" and len(part) > 1)
+        or RELATIVE_FILE.search(part) is not None
+        for part in [token, *token.split(":")[1:]]
+        if part
+    ) or is_local_path(token)
+
+
+def contains_location(value: str, names: frozenset[str] = frozenset()) -> bool:
+    """`names` are the caller's plan names: data, not locations (DT-RUN-008)."""
+    if value in names:
+        return False
+    return any(
+        token_is_location(token)
+        for token in TOKEN_SEPARATORS.split(value)
+        if token.rstrip(".:!?") not in names
     )
-
-
-def contains_location(value: str) -> bool:
-    return any(token_is_location(token) for token in TOKEN_SEPARATORS.split(value))
 
 
 def data_run_3_vector_errors(
@@ -2006,9 +2042,6 @@ def data_run_3_vector_errors(
             return ["an artifact reference is a private local path (DT-RUN-002)"]
         return []
     errors = []
-    texts = [key for key, _ in nested_items(payload)] + list(artifact_strings(payload))
-    if any(contains_location(text) for text in texts):
-        errors.append("an error carries a path or a reference location (DT-RUN-008)")
     if payload.get("remote_effect") == "partial" and payload.get("retry", {}).get("kind") not in {
         "never", "quarantine", "requires_recovery"
     }:
