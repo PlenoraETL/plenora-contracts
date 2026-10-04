@@ -80,4 +80,6 @@ of the rows of each step input (an integer could not describe a step with
 several inputs), and an unproven publication outcome takes the retry
 dispositions ERR-006 allows. An in-place change of a published schema is
 otherwise a new version; it is accepted here only because no adopter or
-consumer existed.
+consumer existed. COMPATIBILITY.md records the exception («Errata before
+adoption»), and the immutability gate admits exactly this transition of
+`data-execution-result-v3.schema.json` (`ERRATA`), nothing else.

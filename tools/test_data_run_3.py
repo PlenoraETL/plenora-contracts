@@ -124,6 +124,23 @@ class DataRun3Tests(unittest.TestCase):
                 mutate(vector["payload"])
                 self.assertTrue(self.vector_errors(vector))
 
+    def test_unknown_publication_takes_the_err_006_dispositions(self):
+        for retry in ("never", "quarantine", "requires_recovery"):
+            with self.subTest(retry=retry):
+                vector = copy.deepcopy(self.error)
+                vector["payload"]["remote_effect"] = "unknown"
+                vector["payload"]["retry"] = {"kind": retry}
+                self.assertEqual(self.vector_errors(vector), [])
+
+    def test_a_step_with_several_inputs_counts_each(self):
+        vector = copy.deepcopy(self.success)
+        vector["payload"]["steps"][0]["rows_in"] = [40, 7]
+        self.assertEqual(self.vector_errors(vector), [])
+        for rows_in in (40, [], [-1]):
+            with self.subTest(rows_in=rows_in):
+                vector["payload"]["steps"][0]["rows_in"] = rows_in
+                self.assertTrue(self.vector_errors(vector))
+
     def test_partial_and_unknown_publication_forbid_retry(self):
         for effect, retry in (("partial", "safe"), ("unknown", "safe"), ("unknown", "requires_idempotency_key")):
             with self.subTest(effect=effect):

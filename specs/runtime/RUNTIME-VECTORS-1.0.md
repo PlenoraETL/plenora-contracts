@@ -35,7 +35,8 @@ does not satisfy the fixture.
 
 An error vector uses `application/vnd.plenora.error+json`, identifies
 `plenora-error-v1` and carries all common error axes. Unknown remote effect is
-paired with quarantine or recovery, never automatic retry.
+paired with `never`, `quarantine` or `requires_recovery` (ERR-006), never
+automatic retry.
 
 ## 4. Use by adopters
 

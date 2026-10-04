@@ -196,6 +196,28 @@ class SchemaImmutabilityTests(unittest.TestCase):
         self.write()
         self.assertTrue(immutability.check(self.root, self.base))
 
+    def test_only_the_declared_erratum_transition_is_allowed(self):
+        relative = "schemas/probe-v1.schema.json"
+        previous = json.loads(json.dumps(self.schema))
+        self.schema["$defs"]["limit"]["maxLength"] = 4096
+        self.write()
+        corrected = json.loads(json.dumps(self.schema))
+        erratum = (
+            immutability.assertions_digest(previous),
+            immutability.assertions_digest(corrected),
+            "decisions/probe.md",
+        )
+        with unittest.mock.patch.dict(immutability.ERRATA, {relative: erratum}):
+            self.assertEqual(immutability.check(self.root, self.base), [])
+            # Any other change of the same schema is still a new version.
+            self.schema["$defs"]["limit"]["maxLength"] = 8192
+            self.write()
+            self.assertTrue(immutability.check(self.root, self.base))
+        # Without the declaration the corrected schema is rejected.
+        self.schema = corrected
+        self.write()
+        self.assertTrue(immutability.check(self.root, self.base))
+
     def test_removing_or_renaming_old_schema_is_rejected(self):
         self.schema_path.rename(self.schema_path.with_name("renamed.schema.json"))
         self.assertTrue(any("removed" in error for error in immutability.check(self.root, self.base)))

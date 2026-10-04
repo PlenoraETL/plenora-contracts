@@ -54,6 +54,17 @@ A versioned JSON Schema may be changed in place only when the edit cannot alter
 whether an existing instance validates. Otherwise a new schema identifier and
 file are required.
 
+### Errata before adoption
+
+The only exception is a declared erratum: a schema found wrong before any
+component adopted it and before any release used it may be corrected in
+place once, by a decision that states the defect, the date and the absence of
+adopters. The immutability gate (`ERRATA` in
+`tools/check_schema_immutability.py`) admits exactly that transition, from
+the published assertions to the corrected ones, and nothing else. Recorded
+errata: `data-execution-result-v3.schema.json`
+([decision 0008](decisions/0008-data-run-runtime.md)).
+
 CI compares schema assertions against the event's immutable base revision and
 the ratified floor recorded in `tools/check_schema_immutability.py`. It rejects
 removed schemas, changed assertions and reused schema identifiers. A new branch
