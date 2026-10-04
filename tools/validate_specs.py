@@ -624,6 +624,15 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
         identities = [(item["id"], item["version"]) for item in catalog["operations"]]
         if len(identities) != len(set(identities)):
             failures.append(f"{component} has duplicate operation identities")
+        identifiers = [item["id"] for item in catalog["operations"]]
+        if component != DATA_COMPONENT and len(identifiers) != len(set(identifiers)):
+            # The REST, database, storage and IO checks below look operations
+            # up by identifier: two versions of one operation would let one
+            # hide the other. Index them by (id, version) before allowing it.
+            failures.append(
+                f"{component} v{version} declares two versions of one operation, "
+                "which its checks look up by identifier"
+            )
 
         required = {
             item["id"]
@@ -829,6 +838,15 @@ def data_registry_errors() -> list[str]:
 
 DATA_CATALOG_RESULT = {2: "plenora-data-catalog-result-v2"}
 
+# The operation identities of each data-tools catalog version.
+DATA_OPERATION_VERSIONS = {
+    1: [("data.catalog", 1), ("data.describe", 1), ("data.validate", 1), ("data.run", 1)],
+    2: [
+        ("data.catalog", 2), ("data.describe", 1), ("data.validate", 2),
+        ("data.run", 2), ("data.run", 3),
+    ],
+}
+
 
 def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     """Each data-tools catalog version against its own expectations.
@@ -840,11 +858,19 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     files and is not bound on the runtime surface.
     """
     failures: list[str] = []
-    # The first entry of an identifier is its lowest version: `data.run` 3
-    # sits next to `data.run` 2 in catalog v2 and is checked on its own below.
-    operations: dict[str, dict[str, Any]] = {}
-    for item in catalog["operations"]:
-        operations.setdefault(item["id"], item)
+    # Every lookup names the operation version: catalog v2 carries `data.run`
+    # 2 and 3, and an order or a lookup by identifier alone would check the
+    # wrong one.
+    expected = DATA_OPERATION_VERSIONS[version]
+    found = sorted((item["id"], item["version"]) for item in catalog["operations"])
+    if found != sorted(expected):
+        return [f"data-tools v{version} must declare exactly {sorted(expected)}"]
+    by_identity = {(item["id"], item["version"]): item for item in catalog["operations"]}
+    operations = {
+        operation_id: by_identity[(operation_id, operation_version)]
+        for operation_id, operation_version in expected
+        if (operation_id, operation_version) != ("data.run", 3)
+    }
     catalog_operation = operations.get("data.catalog")
     if catalog_operation is None:
         return [f"data-tools v{version} has no data.catalog operation"]
@@ -896,6 +922,7 @@ DATA_RUN_3 = {
         "interchange_contracts": [],
     },
     "side_effect": "remote",
+    "controls": {"cancellation": True, "deadline": True, "idempotency_key": False},
 }
 
 
@@ -1062,6 +1089,9 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
         item["operation"]: set(item["entrypoints"])
         for item in database_section["bindings"]
     }
+    if len(database_bindings) != len(database_section["bindings"]):
+        # The checks below look bindings up by operation alone.
+        failures.append("database SDK binds two versions of one operation")
     if database_bindings.get("database.test_connection") != {
         "plenora_database.test_connection",
         "plenora_database.atest_connection",
@@ -1106,6 +1136,9 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
         item["operation"]: set(item["entrypoints"])
         for item in storage_section["bindings"]
     }
+    if len(storage_bindings) != len(storage_section["bindings"]):
+        # The checks below look bindings up by operation alone.
+        failures.append("storage SDK binds two versions of one operation")
     for operation_id in sorted(STORAGE_OPERATIONS):
         action = operation_id.removeprefix("storage.")
         if storage_bindings.get(operation_id) != {
@@ -1685,6 +1718,7 @@ def validate_runtime_vectors(
 
     storage_coverage = set()
     data_run_3_coverage: set[str] = set()
+    data_run_3_vectors: list[dict[str, Any]] = []
     for path in sorted((ROOT / "vectors/runtime-v1").glob("*.json")):
         vector = load_json(path)
         metadata = vector["metadata"]
@@ -1745,6 +1779,13 @@ def validate_runtime_vectors(
                 failures.append(
                     f"{path.relative_to(ROOT)} uses an unsupported deadline"
                 )
+            if (
+                "plenora.execution.idempotency_key" in metadata
+                and not operation["controls"]["idempotency_key"]
+            ):
+                failures.append(
+                    f"{path.relative_to(ROOT)} uses an unsupported idempotency key (RT-006)"
+                )
 
         if vector["kind"] == "success":
             if (
@@ -1776,9 +1817,22 @@ def validate_runtime_vectors(
                 failures.append(
                     f"{path.relative_to(ROOT)} has unbounded error: {bound_errors[0]}"
                 )
+            if (
+                vector["payload"].get("retry", {}).get("kind") == "requires_idempotency_key"
+                and not operation["controls"]["idempotency_key"]
+            ):
+                failures.append(
+                    f"{path.relative_to(ROOT)} requires an idempotency key the operation "
+                    "does not accept (ERR-008)"
+                )
         if (operation_id, operation["version"]) == ("data.run", 3):
             data_run_3_coverage.add(vector["kind"])
+            if vector["kind"] == "error":
+                data_run_3_coverage.add(f"error:{vector['payload'].get('remote_effect')}")
+            data_run_3_vectors.append(vector)
             errors = data_run_3_vector_errors(vector, schemas, registry)
+            if vector["kind"] == "request":
+                errors.extend(data_run_3_text_errors(path.read_text(encoding="utf-8")))
             if errors:
                 failures.append(
                     f"{path.relative_to(ROOT)} violates data.run 3 semantics: {errors[0]}"
@@ -1798,10 +1852,80 @@ def validate_runtime_vectors(
     missing_storage = required_storage - storage_coverage
     if missing_storage:
         failures.append(f"storage runtime vector coverage is incomplete: {sorted(missing_storage)}")
-    missing_run = {"request", "success", "error"} - data_run_3_coverage
+    missing_run = {
+        "request", "success", "error", "error:partial", "error:unknown"
+    } - data_run_3_coverage
     if missing_run:
         failures.append(f"data.run 3 runtime vector coverage is incomplete: {sorted(missing_run)}")
+    failures.extend(data_run_3_manifest_errors(data_run_3_vectors))
     return failures
+
+
+def data_run_3_text_errors(text: str) -> list[str]:
+    """The written request text: the plan inside it follows DPLAN-002 (no
+    repeated key) and DPLAN-003 (exact numbers) like a plan document."""
+    problems: list[str] = []
+
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        keys = [key for key, _ in pairs]
+        if len(keys) != len(set(keys)):
+            problems.append("a request object repeats a key (DPLAN-002)")
+        return dict(pairs)
+
+    json.loads(text, object_pairs_hook=unique)
+    return problems + data_plan_number_errors(text)
+
+
+def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
+    """A success vector is the manifest of the request with its correlation:
+    every plan output in plan order with its sink reference and content type,
+    and one step count per plan step, in plan order (DT-RUN-005)."""
+    failures: list[str] = []
+    requests = {
+        vector["metadata"]["plenora.trace.correlation_id"]: vector["payload"]
+        for vector in vectors
+        if vector["kind"] == "request"
+    }
+    for vector in vectors:
+        if vector["kind"] != "success":
+            continue
+        request = requests.get(vector["metadata"]["plenora.trace.correlation_id"])
+        if request is None:
+            failures.append("a data.run 3 success has no request with its correlation")
+            continue
+        plan = request["plan"]
+        outputs = vector["payload"].get("outputs", [])
+        expected = [
+            (name, request["outputs"][name]["reference"], request["outputs"][name]["content_type"])
+            for name in plan["outputs"]
+            if name in request["outputs"]
+        ]
+        found = [
+            (item.get("name"), item.get("reference"), item.get("artifact", {}).get("content_type"))
+            for item in outputs
+        ]
+        if found != expected:
+            failures.append(
+                "a data.run 3 manifest differs from the plan outputs and sinks of its request (DT-RUN-005)"
+            )
+        steps = [(item.get("out"), item.get("op")) for item in vector["payload"].get("steps", [])]
+        if steps != [(step["out"], step["op"]) for step in plan["steps"]]:
+            failures.append(
+                "a data.run 3 manifest differs from the plan steps of its request (DT-RUN-005)"
+            )
+    return failures
+
+
+# A location inside free text: a drive or UNC path, an absolute POSIX path
+# of at least two segments, a URI or a `file:` reference.
+LOCATION_IN_TEXT = re.compile(
+    r"(?:^|[\s\"'(=])(?:[A-Za-z]:[\\/]|\\\\|/[^\s/]+/)|[a-z][a-z0-9+.-]*://|\bfile:",
+    re.IGNORECASE,
+)
+
+
+def contains_location(value: str) -> bool:
+    return is_local_path(value) or LOCATION_IN_TEXT.search(value) is not None
 
 
 def data_run_3_vector_errors(
@@ -1846,6 +1970,8 @@ def data_run_3_vector_errors(
             return ["an artifact reference is a private local path (DT-RUN-002)"]
         return []
     errors = []
+    if any(contains_location(value) for value in artifact_strings(payload)):
+        errors.append("an error carries a path or a reference location (DT-RUN-008)")
     if payload.get("remote_effect") == "partial" and payload.get("retry", {}).get("kind") not in {
         "never", "quarantine", "requires_recovery"
     }:

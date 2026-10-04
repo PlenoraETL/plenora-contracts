@@ -36,8 +36,13 @@ class DataContractTests(unittest.TestCase):
         cls.registries = validator.data_registries()
         cls.kernel_ids = {item["id"] for item in cls.registries[max(cls.registries)]["operations"]}
 
-    def operation(self, catalog, operation_id):
-        return next(item for item in catalog["operations"] if item["id"] == operation_id)
+    def operation(self, catalog, operation_id, version=None):
+        """The operation by identity: catalog v2 carries `data.run` 2 and 3,
+        and without a version the lowest one, whatever the order."""
+        matches = [item for item in catalog["operations"] if item["id"] == operation_id]
+        if version is not None:
+            return next(item for item in matches if item["version"] == version)
+        return min(matches, key=lambda item: item["version"])
 
     def mutated_versions(self, version, mutate):
         original = validator.load_catalog_versions

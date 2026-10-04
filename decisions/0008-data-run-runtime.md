@@ -31,12 +31,17 @@ Add `data.run` version 3 to `data-tools-v2.json`, next to version 2:
 - the schemas are owned here, because the runtime and the component both
   read the references;
 - the profile states the rules DT-RUN-001 to DT-RUN-008: exact names, opaque
-  references, integrity of sources, the semantics of version 2, nothing
-  published before every output is encoded, ordered publication with
-  `partial` or `unknown` outcomes afterwards, and no resolved location in
-  results or errors;
+  references resolved only by the application's resolver, integrity of
+  sources, the semantics of version 2, nothing published before every
+  output is encoded, ordered publication with atomic `overwrite: false`,
+  `unknown` prevailing over `partial` when an outcome is unproven, and no
+  resolved location in results or errors; the ordering guarantees are shown
+  with an instrumented resolver;
 - the runtime binding map adds `plenora.data-tools#data.run@3`; new vectors
-  cover a request, a success and a partial publication error.
+  cover a request, its manifest, a partial and an unknown publication error;
+- the validator looks data-tools operations up by `(id, version)`, and
+  rejects two versions of one operation in the other components, whose
+  checks still look operations up by identifier.
 
 ## Alternatives
 
@@ -62,6 +67,7 @@ Add `data.run` version 3 to `data-tools-v2.json`, next to version 2:
 - **Schemas:** new `data-execution-input-v3.schema.json` and
   `data-execution-result-v3.schema.json`; no existing schema changes.
 - **Examples and vectors:** `data-run-request-v3.json`,
-  `data-run-success-v3.json`, `data-run-partial-error-v3.json`.
+  `data-run-success-v3.json`, `data-run-partial-error-v3.json`,
+  `data-run-unknown-error-v3.json`.
 - **Adoption:** Data Tools adopts version 3 with a new pin, through a Rust
   entry point that takes resolver traits for sources and sinks (RT-015).

@@ -168,10 +168,16 @@ before any source is read (`invalid_configuration`, as in version 2, phase
 
 **DT-RUN-002** — Every source and sink carries an opaque artifact reference
 (RT-013), never a private local path; two sinks never share one reference.
-The component resolves references only through the resolver the final
-application provides (RT-015). A reference that does not resolve, or that the
-resolver does not authorize, fails before the plan executes
-(`not_found` or `authorization`, `remote_effect: none`).
+The schema rejects the spellings that are paths on their face (`file:`,
+`.` and `..` segments, percent-encoded dots, whitespace), but a reference
+is opaque by how it is resolved, not by its spelling: the component hands
+it unchanged to the resolver the final application provides (RT-015) and
+never decodes, normalizes or joins it to a path; the resolver maps it only
+within the namespaces it authorizes, and never as a path relative to the
+process. A reference that does not resolve, or that the resolver does not
+authorize, fails before the plan executes (`not_found` or `authorization`,
+`remote_effect: none`). Resolving a source reads it; resolving a sink
+creates nothing before publication (DT-RUN-005).
 
 **DT-RUN-003** — A source is read as the content type it declares. When it
 declares `expected` size or SHA-256, the bytes read are checked against them
@@ -191,19 +197,32 @@ published: content type, exact byte size and the SHA-256 calculated over the
 published bytes, followed by the per-step counts of version 2.
 
 **DT-RUN-006** — Sinks are published one at a time, in plan output order.
-A sink with `overwrite: false` whose artifact already exists fails
-(`conflict`). A failure on the first sink reports `remote_effect: none`
-only when the resolver proves nothing was written. After one publication
-succeeded, a failure reports `partial` with retry `never`, `quarantine` or
-`requires_recovery`; an unproven outcome reports `unknown` with
-`requires_recovery`. No result is returned unless every sink was published.
+`overwrite: false` is enforced by the sink atomically with the publication
+(create only if absent); a resolver that cannot do so rejects such a sink
+before the plan executes (`unsupported`, `remote_effect: none`). A sink
+whose artifact already exists fails (`conflict`). A failure on the first
+sink reports `remote_effect: none` only when the resolver proves nothing was
+written. When the outcome of a publication is not proven, the error reports
+`unknown` with `requires_recovery` whatever was published before it
+(ERR-004: uncertainty prevails); when every earlier publication succeeded
+and the failed one provably wrote nothing, it reports `partial` with retry
+`never`, `quarantine` or `requires_recovery`. No result is returned unless
+every sink was published.
 
 **DT-RUN-007** — Deadline and cancellation behave as in version 2 until
 publication starts; after it starts they follow DT-RUN-006. Idempotency keys
 are not accepted.
 
 **DT-RUN-008** — Neither the result nor an error carries what a reference
-resolved to, a local path or a row value.
+resolved to, a local path or a row value. Output names are the caller's
+plan names and are returned as given; they are not locations.
+
+Conformance: the vectors fix the payloads; the ordering guarantees
+(DT-RUN-001, DT-RUN-003, DT-RUN-005, DT-RUN-006) are demonstrated by an
+adopter with an instrumented resolver that records reads, publications and
+their order and injects failures at each phase: before any read, on a
+digest mismatch, during encoding, at the first and at a later sink, and with
+an unproven publication outcome.
 
 ## External behavior
 

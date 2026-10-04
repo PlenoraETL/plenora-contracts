@@ -147,5 +147,110 @@ class DataRun3Tests(unittest.TestCase):
         self.assertIn("data.run 3 runtime vector coverage", stderr.getvalue())
 
 
+    def test_bounded_materialization_and_controls_are_pinned(self):
+        cases = {
+            "materialization false": lambda op: op["attributes"].update(bounded_materialization=False),
+            "materialization missing": lambda op: op["attributes"].pop("bounded_materialization"),
+            "idempotency accepted": lambda op: op["controls"].update(idempotency_key=True),
+            "no deadline": lambda op: op["controls"].update(deadline=False),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(case=name):
+                catalog = copy.deepcopy(self.catalog)
+                mutate(self.run3(catalog))
+                self.assertTrue(validator.data_catalog_errors(catalog, 2))
+
+    def test_catalog_order_does_not_matter(self):
+        catalog = copy.deepcopy(self.catalog)
+        catalog["operations"].reverse()
+        self.assertEqual(validator.data_catalog_errors(catalog, 2), [])
+
+    def test_other_components_cannot_hold_two_versions(self):
+        catalogs = copy.deepcopy(validator.load_catalogs())
+        storage = catalogs[validator.STORAGE_COMPONENT]["operations"]
+        extra = copy.deepcopy(storage[0])
+        extra["version"] = 2
+        storage.insert(0, extra)
+        errors = validator.validate_catalog_semantics(catalogs)
+        self.assertTrue(any("two versions of one operation" in error for error in errors), errors)
+
+    def test_reference_spellings_that_are_paths_are_rejected(self):
+        for reference in (
+            "artifact://input/x\n",
+            "artifact://input/%2e%2e/secret",
+            "tmp:./private/data.arrow",
+            "tmp:../data.arrow",
+            "artifact://input/a b",
+        ):
+            with self.subTest(reference=reference):
+                vector = copy.deepcopy(self.request)
+                vector["payload"]["inputs"]["parcels"]["reference"] = reference
+                self.assertTrue(self.vector_errors(vector))
+        vector = copy.deepcopy(self.request)
+        vector["payload"]["inputs"]["parcels"]["expected"]["sha256"] += "\n"
+        self.assertTrue(self.vector_errors(vector))
+
+    def test_request_text_follows_the_plan_rules(self):
+        text = (VECTORS / "data-run-request-v3.json").read_text(encoding="utf-8")
+        self.assertEqual(validator.data_run_3_text_errors(text), [])
+        self.assertTrue(validator.data_run_3_text_errors(text.replace('"value": 1000', '"value": 18446744073709551616')))
+        self.assertTrue(validator.data_run_3_text_errors(text.replace('"value": 1000', '"value": 1000, "value": 2')))
+        self.assertTrue(validator.data_run_3_text_errors(text.replace('"value": 1000', '"value": 0.1000000000000000055511151231257827')))
+
+    def test_manifest_matches_its_request(self):
+        self.assertEqual(validator.data_run_3_manifest_errors([self.request, self.success]), [])
+        cases = {
+            "renamed output": lambda p: p["outputs"][0].update(name="other"),
+            "other sink": lambda p: p["outputs"][0].update(reference="artifact://output/other"),
+            "other content type": lambda p: p["outputs"][0]["artifact"].update(content_type="application/vnd.apache.arrow.file"),
+            "no steps": lambda p: p.update(steps=[]),
+            "other step": lambda p: p["steps"][0].update(op="table.sort"),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(case=name):
+                success = copy.deepcopy(self.success)
+                mutate(success["payload"])
+                self.assertTrue(validator.data_run_3_manifest_errors([self.request, success]))
+        orphan = copy.deepcopy(self.success)
+        orphan["metadata"]["plenora.trace.correlation_id"] = "018f3d84-7b2c-7f00-8000-0000000000ff"
+        self.assertTrue(validator.data_run_3_manifest_errors([self.request, orphan]))
+
+    def test_errors_carry_no_location(self):
+        for mutate in (
+            lambda p: p.update(details={"path": "/tmp/private.arrow"}),
+            lambda p: p.update(details={"sink": "artifact://output/data-run-v3-large"}),
+            lambda p: p.update(message="Could not write C:\\data\\out.arrow."),
+        ):
+            vector = copy.deepcopy(self.error)
+            mutate(vector["payload"])
+            self.assertTrue(self.vector_errors(vector))
+
+    def test_gate_rejects_unsupported_idempotency(self):
+        original = validator.load_json
+
+        def with_key(path):
+            document = original(path)
+            if str(path).replace("\\", "/").endswith("vectors/runtime-v1/data-run-request-v3.json"):
+                document = copy.deepcopy(document)
+                document["metadata"]["plenora.execution.idempotency_key"] = "key-1"
+            return document
+
+        def with_retry(path):
+            document = original(path)
+            if str(path).replace("\\", "/").endswith("vectors/runtime-v1/data-run-partial-error-v3.json"):
+                document = copy.deepcopy(document)
+                document["payload"]["remote_effect"] = "none"
+                document["payload"]["retry"] = {"kind": "requires_idempotency_key"}
+            return document
+
+        for loader, fragment in ((with_key, "idempotency key (RT-006)"), (with_retry, "(ERR-008)")):
+            stderr = io.StringIO()
+            with patch.object(validator, "load_json", loader), contextlib.redirect_stdout(
+                io.StringIO()
+            ), contextlib.redirect_stderr(stderr):
+                self.assertNotEqual(validator.main(), 0)
+            self.assertIn(fragment, stderr.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
