@@ -272,29 +272,25 @@ class DataRun3Tests(unittest.TestCase):
         return validator.data_run_3_error_location_errors([request or self.request, vector])
 
     def test_errors_carry_no_location(self):
-        for mutate in (
-            lambda p: p.update(details={"path": "/tmp/private.arrow"}),
-            lambda p: p.update(details={"sink": "artifact://output/data-run-v3-large"}),
-            lambda p: p.update(details={"/tmp/private.arrow": True}),
-            lambda p: p.update(message="Could not write C:\\data\\out.arrow."),
-            lambda p: p.update(message="Could not write /secret."),
-            lambda p: p.update(message="Could not write path:/secret."),
-            lambda p: p.update(message="Could not write relative/private.arrow."),
-            lambda p: p.update(message="Publication failed for `artifact://private/output`."),
-            lambda p: p.update(message="Publication failed for `/tmp/private.arrow`."),
-            lambda p: p.update(message="Publication failed for x:artifact://private/output."),
-            lambda p: p.update(message="See https://example.org/help and artifact://private/x."),
-            lambda p: p.update(message="Could not write path:/secret:https://example.org/help."),
-            lambda p: p.update(message="Could not write https://example.org/help/secret:/tmp/x."),
-        ):
-            self.assertTrue(self.location_errors(mutate))
         for message in (
-            "/ is not a supported arithmetic operator.",
-            "Publication failed; consult https://example.org/help.",
+            "Could not write C:\\data\\out.arrow.",
+            "Could not write /secret.",
+            "Could not write path:/secret.",
+            "Could not write relative/private.arrow.",
+            "Publication failed for `artifact://private/output`.",
+            "Could not write path:/secret:https://example.org/help.",
+            "Could not write artifacthttps://example.org/help.",
+            "See https://example.org/help?path=/secret.",
+            # Conservative: harmless text with the marks is rejected too.
             "Rows and/or columns exceed the budget.",
+            "/ is not a supported arithmetic operator.",
         ):
             with self.subTest(message=message):
-                self.assertEqual(self.location_errors(lambda p, m=message: p.update(message=m)), [])
+                self.assertTrue(self.location_errors(lambda p, m=message: p.update(message=m)))
+        for details in ({"path": "/tmp/private.arrow"}, {"/tmp/private.arrow": True}):
+            self.assertTrue(self.location_errors(lambda p, d=details: p.update(details=d)))
+        self.assertEqual(self.location_errors(
+            lambda p: p.update(message="The sink rejected the publication.")), [])
 
     def test_plan_names_may_appear_in_errors(self):
         request = copy.deepcopy(self.request)
@@ -307,7 +303,8 @@ class DataRun3Tests(unittest.TestCase):
         self.assertEqual(self.location_errors(named, request), [])
         # The same spelling is a location for a request without that name.
         self.assertTrue(self.location_errors(named))
-        # A name with spaces and separators stays whole; a path beside it does not.
+        # A name with spaces and separators stays whole; a path beside it, or a
+        # name occurring only inside a longer path, does not.
         spaced = copy.deepcopy(self.request)
         payload = spaced["payload"]
         payload["plan"]["outputs"] = ["/tmp/x y`z"]
@@ -318,6 +315,15 @@ class DataRun3Tests(unittest.TestCase):
             lambda p: p.update(message="Output /tmp/x y`z was not published."), spaced), [])
         self.assertTrue(self.location_errors(
             lambda p: p.update(message="Output /tmp/x y`z was not published to /secret."), spaced))
+        prefix = copy.deepcopy(self.request)
+        payload = prefix["payload"]
+        payload["plan"]["outputs"] = ["/tmp/private"]
+        payload["plan"]["steps"][0]["out"] = "/tmp/private"
+        payload["outputs"] = {"/tmp/private": payload["outputs"].pop("large")}
+        self.assertTrue(self.location_errors(
+            lambda p: p.update(message="Could not write /tmp/private.arrow."), prefix))
+        self.assertEqual(self.location_errors(
+            lambda p: p.update(message="Output /tmp/private, not published."), prefix), [])
 
     def gate_errors(self, name, mutate=None, text=None):
         """The whole gate with one vector changed, as a document or as text."""
@@ -359,7 +365,7 @@ class DataRun3Tests(unittest.TestCase):
             "data-run-success-v3.json",
             mutate=lambda document: document["payload"]["outputs"][0]["artifact"].pop("sha256"),
         ))
-        for message in ("Could not write /secret.", "Could not write path:/secret:https://example.org/help."):
+        for message in ("Could not write /secret.", "See https://example.org/help,/secret."):
             self.assertIn("DT-RUN-008", self.gate_errors(
                 "data-run-partial-error-v3.json",
                 mutate=lambda document, m=message: document["payload"].update(message=m),

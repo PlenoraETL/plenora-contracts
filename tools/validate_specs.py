@@ -1961,48 +1961,23 @@ def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
     return failures
 
 
-# Free text may name locations; a fixture guard, not a proof of redaction.
-# A token is a location when it is an absolute or drive path, a UNC or
-# `file:` path, a URI other than a public http(s) link, or a relative path
-# whose last segment has an extension. `/` alone, `and/or` or a link to
-# public documentation are not.
-TOKEN_SEPARATORS = re.compile(r"[\s\"'`(),;<>\[\]{}=|*]+")
-# Anywhere in the token: quoting or punctuation must not hide a reference.
-URI_SCHEME = re.compile(r"([a-z][a-z0-9+.-]*)://", re.IGNORECASE)
-RELATIVE_FILE = re.compile(r"[\\/][^\\/]*\.[A-Za-z0-9]{1,8}$")
-
-
-# A public http(s) link, removed from the text before the tokens are read:
-# what is left around it is still checked.
-PUBLIC_LINK = re.compile(r"https?://[^\s\"'`<>|*:]*?(?=[.,;!?]*(?:[\s\"'`<>|*:]|$))", re.IGNORECASE)
-
-
-def token_is_location(token: str) -> bool:
-    token = token.rstrip(".:!?")
-    if len(token) < 2:
-        return False
-    if URI_SCHEME.search(token) is not None:
-        return True
-    # A prefix such as `path:` must not hide what follows it.
-    return any(
-        is_local_path(part)
-        or (part[:1] == "/" and len(part) > 1)
-        or RELATIVE_FILE.search(part) is not None
-        for part in [token, *token.split(":")[1:]]
-        if part
-    ) or is_local_path(token)
+# Fixture guard for DT-RUN-008, conservative by design: the error vectors of
+# data.run 3 carry no `/`, no `\\` and no `://` outside a delimited
+# occurrence of a plan name. It checks this repository's fixtures, not the
+# messages of an implementation, and rejects some harmless text (`and/or`, a
+# public link) rather than guess which spelling is a location; a heuristic
+# on free text cannot be made exact.
+LOCATION_MARKS = ("/", "\\", "://")
+NAME_BEFORE = r"(?:(?<=^)|(?<=[\s\"'`(\[{<]))"
+NAME_AFTER = r"(?=$|[\s\"'`)\]}>]|[.,;:!?]+(?:$|[\s\"'`)\]}>]))"
 
 
 def contains_location(value: str, names: frozenset[str] = frozenset()) -> bool:
     """`names` are the caller's plan names: data, not locations (DT-RUN-008).
-
-    Whole occurrences of the names (longest first) and public http(s) links
-    are removed before the text is split into tokens, so a name with spaces
-    or separators stays exempt and nothing else hides behind it or a link."""
+    Only whole, delimited occurrences are exempt, longest first."""
     for name in sorted(names, key=len, reverse=True):
-        value = value.replace(name, " ")
-    value = PUBLIC_LINK.sub(" ", value)
-    return any(token_is_location(token) for token in TOKEN_SEPARATORS.split(value))
+        value = re.sub(NAME_BEFORE + re.escape(name) + NAME_AFTER, " ", value)
+    return any(mark in value for mark in LOCATION_MARKS) or is_local_path(value)
 
 
 def data_run_3_vector_errors(
