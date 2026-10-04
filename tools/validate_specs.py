@@ -1940,8 +1940,9 @@ def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
 # `file:` path, a URI other than a public http(s) link, or a relative path
 # whose last segment has an extension. `/` alone, `and/or` or a link to
 # public documentation are not.
-TOKEN_SEPARATORS = re.compile(r"[\s\"'(),;<>\[\]{}=]+")
-URI_SCHEME = re.compile(r"^([a-z][a-z0-9+.-]*)://", re.IGNORECASE)
+TOKEN_SEPARATORS = re.compile(r"[\s\"'`(),;<>\[\]{}=|*]+")
+# Anywhere in the token: quoting or punctuation must not hide a reference.
+URI_SCHEME = re.compile(r"([a-z][a-z0-9+.-]*)://", re.IGNORECASE)
 RELATIVE_FILE = re.compile(r"[\\/][^\\/]*\.[A-Za-z0-9]{1,8}$")
 
 
@@ -1949,9 +1950,9 @@ def token_is_location(token: str) -> bool:
     token = token.rstrip(".:!?")
     if len(token) < 2:
         return False
-    scheme = URI_SCHEME.match(token)
-    if scheme is not None:
-        return scheme.group(1).lower() not in {"http", "https"}
+    schemes = [match.group(1).lower() for match in URI_SCHEME.finditer(token)]
+    if schemes:
+        return any(scheme not in {"http", "https"} for scheme in schemes)
     return (
         is_local_path(token)
         or (token[0] == "/" and len(token) > 1)

@@ -270,6 +270,10 @@ class DataRun3Tests(unittest.TestCase):
             lambda p: p.update(message="Could not write C:\\data\\out.arrow."),
             lambda p: p.update(message="Could not write /secret."),
             lambda p: p.update(message="Could not write relative/private.arrow."),
+            lambda p: p.update(message="Publication failed for `artifact://private/output`."),
+            lambda p: p.update(message="Publication failed for `/tmp/private.arrow`."),
+            lambda p: p.update(message="Publication failed for x:artifact://private/output."),
+            lambda p: p.update(message="See https://example.org/help and artifact://private/x."),
         ):
             vector = copy.deepcopy(self.error)
             mutate(vector["payload"])
