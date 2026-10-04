@@ -1972,13 +1972,17 @@ URI_SCHEME = re.compile(r"([a-z][a-z0-9+.-]*)://", re.IGNORECASE)
 RELATIVE_FILE = re.compile(r"[\\/][^\\/]*\.[A-Za-z0-9]{1,8}$")
 
 
+# A public http(s) link, removed from the text before the tokens are read:
+# what is left around it is still checked.
+PUBLIC_LINK = re.compile(r"https?://[^\s\"'`<>|*:]*?(?=[.,;!?]*(?:[\s\"'`<>|*:]|$))", re.IGNORECASE)
+
+
 def token_is_location(token: str) -> bool:
     token = token.rstrip(".:!?")
     if len(token) < 2:
         return False
-    schemes = [match.group(1).lower() for match in URI_SCHEME.finditer(token)]
-    if schemes:
-        return any(scheme not in {"http", "https"} for scheme in schemes)
+    if URI_SCHEME.search(token) is not None:
+        return True
     # A prefix such as `path:` must not hide what follows it.
     return any(
         is_local_path(part)
@@ -1990,14 +1994,15 @@ def token_is_location(token: str) -> bool:
 
 
 def contains_location(value: str, names: frozenset[str] = frozenset()) -> bool:
-    """`names` are the caller's plan names: data, not locations (DT-RUN-008)."""
-    if value in names:
-        return False
-    return any(
-        token_is_location(token)
-        for token in TOKEN_SEPARATORS.split(value)
-        if token.rstrip(".:!?") not in names
-    )
+    """`names` are the caller's plan names: data, not locations (DT-RUN-008).
+
+    Whole occurrences of the names (longest first) and public http(s) links
+    are removed before the text is split into tokens, so a name with spaces
+    or separators stays exempt and nothing else hides behind it or a link."""
+    for name in sorted(names, key=len, reverse=True):
+        value = value.replace(name, " ")
+    value = PUBLIC_LINK.sub(" ", value)
+    return any(token_is_location(token) for token in TOKEN_SEPARATORS.split(value))
 
 
 def data_run_3_vector_errors(

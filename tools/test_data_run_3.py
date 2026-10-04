@@ -284,6 +284,8 @@ class DataRun3Tests(unittest.TestCase):
             lambda p: p.update(message="Publication failed for `/tmp/private.arrow`."),
             lambda p: p.update(message="Publication failed for x:artifact://private/output."),
             lambda p: p.update(message="See https://example.org/help and artifact://private/x."),
+            lambda p: p.update(message="Could not write path:/secret:https://example.org/help."),
+            lambda p: p.update(message="Could not write https://example.org/help/secret:/tmp/x."),
         ):
             self.assertTrue(self.location_errors(mutate))
         for message in (
@@ -305,6 +307,17 @@ class DataRun3Tests(unittest.TestCase):
         self.assertEqual(self.location_errors(named, request), [])
         # The same spelling is a location for a request without that name.
         self.assertTrue(self.location_errors(named))
+        # A name with spaces and separators stays whole; a path beside it does not.
+        spaced = copy.deepcopy(self.request)
+        payload = spaced["payload"]
+        payload["plan"]["outputs"] = ["/tmp/x y`z"]
+        payload["plan"]["steps"][0]["out"] = "/tmp/x y`z"
+        payload["outputs"] = {"/tmp/x y`z": payload["outputs"].pop("large")}
+        self.assertEqual(self.vector_errors(spaced), [])
+        self.assertEqual(self.location_errors(
+            lambda p: p.update(message="Output /tmp/x y`z was not published."), spaced), [])
+        self.assertTrue(self.location_errors(
+            lambda p: p.update(message="Output /tmp/x y`z was not published to /secret."), spaced))
 
     def gate_errors(self, name, mutate=None, text=None):
         """The whole gate with one vector changed, as a document or as text."""
@@ -346,10 +359,11 @@ class DataRun3Tests(unittest.TestCase):
             "data-run-success-v3.json",
             mutate=lambda document: document["payload"]["outputs"][0]["artifact"].pop("sha256"),
         ))
-        self.assertIn("DT-RUN-008", self.gate_errors(
-            "data-run-partial-error-v3.json",
-            mutate=lambda document: document["payload"].update(message="Could not write /secret."),
-        ))
+        for message in ("Could not write /secret.", "Could not write path:/secret:https://example.org/help."):
+            self.assertIn("DT-RUN-008", self.gate_errors(
+                "data-run-partial-error-v3.json",
+                mutate=lambda document, m=message: document["payload"].update(message=m),
+            ))
         self.assertIn("error:unknown", self.gate_errors(
             "data-run-unknown-error-v3.json",
             mutate=lambda document: document["payload"].update(
