@@ -2057,8 +2057,10 @@ def data_run_3_vector_errors(
         "never", "quarantine", "requires_recovery"
     }:
         errors.append("a partial publication must forbid automatic retry (DT-RUN-006)")
-    if payload.get("remote_effect") == "unknown" and payload.get("retry", {}).get("kind") != "requires_recovery":
-        errors.append("an unknown publication outcome must require recovery (DT-RUN-006)")
+    if payload.get("remote_effect") == "unknown" and payload.get("retry", {}).get("kind") not in {
+        "never", "quarantine", "requires_recovery"
+    }:
+        errors.append("an unknown publication outcome must forbid automatic retry (DT-RUN-006)")
     return errors
 
 

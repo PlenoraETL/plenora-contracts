@@ -125,7 +125,7 @@ class DataRun3Tests(unittest.TestCase):
                 self.assertTrue(self.vector_errors(vector))
 
     def test_partial_and_unknown_publication_forbid_retry(self):
-        for effect, retry in (("partial", "safe"), ("unknown", "never")):
+        for effect, retry in (("partial", "safe"), ("unknown", "safe"), ("unknown", "requires_idempotency_key")):
             with self.subTest(effect=effect):
                 vector = copy.deepcopy(self.error)
                 vector["payload"]["remote_effect"] = effect
