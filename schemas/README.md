@@ -21,6 +21,8 @@ These schemas are normative and use JSON Schema draft 2020-12.
 | `runtime-vector-v1.schema.json` | Runtime request, success and error fixtures |
 | `plan-budget-v1.schema.json` | Plan-format versions and declared memory-budget fragment |
 | `data-plan-v1.schema.json` | Data-tools plan format `plenora-data-plan-v1` (Data Plan 1.0) |
+| `data-execution-input-v3.schema.json` | Request of data-tools `data.run` version 3: plan, artifact sources and sinks |
+| `data-execution-result-v3.schema.json` | Result of data-tools `data.run` version 3: manifest of the published artifacts |
 
 Schema identifiers are immutable. Modify a schema in place only for a change
 that cannot alter whether an existing instance validates. Otherwise add a new

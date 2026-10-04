@@ -34,6 +34,8 @@ EXPECTED_SCHEMAS = {
     "capabilities-v2.schema.json",
     "cli-envelope-v2.schema.json",
     "composition-v1.schema.json",
+    "data-execution-input-v3.schema.json",
+    "data-execution-result-v3.schema.json",
     "data-plan-v1.schema.json",
     "error-v1.schema.json",
     "operation-registry-v1.schema.json",
@@ -262,6 +264,10 @@ MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 def reject_constant(name: str) -> Any:
     raise ValueError(f"{name} is not JSON")
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
 
 
 def load_json(path: Path) -> Any:
@@ -654,8 +660,9 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
                     "rest-tools required runtime operations require a required runtime target"
                 )
 
-            rest_operations = {item["id"]: item for item in catalog["operations"]}
-            for operation in rest_operations.values():
+            # Every version of every operation is checked; a lookup by
+            # identifier alone would let one version hide another.
+            for operation in catalog["operations"]:
                 attributes = operation.get("attributes")
                 if (
                     not isinstance(attributes, dict)
@@ -669,40 +676,49 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
                         f"rest-tools {operation['id']} must accept idempotency keys"
                     )
 
-            download = rest_operations.get("rest.download")
-            upload = rest_operations.get("rest.upload")
-            if download is not None and upload is not None:
-                if download["input"]["contract"] != upload["input"]["contract"]:
-                    failures.append(
-                        "REST download and upload use different transfer inputs"
-                    )
-                if download["input"]["contract"] != REST_FILE_TRANSFER_INPUT:
+            transfers = {
+                (item["id"], item["version"]): item
+                for item in catalog["operations"]
+                if item["id"] in {"rest.download", "rest.upload"}
+            }
+            # Each transfer operation on its own, then each version pair.
+            for (operation_id, operation_version), operation in sorted(transfers.items()):
+                if operation["input"]["contract"] != REST_FILE_TRANSFER_INPUT:
                     failures.append(
                         "REST file transfer operations use the wrong input contract"
                     )
-                if download["side_effect"] != "remote":
+                if operation_id == "rest.download" and operation["side_effect"] != "remote":
                     failures.append(
                         "REST download must use the conservative remote side-effect class"
                     )
-                if "application/octet-stream" in upload["input"]["content_types"]:
+                if (
+                    operation_id == "rest.upload"
+                    and "application/octet-stream" in operation["input"]["content_types"]
+                ):
                     failures.append(
                         "REST upload v1 embeds raw bytes in its JSON invocation envelope"
                     )
+                other = transfers.get(("rest.upload", operation_version))
+                if (
+                    operation_id == "rest.download"
+                    and other is not None
+                    and operation["input"]["contract"] != other["input"]["contract"]
+                ):
+                    failures.append(
+                        "REST download and upload use different transfer inputs"
+                    )
 
         if component == DATABASE_COMPONENT:
-            database_operations = {
-                item["id"]: item for item in catalog["operations"]
-            }
+            database_operations = catalog["operations"]
             if catalog["status"] != "normative":
                 failures.append(
                     "database-tools v1 must be normative after component-owned schema publication"
                 )
-            if any(name.startswith("arcgis.") for name in database_operations):
+            if any(item["id"].startswith("arcgis.") for item in database_operations):
                 failures.append(
                     "database-tools must not own ArcGIS operations before ownership is ratified"
                 )
-            write = database_operations.get("database.write")
-            if write is not None:
+            for write in (item for item in database_operations if item["id"] == "database.write"):
                 attributes = write.get("attributes")
                 if (
                     not isinstance(attributes, dict)
@@ -715,12 +731,11 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
                     failures.append(
                         "the common database catalog must not advertise provider-independent write modes"
                     )
-            query = database_operations.get("database.query")
-            if query is not None and query["side_effect"] != "none":
-                failures.append("database.query must remain read-only")
-            execute = database_operations.get("database.execute")
-            if execute is not None and execute["side_effect"] != "remote":
-                failures.append("database.execute must declare remote side effects")
+            for item in database_operations:
+                if item["id"] == "database.query" and item["side_effect"] != "none":
+                    failures.append("database.query must remain read-only")
+                if item["id"] == "database.execute" and item["side_effect"] != "remote":
+                    failures.append("database.execute must declare remote side effects")
 
     storage = catalogs[STORAGE_COMPONENT]
     if storage["status"] != "normative":
@@ -733,19 +748,28 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
     }
     if storage["target_surfaces"] != expected_storage_surfaces:
         failures.append("storage-tools has the wrong target surface selection")
-    storage_operations = {item["id"]: item for item in storage["operations"]}
-    if set(storage_operations) != STORAGE_OPERATIONS:
-        failures.append("storage-tools v1 must define exactly the seven reviewed operations")
-    for operation_id, operation in storage_operations.items():
+    # Every reviewed operation keeps its version 1; another version of one of
+    # them may coexist (COMPATIBILITY.md) and every rule below applies to each
+    # version, so none stands in for another.
+    storage_identities = {(item["id"], item["version"]) for item in storage["operations"]}
+    if {item["id"] for item in storage["operations"]} != STORAGE_OPERATIONS or not {
+        (name, 1) for name in STORAGE_OPERATIONS
+    } <= storage_identities:
+        failures.append(
+            "storage-tools v1 must define the seven reviewed operations, each at version 1"
+        )
+    for operation in storage["operations"]:
+        operation_id = operation["id"]
         action = operation_id.removeprefix("storage.")
-        if operation["version"] != 1:
-            failures.append(f"{operation_id} must remain at operation version 1")
+        suffix = f"v{operation['version']}" if operation["version"] == 1 else r"v[1-9][0-9]*"
         if set(operation["surfaces"]) != {"rust", "cli", "python_sdk", "runtime"}:
             failures.append(f"{operation_id} has the wrong selected surfaces")
-        if operation["input"]["contract"] != f"plenora-storage-{action}-input-v1":
-            failures.append(f"{operation_id} has the wrong input contract")
-        if operation["output"]["contract"] != f"plenora-storage-{action}-output-v1":
-            failures.append(f"{operation_id} has the wrong output contract")
+        for direction in ("input", "output"):
+            if not re.fullmatch(
+                rf"plenora-storage-{action}-{direction}-{suffix}",
+                operation[direction]["contract"],
+            ):
+                failures.append(f"{operation_id} has the wrong {direction} contract")
         for direction in ("input", "output"):
             payload = operation[direction]
             if payload["content_types"] != ["application/json"]:
@@ -766,25 +790,23 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
             or attributes.get("contract") != STORAGE_ATTRIBUTE_CONTRACT
         ):
             failures.append(f"{operation_id} lacks its capability attribute contract")
-
-    for operation_id in {"storage.test", "storage.list", "storage.stat"}:
-        if storage_operations.get(operation_id, {}).get("side_effect") != "none":
-            failures.append(f"{operation_id} must remain side-effect free")
-    for operation_id in {"storage.get", "storage.put", "storage.copy", "storage.delete"}:
-        if storage_operations.get(operation_id, {}).get("side_effect") != "remote":
+        attributes = attributes if isinstance(attributes, dict) else {}
+        if operation_id in {"storage.test", "storage.list", "storage.stat"}:
+            if operation["side_effect"] != "none":
+                failures.append(f"{operation_id} must remain side-effect free")
+        elif operation["side_effect"] != "remote":
             failures.append(f"{operation_id} must use the conservative remote side effect")
-    if storage_operations.get("storage.get", {}).get("attributes", {}).get("artifact_role") != "sink":
-        failures.append("storage.get must declare its artifact sink")
-    if storage_operations.get("storage.put", {}).get("attributes", {}).get("artifact_role") != "source":
-        failures.append("storage.put must declare its artifact source")
-    for operation_id in {"storage.put", "storage.copy"}:
-        attributes = storage_operations.get(operation_id, {}).get("attributes", {})
-        if attributes.get("publication_policy") != "required":
-            failures.append(f"{operation_id} must require an explicit publication policy")
-        if attributes.get("create_if_absent") != "provider_operation_capability":
-            failures.append(
-                f"{operation_id} must scope create-if-absent to its provider operation capability"
-            )
+        if operation_id == "storage.get" and attributes.get("artifact_role") != "sink":
+            failures.append("storage.get must declare its artifact sink")
+        if operation_id == "storage.put" and attributes.get("artifact_role") != "source":
+            failures.append("storage.put must declare its artifact source")
+        if operation_id in {"storage.put", "storage.copy"}:
+            if attributes.get("publication_policy") != "required":
+                failures.append(f"{operation_id} must require an explicit publication policy")
+            if attributes.get("create_if_absent") != "provider_operation_capability":
+                failures.append(
+                    f"{operation_id} must scope create-if-absent to its provider operation capability"
+                )
 
     failures.extend(data_registry_errors())
     for version, catalog in sorted(versions[DATA_COMPONENT].items()):
@@ -827,6 +849,15 @@ def data_registry_errors() -> list[str]:
 
 DATA_CATALOG_RESULT = {2: "plenora-data-catalog-result-v2"}
 
+# The operation identities of each data-tools catalog version.
+DATA_OPERATION_VERSIONS = {
+    1: [("data.catalog", 1), ("data.describe", 1), ("data.validate", 1), ("data.run", 1)],
+    2: [
+        ("data.catalog", 2), ("data.describe", 1), ("data.validate", 2),
+        ("data.run", 2), ("data.run", 3),
+    ],
+}
+
 
 def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     """Each data-tools catalog version against its own expectations.
@@ -838,7 +869,19 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     files and is not bound on the runtime surface.
     """
     failures: list[str] = []
-    operations = {item["id"]: item for item in catalog["operations"]}
+    # Every lookup names the operation version: catalog v2 carries `data.run`
+    # 2 and 3, and an order or a lookup by identifier alone would check the
+    # wrong one.
+    expected = DATA_OPERATION_VERSIONS[version]
+    found = sorted((item["id"], item["version"]) for item in catalog["operations"])
+    if found != sorted(expected):
+        return [f"data-tools v{version} must declare exactly {sorted(expected)}"]
+    by_identity = {(item["id"], item["version"]): item for item in catalog["operations"]}
+    operations = {
+        operation_id: by_identity[(operation_id, operation_version)]
+        for operation_id, operation_version in expected
+        if (operation_id, operation_version) != ("data.run", 3)
+    }
     catalog_operation = operations.get("data.catalog")
     if catalog_operation is None:
         return [f"data-tools v{version} has no data.catalog operation"]
@@ -872,6 +915,62 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
         failures.append(
             "data.run with named outputs has no runtime representation (profile v2)"
         )
+    failures.extend(data_run_3_errors(catalog, version, registry_id))
+    return failures
+
+
+DATA_RUN_3 = {
+    "requirement": "conditional",
+    "surfaces": ["rust", "runtime"],
+    "input": {
+        "contract": "plenora-data-execution-input-v3",
+        "content_types": ["application/json"],
+        "interchange_contracts": [],
+    },
+    "output": {
+        "contract": "plenora-data-execution-result-v3",
+        "content_types": ["application/json"],
+        "interchange_contracts": [],
+    },
+    "side_effect": "remote",
+    "controls": {"cancellation": True, "deadline": True, "idempotency_key": False},
+}
+
+
+def data_run_3_errors(catalog: dict[str, Any], version: int, registry_id: str) -> list[str]:
+    """`data.run` 3 (profile v2, DT-RUN-001..DT-RUN-008): the runtime
+    representation with named outputs. Its sources and sinks are artifacts,
+    so its payloads are JSON; publication to sinks that may be remote makes
+    it `remote`, and it is conditional on the runtime surface."""
+    entries = [
+        item for item in catalog["operations"]
+        if item["id"] == "data.run" and item["version"] == 3
+    ]
+    if version < 2:
+        return ["data-tools v1 cannot declare data.run 3"] if entries else []
+    if len(entries) != 1:
+        return [f"data-tools v{version} must declare data.run 3 once"]
+    run = entries[0]
+    failures = [
+        f"data-tools v{version} data.run 3 has the wrong {field}"
+        for field, expected in DATA_RUN_3.items()
+        if run.get(field) != expected
+    ]
+    attributes = run.get("attributes", {})
+    if attributes.get("kernel_registry") != registry_id:
+        failures.append(f"data-tools v{version} data.run 3 names a different kernel registry")
+    if attributes.get("plan_contract") != DATA_PLAN_CONTRACT:
+        failures.append(f"data-tools v{version} data.run 3 must declare plan contract {DATA_PLAN_CONTRACT}")
+    if attributes.get("bounded_materialization") is not True:
+        failures.append(f"data-tools v{version} data.run 3 must declare bounded materialization")
+    arrow = ["application/vnd.apache.arrow.stream", "application/vnd.apache.arrow.file"]
+    if attributes.get("artifact_content_types") != {"source": arrow, "sink": arrow}:
+        failures.append(f"data-tools v{version} data.run 3 has the wrong artifact content types")
+    if attributes.get("artifact_interchange_contracts") != ["plenora-arrow-interchange-v1"]:
+        failures.append(f"data-tools v{version} data.run 3 must carry Arrow Interchange artifacts")
+    parquet = ["application/vnd.apache.parquet"]
+    if attributes.get("extension_content_types") != {"source": parquet, "sink": parquet}:
+        failures.append(f"data-tools v{version} data.run 3 has the wrong extension content types")
     return failures
 
 
@@ -997,21 +1096,30 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
     )
     if database_section is None:
         return failures
-    database_bindings = {
-        item["operation"]: set(item["entrypoints"])
-        for item in database_section["bindings"]
-    }
-    if database_bindings.get("database.test_connection") != {
+    def entrypoint_sets(section: dict[str, Any], operation_id: str) -> list[set[str]]:
+        """The entrypoints of every version of one operation: each version is
+        checked, none hides another."""
+        return [
+            set(item["entrypoints"])
+            for item in section["bindings"]
+            if item["operation"] == operation_id
+        ]
+
+    def every_binding(section: dict[str, Any], operation_id: str, expected: set[str]) -> bool:
+        found = entrypoint_sets(section, operation_id)
+        return bool(found) and all(entrypoints == expected for entrypoints in found)
+
+    if not every_binding(database_section, "database.test_connection", {
         "plenora_database.test_connection",
         "plenora_database.atest_connection",
-    }:
+    }):
         failures.append(
             "database.test_connection must use dedicated SDK verification entrypoints"
         )
-    if database_bindings.get("database.query") != {
+    if not every_binding(database_section, "database.query", {
         "Session.select",
         "AsyncSession.select",
-    }:
+    }):
         failures.append("database.query SDK bindings must remain read-only")
     mutating_entrypoints = {
         "Session.insert",
@@ -1023,8 +1131,9 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
         "AsyncSession.delete",
         "AsyncSession.upsert",
     }
-    if not mutating_entrypoints.issubset(
-        database_bindings.get("database.execute", set())
+    execute_sets = entrypoint_sets(database_section, "database.execute")
+    if not execute_sets or not all(
+        mutating_entrypoints.issubset(entrypoints) for entrypoints in execute_sets
     ):
         failures.append(
             "mutating database SDK entrypoints must bind to database.execute"
@@ -1041,15 +1150,11 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
         "plenora_storage.version", "Engine.capabilities", "AsyncEngine.capabilities"
     }:
         failures.append("storage SDK must expose version and discovery in both API modes")
-    storage_bindings = {
-        item["operation"]: set(item["entrypoints"])
-        for item in storage_section["bindings"]
-    }
     for operation_id in sorted(STORAGE_OPERATIONS):
         action = operation_id.removeprefix("storage.")
-        if storage_bindings.get(operation_id) != {
+        if not every_binding(storage_section, operation_id, {
             f"Engine.{action}", f"AsyncEngine.{action}"
-        }:
+        }):
             failures.append(f"{operation_id} must bind both canonical SDK API modes")
     failures.extend(data_python_errors(python_document))
     return failures
@@ -1215,8 +1320,13 @@ def rest_boundary_errors(
     document: dict[str, Any], catalog: dict[str, Any]
 ) -> list[str]:
     errors: list[str] = []
-    operations = {item["id"]: item for item in catalog["operations"]}
-    operation = operations.get(document.get("operation"))
+    candidates = [
+        item for item in catalog["operations"] if item["id"] == document.get("operation")
+    ]
+    if len(candidates) > 1:
+        # Several versions: the example names the one it exercises.
+        candidates = [item for item in candidates if item["version"] == document.get("version")]
+    operation = candidates[0] if len(candidates) == 1 else None
     if document.get("surface") != "runtime":
         errors.append("REST artifact boundary example is not a runtime request")
     if operation is None or "runtime" not in operation["surfaces"]:
@@ -1623,6 +1733,8 @@ def validate_runtime_vectors(
         operations[key] = (component, operation)
 
     storage_coverage = set()
+    data_run_3_coverage: set[str] = set()
+    data_run_3_vectors: list[dict[str, Any]] = []
     for path in sorted((ROOT / "vectors/runtime-v1").glob("*.json")):
         vector = load_json(path)
         metadata = vector["metadata"]
@@ -1683,6 +1795,13 @@ def validate_runtime_vectors(
                 failures.append(
                     f"{path.relative_to(ROOT)} uses an unsupported deadline"
                 )
+            if (
+                "plenora.execution.idempotency_key" in metadata
+                and not operation["controls"]["idempotency_key"]
+            ):
+                failures.append(
+                    f"{path.relative_to(ROOT)} uses an unsupported idempotency key (RT-006)"
+                )
 
         if vector["kind"] == "success":
             if (
@@ -1714,6 +1833,26 @@ def validate_runtime_vectors(
                 failures.append(
                     f"{path.relative_to(ROOT)} has unbounded error: {bound_errors[0]}"
                 )
+            if (
+                vector["payload"].get("retry", {}).get("kind") == "requires_idempotency_key"
+                and not operation["controls"]["idempotency_key"]
+            ):
+                failures.append(
+                    f"{path.relative_to(ROOT)} requires an idempotency key the operation "
+                    "does not accept (ERR-008)"
+                )
+        if (operation_id, operation["version"]) == ("data.run", 3):
+            data_run_3_coverage.add(vector["kind"])
+            if vector["kind"] == "error":
+                data_run_3_coverage.add(f"error:{vector['payload'].get('remote_effect')}")
+            data_run_3_vectors.append(vector)
+            errors = data_run_3_vector_errors(vector, schemas, registry)
+            if vector["kind"] == "request":
+                errors.extend(data_run_3_text_errors(read_text(path)))
+            if errors:
+                failures.append(
+                    f"{path.relative_to(ROOT)} violates data.run 3 semantics: {errors[0]}"
+                )
         if component == STORAGE_COMPONENT:
             storage_coverage.add((operation_id, vector["kind"]))
             errors = storage_vector_errors(vector, operation)
@@ -1729,7 +1868,198 @@ def validate_runtime_vectors(
     missing_storage = required_storage - storage_coverage
     if missing_storage:
         failures.append(f"storage runtime vector coverage is incomplete: {sorted(missing_storage)}")
+    missing_run = {
+        "request", "success", "error", "error:partial", "error:unknown"
+    } - data_run_3_coverage
+    if missing_run:
+        failures.append(f"data.run 3 runtime vector coverage is incomplete: {sorted(missing_run)}")
+    failures.extend(data_run_3_manifest_errors(data_run_3_vectors))
+    failures.extend(data_run_3_error_location_errors(data_run_3_vectors))
     return failures
+
+
+def data_run_3_error_location_errors(vectors: list[dict[str, Any]]) -> list[str]:
+    """No error carries a path or a reference location (DT-RUN-008); the plan
+    names of the request with the same correlation are the caller's data and
+    may appear as given."""
+    plans = {
+        vector["metadata"]["plenora.trace.correlation_id"]: vector["payload"].get("plan", {})
+        for vector in vectors
+        if vector["kind"] == "request"
+    }
+    failures: list[str] = []
+    for vector in vectors:
+        if vector["kind"] != "error":
+            continue
+        plan = plans.get(vector["metadata"]["plenora.trace.correlation_id"], {})
+        names = frozenset(
+            list(plan.get("inputs", []))
+            + list(plan.get("outputs", []))
+            + [step.get("out") for step in plan.get("steps", []) if isinstance(step.get("out"), str)]
+        )
+        payload = vector["payload"]
+        details = payload.get("details", {})
+        if not isinstance(details, dict) or any(
+            key not in ERROR_DETAIL_KEYS or not isinstance(value, str) or value not in names
+            for key, value in details.items()
+        ):
+            failures.append(
+                "a data.run 3 error carries details other than plan names (DT-RUN-008)"
+            )
+        texts = [key for key, _ in nested_items(payload)] + list(artifact_strings(payload))
+        if any(contains_location(text, names) for text in texts):
+            failures.append(
+                "a data.run 3 error carries a path or a reference location (DT-RUN-008)"
+            )
+    return failures
+
+
+def data_run_3_text_errors(text: str) -> list[str]:
+    """The written request text: the plan inside it follows DPLAN-002 (no
+    repeated key) and DPLAN-003 (exact numbers) like a plan document."""
+    problems: list[str] = []
+
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        keys = [key for key, _ in pairs]
+        if len(keys) != len(set(keys)):
+            problems.append("a request object repeats a key (DPLAN-002)")
+        return dict(pairs)
+
+    json.loads(text, object_pairs_hook=unique)
+    return problems + data_plan_number_errors(text)
+
+
+def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
+    """A success vector is the manifest of the request with its correlation:
+    every plan output in plan order with its sink reference and content type,
+    and one step count per plan step, in plan order (DT-RUN-005)."""
+    failures: list[str] = []
+    requests = {
+        vector["metadata"]["plenora.trace.correlation_id"]: vector["payload"]
+        for vector in vectors
+        if vector["kind"] == "request"
+    }
+    for vector in vectors:
+        if vector["kind"] != "success":
+            continue
+        request = requests.get(vector["metadata"]["plenora.trace.correlation_id"])
+        if request is None:
+            failures.append("a data.run 3 success has no request with its correlation")
+            continue
+        plan = request["plan"]
+        outputs = vector["payload"].get("outputs", [])
+        expected = [
+            (name, request["outputs"][name]["reference"], request["outputs"][name]["content_type"])
+            for name in plan["outputs"]
+            if name in request["outputs"]
+        ]
+        found = [
+            (item.get("name"), item.get("reference"), item.get("artifact", {}).get("content_type"))
+            for item in outputs
+        ]
+        if found != expected:
+            failures.append(
+                "a data.run 3 manifest differs from the plan outputs and sinks of its request (DT-RUN-005)"
+            )
+        steps = [(item.get("out"), item.get("op")) for item in vector["payload"].get("steps", [])]
+        if steps != [(step["out"], step["op"]) for step in plan["steps"]]:
+            failures.append(
+                "a data.run 3 manifest differs from the plan steps of its request (DT-RUN-005)"
+            )
+    return failures
+
+
+# Fixture guard for DT-RUN-008, conservative by design: the error vectors of
+# data.run 3 carry no `/`, no `\\` and no `://` outside a delimited
+# occurrence of a plan name. It checks this repository's fixtures, not the
+# messages of an implementation, and rejects some harmless text (`and/or`, a
+# public link) rather than guess which spelling is a location; a heuristic
+# on free text cannot be made exact. Declared limit: it does not prove that
+# no location can pass; a spelling not covered here could, and DT-RUN-008
+# is shown by the adopter's instrumented resolver, not by this guard.
+LOCATION_MARKS = ("/", "\\", "://", "file:", "..")
+# Locations without a mark: a drive prefix (`C:private.arrow`) or a word with
+# a file extension (`private.arrow`). Conservative: `e.g.` is rejected too.
+UNMARKED_LOCATION = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:|[A-Za-z0-9_-]\.[A-Za-z][A-Za-z0-9]{0,7}(?![A-Za-z0-9])")
+# The only `details` keys a data.run 3 error vector may carry: the plan input,
+# step or output it concerns, by name.
+ERROR_DETAIL_KEYS = frozenset({"input", "step", "output"})
+NAME_BEFORE = r"(?:(?<=^)|(?<=[\s\"'`(\[{<]))"
+NAME_AFTER = r"(?=$|[\s\"'`)\]}>]|[.,;:!?]+(?:$|[\s\"'`)\]}>]))"
+
+
+def contains_location(value: str, names: frozenset[str] = frozenset()) -> bool:
+    """`names` are the caller's plan names: data, not locations (DT-RUN-008).
+
+    Only whole occurrences delimited in the original text are exempt: every
+    name is matched on the unchanged text and the covered spans are removed
+    together, so removing one name never creates a boundary for another."""
+    covered = [False] * len(value)
+    for name in names:
+        # A lookahead finds overlapping occurrences too (`/a /a /a`).
+        pattern = NAME_BEFORE + "(?=(" + re.escape(name) + "))" + r"(?=\1" + NAME_AFTER + ")"
+        for match in re.finditer(pattern, value):
+            start, end = match.start(), match.start() + len(name)
+            covered[start:end] = [True] * (end - start)
+    rest = "".join(" " if hidden else char for char, hidden in zip(value, covered))
+    # Every mark anywhere in the rest, not only at its start: `file:` and `..`
+    # have no slash.
+    return (
+        any(mark in rest.lower() for mark in LOCATION_MARKS)
+        or UNMARKED_LOCATION.search(rest) is not None
+        or is_local_path(rest)
+    )
+
+
+def data_run_3_vector_errors(
+    vector: dict[str, Any],
+    schemas: dict[str, dict[str, Any]],
+    registry: Registry,
+) -> list[str]:
+    """Payload semantics of a `data.run` 3 vector (profile v2, DT-RUN-*)."""
+    payload = vector["payload"]
+    if vector["kind"] == "request":
+        errors = instance_errors(schemas["data-execution-input-v3.schema.json"], payload, registry)
+        if errors:
+            return [errors[0]]
+        plan = payload["plan"]
+        registries = data_registries()
+        kernel_ids = {item["id"] for item in registries[max(registries)]["operations"]}
+        errors = data_plan_errors(plan, kernel_ids)
+        if set(payload["inputs"]) != set(plan["inputs"]):
+            errors.append("sources do not name exactly the plan inputs (DT-RUN-001)")
+        if set(payload["outputs"]) != set(plan["outputs"]):
+            errors.append("sinks do not name exactly the plan outputs (DT-RUN-001)")
+        references = [
+            item["reference"]
+            for group in ("inputs", "outputs")
+            for item in payload[group].values()
+        ]
+        if any(is_local_path(reference) for reference in references):
+            errors.append("an artifact reference is a private local path (DT-RUN-002)")
+        sinks = [item["reference"] for item in payload["outputs"].values()]
+        if len(set(sinks)) != len(sinks):
+            errors.append("two sinks share one artifact reference (DT-RUN-002)")
+        return errors
+    if vector["kind"] == "success":
+        errors = instance_errors(schemas["data-execution-result-v3.schema.json"], payload, registry)
+        if errors:
+            return [errors[0]]
+        names = [item["name"] for item in payload["outputs"]]
+        references = [item["reference"] for item in payload["outputs"]]
+        if len(set(names)) != len(names) or len(set(references)) != len(references):
+            return ["outputs repeat a name or an artifact reference (DT-RUN-005)"]
+        if any(is_local_path(reference) for reference in references):
+            return ["an artifact reference is a private local path (DT-RUN-002)"]
+        return []
+    errors = []
+    if payload.get("remote_effect") == "partial" and payload.get("retry", {}).get("kind") not in {
+        "never", "quarantine", "requires_recovery"
+    }:
+        errors.append("a partial publication must forbid automatic retry (DT-RUN-006)")
+    if payload.get("remote_effect") == "unknown" and payload.get("retry", {}).get("kind") != "requires_recovery":
+        errors.append("an unknown publication outcome must require recovery (DT-RUN-006)")
+    return errors
 
 
 PLAN_BUDGET_CONFORMING = (

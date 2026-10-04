@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Added
+
+- `data.run` version 3 in `data-tools-v2.json`: the runtime representation of
+  a `plenora-data-plan-v1` plan with named outputs, from artifact sources to
+  artifact sinks, with a JSON manifest result. Conditional, Rust and runtime
+  surfaces, `side_effect: remote`. New schemas
+  `data-execution-input-v3.schema.json` and
+  `data-execution-result-v3.schema.json`, profile rules DT-RUN-001 to
+  DT-RUN-008, runtime selector `plenora.data-tools#data.run@3` and four
+  runtime vectors. No existing operation, schema or vector changes. The
+  validator checks every version of an operation and of its SDK bindings
+  (it looked some up by identifier, letting one version hide another), and
+  rejects runtime vectors that use an idempotency key the operation does
+  not accept (RT-006, ERR-008). See
+  [decision 0008](decisions/0008-data-run-runtime.md).
+
 ### Changed
 
 - Replaced the runtime vector `database-transaction-commit-success.json`

@@ -131,6 +131,14 @@
           "entrypoints": [
             "plenora.data-tools#data.validate@2"
           ]
+        },
+        {
+          "operation": "data.run",
+          "version": 3,
+          "requirement": "conditional",
+          "entrypoints": [
+            "plenora.data-tools#data.run@3"
+          ]
         }
       ]
     },
