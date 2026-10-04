@@ -1974,7 +1974,9 @@ def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
 # occurrence of a plan name. It checks this repository's fixtures, not the
 # messages of an implementation, and rejects some harmless text (`and/or`, a
 # public link) rather than guess which spelling is a location; a heuristic
-# on free text cannot be made exact.
+# on free text cannot be made exact. Declared limit: it does not prove that
+# no location can pass; a spelling not covered here could, and DT-RUN-008
+# is shown by the adopter's instrumented resolver, not by this guard.
 LOCATION_MARKS = ("/", "\\", "://", "file:", "..")
 # Locations without a mark: a drive prefix (`C:private.arrow`) or a word with
 # a file extension (`private.arrow`). Conservative: `e.g.` is rejected too.
