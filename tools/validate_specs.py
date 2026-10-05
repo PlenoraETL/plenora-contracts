@@ -262,15 +262,21 @@ ARROW_TYPES = [
 MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
+class SpecError(Exception):
+    """An expected verdict on the documents that stops the gate: malformed
+    JSON, a repeated key, a file name outside its grammar. Every other
+    exception, ValueError included, is a defect of this validator."""
+
+
 def reject_constant(name: str) -> Any:
-    raise ValueError(f"{name} is not JSON")
+    raise SpecError(f"{name} is not JSON")
 
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-class RepeatedKey(ValueError):
+class RepeatedKey(SpecError):
     """A JSON object repeats a member name: `json` would keep the last value
     and drop the others in silence, so every document is read strictly."""
 
@@ -291,6 +297,10 @@ def load_json(path: Path) -> Any:
         return loads_json(path.read_text(encoding="utf-8"))
     except RepeatedKey as error:
         raise RepeatedKey(f"{path.name}: {error}") from None
+    except SpecError as error:
+        raise SpecError(f"{path.name}: {error}") from None
+    except json.JSONDecodeError as error:
+        raise SpecError(f"{path.name} is not valid JSON: {error}") from None
 
 
 def member(node: Any, key: str) -> Any:
@@ -305,7 +315,7 @@ def schema_registry(schemas: dict[str, dict[str, Any]]) -> Registry:
     for schema in schemas.values():
         schema_id = schema.get("$id")
         if not isinstance(schema_id, str):
-            raise ValueError("every schema must declare a string $id")
+            raise SpecError("every schema must declare a string $id")
         resources.append((schema_id, Resource.from_contents(schema)))
     return Registry().with_resources(resources)
 
@@ -522,10 +532,10 @@ def load_catalog_versions() -> dict[str, dict[int, dict[str, Any]]]:
     for path in sorted((ROOT / "catalogs").glob("*-tools-v*.json")):
         match = CATALOG_FILE.match(path.name)
         if match is None:
-            raise ValueError(f"catalog file name {path.name} is not <name>-tools-v<N>.json")
+            raise SpecError(f"catalog file name {path.name} is not <name>-tools-v<N>.json")
         document = load_json(path)
         if document["component"] != f"plenora-{match['name']}":
-            raise ValueError(f"{path.name} declares component {document['component']}")
+            raise SpecError(f"{path.name} declares component {document['component']}")
         versions.setdefault(document["component"], {})[int(match["version"])] = document
     return versions
 
@@ -854,9 +864,16 @@ def data_registries() -> dict[int, dict[str, Any]]:
     for path in sorted((ROOT / "catalogs").glob("data-kernels-v*.json")):
         match = REGISTRY_FILE.match(path.name)
         if match is None:
-            raise ValueError(f"registry file name {path.name} is not data-kernels-v<N>.json")
+            raise SpecError(f"registry file name {path.name} is not data-kernels-v<N>.json")
         registries[int(match["version"])] = load_json(path)
     return registries
+
+
+def latest_kernel_ids() -> set[str]:
+    """The kernels of the highest registry version; none without a registry
+    (data_registry_errors reports the absence)."""
+    registries = data_registries()
+    return {item["id"] for item in registries[max(registries)]["operations"]} if registries else set()
 
 
 def data_registry_errors() -> list[str]:
@@ -864,6 +881,8 @@ def data_registry_errors() -> list[str]:
     family; a later registry renames nothing, its versions only move."""
     failures: list[str] = []
     registries = data_registries()
+    if not registries:
+        return ["data kernel registry is missing: no catalogs/data-kernels-v<N>.json"]
     if sorted(registries) != list(range(1, max(registries) + 1)):
         failures.append("data kernel registry versions are not contiguous from 1")
     first_ids = None
@@ -2107,8 +2126,7 @@ def data_run_3_vector_errors(
         if errors:
             return [errors[0]]
         plan = payload["plan"]
-        registries = data_registries()
-        kernel_ids = {item["id"] for item in registries[max(registries)]["operations"]}
+        kernel_ids = latest_kernel_ids()
         errors = data_plan_errors(plan, kernel_ids)
         if set(payload["inputs"]) != set(plan["inputs"]):
             errors.append("sources do not name exactly the plan inputs (DT-RUN-001)")
@@ -2286,8 +2304,7 @@ def validate_data_plan(
 ) -> list[str]:
     failures: list[str] = []
     schema = schemas["data-plan-v1.schema.json"]
-    registries = data_registries()
-    kernel_ids = {item["id"] for item in registries[max(registries)]["operations"]}
+    kernel_ids = latest_kernel_ids()
     for relative in DATA_PLAN_CONFORMING:
         for problem in data_plan_errors(load_json(ROOT / relative), kernel_ids):
             failures.append(f"{relative} {problem}")
@@ -2332,7 +2349,7 @@ def validate_markdown_links() -> list[str]:
 def main() -> int:
     try:
         return run_gate()
-    except ValueError as error:
+    except SpecError as error:
         # A repeated JSON key, malformed JSON or a file name outside the
         # grammar: an explicit failure, never a partial pass.
         print(f"ERROR: {error}", file=sys.stderr)

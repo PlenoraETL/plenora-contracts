@@ -300,6 +300,32 @@ class InternalErrorTests(unittest.TestCase):
         self.assertIn("internal validator error (KeyError", errors.getvalue())
         self.assertNotIn("Traceback", errors.getvalue())
 
+    def test_unexpected_value_error_is_a_validator_defect(self):
+        def broken(catalogs):
+            return [max([])]
+
+        with patch.object(validator, "validate_composition", broken),                 contextlib.redirect_stderr(io.StringIO()) as errors, contextlib.redirect_stdout(io.StringIO()):
+            status = validator.main()
+        self.assertEqual(status, 1)
+        self.assertIn("internal validator error (ValueError", errors.getvalue())
+
+    def test_missing_kernel_registries_are_a_validation_error(self):
+        root = StrictJsonTests.copy_repository(self)
+        for path in (root / "catalogs").glob("data-kernels-v*.json"):
+            path.unlink()
+        status, output = StrictJsonTests.run_gate(self, root)
+        self.assertEqual(status, 1)
+        self.assertIn("data kernel registry is missing", output)
+        self.assertNotIn("internal validator error", output)
+
+    def test_malformed_json_is_a_validation_error(self):
+        root = StrictJsonTests.copy_repository(self)
+        (root / "vectors/runtime-v1/storage-put-request.json").write_text("{", encoding="utf-8")
+        status, output = StrictJsonTests.run_gate(self, root)
+        self.assertEqual(status, 1)
+        self.assertIn("storage-put-request.json is not valid JSON", output)
+        self.assertNotIn("internal validator error", output)
+
     def test_semantic_checks_do_not_run_on_a_structural_failure(self):
         original = validator.load_json
 
