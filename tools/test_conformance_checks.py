@@ -196,17 +196,105 @@ class SchemaImmutabilityTests(unittest.TestCase):
         self.write()
         self.assertTrue(immutability.check(self.root, self.base))
 
+    def declare_erratum(self, previous, corrected, last_base=None, section=None):
+        decision = self.root / "decisions/probe.md"
+        decision.parent.mkdir(exist_ok=True)
+        if section is None:
+            section = "## Erratum\n\n`probe-v1.schema.json` corrected before adoption.\n"
+        decision.write_text("# Probe\n\n" + section, encoding="utf-8")
+        return immutability.Erratum(
+            immutability.assertions_digest(previous),
+            immutability.assertions_digest(corrected),
+            "decisions/probe.md",
+            last_base or self.base,
+        )
+
+    def commit_unrelated(self):
+        (self.root / "notes.txt").write_text("later", encoding="utf-8")
+        for args in [
+            ["add", "notes.txt"],
+            ["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "--quiet", "-m", "later"],
+        ]:
+            subprocess.run(["git", "-C", str(self.root), *args], check=True, capture_output=True)
+        return immutability.git(self.root, "rev-parse", "HEAD").strip()
+
+    def test_erratum_requires_its_decision(self):
+        relative = "schemas/probe-v1.schema.json"
+        previous = json.loads(json.dumps(self.schema))
+        self.schema["$defs"]["limit"]["maxLength"] = 4096
+        self.write()
+        corrected = json.loads(json.dumps(self.schema))
+        for name, section in [
+            ("missing decision", None),
+            ("no erratum section", "## Context\n\n`probe-v1.schema.json`\n"),
+            ("erratum names another file", "## Erratum\n\n`other-v1.schema.json`\n"),
+            ("named only after the section", "## Erratum\n\nnothing\n\n## Notes\n\n`probe-v1.schema.json`\n"),
+        ]:
+            with self.subTest(case=name):
+                erratum = self.declare_erratum(previous, corrected, section=section)
+                if section is None:
+                    (self.root / "decisions/probe.md").unlink()
+                with unittest.mock.patch.dict(immutability.ERRATA, {relative: erratum}):
+                    errors = immutability.check(self.root, self.base)
+                self.assertTrue(any("erratum for" in error for error in errors), errors)
+                self.assertTrue(any("assertions changed" in error for error in errors), errors)
+
+    def test_erratum_is_bound_to_bases_that_published_the_error(self):
+        relative = "schemas/probe-v1.schema.json"
+        previous = json.loads(json.dumps(self.schema))
+        later = self.commit_unrelated()
+        self.schema["$defs"]["limit"]["maxLength"] = 4096
+        self.write()
+        corrected = json.loads(json.dumps(self.schema))
+        erratum = self.declare_erratum(previous, corrected, last_base=later)
+        with unittest.mock.patch.dict(immutability.ERRATA, {relative: erratum}):
+            self.assertEqual(immutability.check(self.root, later), [])
+            self.assertEqual(immutability.check(self.root, self.base), [])
+        # A base after the declared last base: the erratum no longer applies.
+        erratum = self.declare_erratum(previous, corrected, last_base=self.base)
+        with unittest.mock.patch.dict(immutability.ERRATA, {relative: erratum}):
+            self.assertEqual(immutability.check(self.root, self.base), [])
+            self.assertTrue(any(
+                "assertions changed" in error for error in immutability.check(self.root, later)
+            ))
+
+    def test_repository_errata_are_verifiable(self):
+        for relative, erratum in immutability.ERRATA.items():
+            with self.subTest(path=relative):
+                self.assertEqual(immutability.erratum_errors(
+                    relative, erratum, lambda path: (ROOT / path).read_text(encoding="utf-8")
+                ), [])
+                document = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+                self.assertEqual(
+                    immutability.digest(immutability.comparable(relative, document)), erratum.after
+                )
+
+    def test_main_checks_the_fork_point_without_an_event_base(self):
+        # The floor predates a schema that main published later: only the
+        # fork point from origin/main protects it on a branch's first push.
+        floor = self.base
+        later_schema = self.schema_path.with_name("later-v1.schema.json")
+        later_schema.write_text(json.dumps(dict(self.schema, **{"$id": "later"})), encoding="utf-8")
+        for args in [
+            ["add", "schemas"],
+            ["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "--quiet", "-m", "main"],
+            ["update-ref", "refs/remotes/origin/main", "HEAD"],
+        ]:
+            subprocess.run(["git", "-C", str(self.root), *args], check=True, capture_output=True)
+        later_schema.write_text(json.dumps(dict(self.schema, **{"$id": "later", "maxLength": 1})), encoding="utf-8")
+        with patch.object(immutability, "ROOT", self.root), patch.object(immutability, "RATIFIED_BASE", floor), \
+                patch.dict("os.environ", {"PLENORA_SCHEMA_BASE": "0" * 40}), patch("sys.argv", ["check"]), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(immutability.main(), 1)
+        self.assertIn("later-v1.schema.json", output.getvalue())
+
     def test_only_the_declared_erratum_transition_is_allowed(self):
         relative = "schemas/probe-v1.schema.json"
         previous = json.loads(json.dumps(self.schema))
         self.schema["$defs"]["limit"]["maxLength"] = 4096
         self.write()
         corrected = json.loads(json.dumps(self.schema))
-        erratum = (
-            immutability.assertions_digest(previous),
-            immutability.assertions_digest(corrected),
-            "decisions/probe.md",
-        )
+        erratum = self.declare_erratum(previous, corrected)
         with unittest.mock.patch.dict(immutability.ERRATA, {relative: erratum}):
             self.assertEqual(immutability.check(self.root, self.base), [])
             # Any other change of the same schema is still a new version.
@@ -236,6 +324,164 @@ class SchemaImmutabilityTests(unittest.TestCase):
             immutability.check(self.root, "main")
         with self.assertRaises(subprocess.CalledProcessError):
             immutability.check(self.root, "f" * 40)
+
+
+class PublishedDocumentImmutabilityTests(unittest.TestCase):
+    """Catalogs, registries, binding maps and vectors against a base: the
+    compatible additions of COMPATIBILITY.md pass, every other change fails."""
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        operation = {
+            "id": "probe.read", "version": 1, "requirement": "required", "summary": "Read.",
+            "surfaces": ["rust"],
+            "input": {"contract": "probe-in-v1", "content_types": ["application/json"], "interchange_contracts": []},
+            "output": {"contract": "probe-out-v1", "content_types": ["application/json"], "interchange_contracts": []},
+            "side_effect": "none",
+            "controls": {"cancellation": True, "deadline": True, "idempotency_key": False},
+            "attributes": {"contract": "probe-attributes-v1"},
+        }
+        self.documents = {
+            "schemas/probe-v1.schema.json": {"$id": "probe", "type": "object"},
+            "catalogs/probe-tools-v1.json": {
+                "contract": "plenora-public-catalog-v1", "component": "plenora-probe-tools",
+                "status": "provisional",
+                "target_surfaces": {"rust": "required", "cli": "not_applicable", "python_sdk": "conditional", "runtime": "undecided"},
+                "operations": [operation],
+            },
+            "catalogs/probe-kernels-v1.json": {
+                "contract": "plenora-operation-registry-v1", "registry": "probe-kernels-v1",
+                "operations": [{"id": "table.a", "version": 1, "family": "table"}],
+            },
+            "bindings/probe-v1.json": {
+                "contract": "plenora-surface-bindings-v1", "surface": "python_sdk",
+                "components": [
+                    {"component": "plenora-probe-tools", "artifact": "probe", "discovery": ["probe.version"],
+                     "bindings": [{"operation": "probe.read", "version": 1, "requirement": "required",
+                                   "entrypoints": ["probe.read", "probe.aread"]}]},
+                    {"component": "plenora-other-tools", "artifact": None, "discovery": [], "bindings": []},
+                ],
+            },
+            "vectors/runtime-v1/probe-request.json": {"kind": "request", "payload": {"rows": [1]}},
+        }
+        self.write_all()
+        for args in [
+            ["init", "--quiet"], ["add", "."],
+            ["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "--quiet", "-m", "published"],
+        ]:
+            subprocess.run(["git", "-C", str(self.root), *args], check=True, capture_output=True)
+        self.base = immutability.git(self.root, "rev-parse", "HEAD").strip()
+
+    def write_all(self):
+        for relative, document in self.documents.items():
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(document), encoding="utf-8")
+
+    def errors_after(self, relative, change):
+        document = copy.deepcopy(self.documents[relative])
+        change(document)
+        (self.root / relative).write_text(json.dumps(document), encoding="utf-8")
+        try:
+            return immutability.check(self.root, self.base)
+        finally:
+            self.write_all()
+
+    def test_unchanged_documents_pass(self):
+        self.assertEqual(immutability.check(self.root, self.base), [])
+
+    def test_compatible_additions_pass(self):
+        added = copy.deepcopy(self.documents["catalogs/probe-tools-v1.json"]["operations"][0])
+        added["version"] = 2
+        binding = {"operation": "probe.read", "version": 2, "requirement": "required", "entrypoints": ["probe.read2"]}
+        cases = {
+            "catalogs/probe-tools-v1.json": [
+                ("new operation identity", lambda doc: doc["operations"].append(copy.deepcopy(added))),
+                ("new surface", lambda doc: doc["operations"][0]["surfaces"].append("python_sdk")),
+                ("open surface selected", lambda doc: doc["target_surfaces"].update(cli="conditional", runtime="required")),
+                ("summary clarified", lambda doc: doc["operations"][0].update(summary="Read one table.")),
+                ("promotion to normative", lambda doc: doc.update(status="normative")),
+            ],
+            "catalogs/probe-kernels-v1.json": [
+                ("new kernel", lambda doc: doc["operations"].append({"id": "table.b", "version": 1, "family": "table"})),
+            ],
+            "bindings/probe-v1.json": [
+                ("new binding", lambda doc: doc["components"][0]["bindings"].append(dict(binding))),
+                ("new discovery entrypoint", lambda doc: doc["components"][0]["discovery"].append("probe.capabilities")),
+                ("artifact for an absent surface", lambda doc: doc["components"][1].update(artifact="other")),
+            ],
+        }
+        for relative, changes in cases.items():
+            for name, change in changes:
+                with self.subTest(case=name):
+                    self.assertEqual(self.errors_after(relative, change), [])
+        (self.root / "vectors/runtime-v1/probe-success.json").write_text("{}", encoding="utf-8")
+        self.assertEqual(immutability.check(self.root, self.base), [])
+
+    def test_changes_to_published_identities_fail(self):
+        cases = {
+            "catalogs/probe-tools-v1.json": [
+                ("side effect", lambda doc: doc["operations"][0].update(side_effect="remote")),
+                ("input contract", lambda doc: doc["operations"][0]["input"].update(contract="probe-in-v2")),
+                ("controls", lambda doc: doc["operations"][0]["controls"].update(deadline=False)),
+                ("attributes", lambda doc: doc["operations"][0]["attributes"].update(extra=True)),
+                ("requirement", lambda doc: doc["operations"][0].update(requirement="conditional")),
+                ("dropped surface", lambda doc: doc["operations"][0]["surfaces"].clear()),
+                ("removed operation", lambda doc: doc["operations"].clear()),
+                ("repeated identity", lambda doc: doc["operations"].append(copy.deepcopy(doc["operations"][0]))),
+                ("selected surface changed", lambda doc: doc["target_surfaces"].update(rust="conditional")),
+                ("status demoted", lambda doc: doc.update(status="retired")),
+                ("component", lambda doc: doc.update(component="plenora-renamed-tools")),
+            ],
+            "catalogs/probe-kernels-v1.json": [
+                ("kernel version", lambda doc: doc["operations"][0].update(version=2)),
+                ("kernel removed", lambda doc: doc["operations"].clear()),
+                ("registry identifier", lambda doc: doc.update(registry="probe-kernels-v9")),
+            ],
+            "bindings/probe-v1.json": [
+                ("entrypoint renamed", lambda doc: doc["components"][0]["bindings"][0].update(entrypoints=["probe.load"])),
+                ("requirement", lambda doc: doc["components"][0]["bindings"][0].update(requirement="conditional")),
+                ("binding removed", lambda doc: doc["components"][0]["bindings"].clear()),
+                ("artifact changed", lambda doc: doc["components"][0].update(artifact="renamed")),
+                ("discovery dropped", lambda doc: doc["components"][0]["discovery"].clear()),
+                ("section removed", lambda doc: doc["components"].pop()),
+                ("surface", lambda doc: doc.update(surface="cli")),
+            ],
+            "vectors/runtime-v1/probe-request.json": [
+                ("payload", lambda doc: doc["payload"]["rows"].append(2)),
+            ],
+        }
+        for relative, changes in cases.items():
+            for name, change in changes:
+                with self.subTest(path=relative, case=name):
+                    errors = self.errors_after(relative, change)
+                    self.assertTrue(any(relative in error for error in errors), errors)
+
+    def test_removed_documents_fail(self):
+        for relative in self.documents:
+            if relative.startswith("schemas/"):
+                continue
+            with self.subTest(path=relative):
+                (self.root / relative).unlink()
+                try:
+                    errors = immutability.check(self.root, self.base)
+                finally:
+                    self.write_all()
+                self.assertIn(f"published document removed: {relative}", errors)
+
+    def test_unrecognized_catalog_document_is_compared_whole(self):
+        relative = "catalogs/probe-tools-v1.json"
+        self.documents[relative]["contract"] = "plenora-public-catalog-v9"
+        self.write_all()
+        subprocess.run(
+            ["git", "-C", str(self.root), "-c", "user.name=t", "-c", "user.email=t@example.invalid",
+             "commit", "--quiet", "-am", "unknown"], check=True, capture_output=True,
+        )
+        self.base = immutability.git(self.root, "rev-parse", "HEAD").strip()
+        errors = self.errors_after(relative, lambda doc: doc["operations"][0]["surfaces"].append("cli"))
+        self.assertTrue(any("document changed" in error for error in errors), errors)
 
 
 if __name__ == "__main__":

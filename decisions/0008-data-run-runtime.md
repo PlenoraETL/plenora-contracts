@@ -82,4 +82,6 @@ dispositions ERR-006 allows. An in-place change of a published schema is
 otherwise a new version; it is accepted here only because no adopter or
 consumer existed. COMPATIBILITY.md records the exception («Errata before
 adoption»), and the immutability gate admits exactly this transition of
-`data-execution-result-v3.schema.json` (`ERRATA`), nothing else.
+`data-execution-result-v3.schema.json` and of the success vector that follows
+it, `data-run-success-v3.json` (`ERRATA`), only against a base that still
+published the erroneous text (merge of PR #11 or earlier), nothing else.
