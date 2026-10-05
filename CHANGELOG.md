@@ -2,17 +2,6 @@
 
 ## Unreleased
 
-### Fixed
-
-- Erratum to `data.run` version 3, before any adoption or release used it:
-  `rows_in` in `data-execution-result-v3.schema.json` is the list of the
-  rows of each step input, as in the version 2 result (an integer could not
-  describe a step with several inputs), and the success vector follows it;
-  DT-RUN-006 allows `never`, `quarantine` or `requires_recovery` for an
-  unproven publication outcome, as ERR-006 does. The schema is corrected in
-  place because no artifact had adopted it; see
-  [decision 0008](decisions/0008-data-run-runtime.md).
-
 ### Added
 
 - `data.run` version 3 in `data-tools-v2.json`: the runtime representation of
@@ -28,18 +17,6 @@
   rejects runtime vectors that use an idempotency key the operation does
   not accept (RT-006, ERR-008). See
   [decision 0008](decisions/0008-data-run-runtime.md).
-
-### Changed
-
-- Replaced the runtime vector `database-transaction-commit-success.json`
-  with `database-query-success.json`: the database-tools catalog selects the
-  `database.transaction.*` operations only on the Rust and Python surfaces,
-  and the runtime binding map has no transaction selector, so the vector
-  exercised an operation the runtime does not carry. The runtime vector
-  matrix no longer lists transaction references. The validator now rejects a
-  runtime vector whose operation version does not select the runtime surface,
-  for every component. No catalog, binding or schema changes.
-
 - Published data-tools version 2 next to version 1: profile
   `plenora-data-tools-profile-v2` and catalog `data-tools-v2.json`, with
   `data.catalog`, `data.validate` and `data.run` at operation version 2 and
@@ -53,7 +30,35 @@
   vectors add version 2 entries; every version 1 entry and file is
   unchanged. No existing schema changes. See
   [decision 0007](decisions/0007-data-tools-v2.md).
+- Public-surface contract and profiles for the five domain libraries.
+- Operation-level capability discovery v2.
+- Shared Arrow/GeoArrow interchange and row-diagnostics contracts.
+- Runtime binding for serialized public operation invocation.
+- Governance, compatibility and black-box adoption guidance.
+- Common CLI protocol v2.
+- Common Python SDK contract v1.
+- Shared error, CLI envelope, capability and adoption-manifest schemas.
+- Valid and invalid examples for the machine-readable contracts.
+- Scope, stream-selection and cutover decisions.
+- Machine-readable target catalogs for all five libraries and the exact 146-kernel data registry.
+- Canonical CLI, Python SDK and runtime binding maps.
+- Cross-component Arrow composition matrix.
+- Closed Arrow metadata vocabulary with valid and invalid interoperability vectors.
+- Runtime request, success and typed-error conformance vectors.
+- Semantic validation across catalogs, bindings, composition and vectors.
+- Plan Budget 1.0: `max_domain_memory_bytes`, plan format v6 and the plan
+  identity boundary, with schema, examples and a semantic budget check.
 
+### Changed
+
+- Replaced the runtime vector `database-transaction-commit-success.json`
+  with `database-query-success.json`: the database-tools catalog selects the
+  `database.transaction.*` operations only on the Rust and Python surfaces,
+  and the runtime binding map has no transaction selector, so the vector
+  exercised an operation the runtime does not carry. The runtime vector
+  matrix no longer lists transaction references. The validator now rejects a
+  runtime vector whose operation version does not select the runtime surface,
+  for every component. No catalog, binding or schema changes.
 - Selected the storage Python SDK surface with canonical sync/async bindings
   for all seven v1 operations. Existing operation contracts and schema assertions
   are unchanged; adoption requires a new immutable pin and wheel evidence.
@@ -76,23 +81,16 @@
   provisional to normative. Component release status and evidence remain in
   the component-owned adoption manifest.
 
-### Added
+### Fixed
 
-- Public-surface contract and profiles for the five domain libraries.
-- Operation-level capability discovery v2.
-- Shared Arrow/GeoArrow interchange and row-diagnostics contracts.
-- Runtime binding for serialized public operation invocation.
-- Governance, compatibility and black-box adoption guidance.
-- Common CLI protocol v2.
-- Common Python SDK contract v1.
-- Shared error, CLI envelope, capability and adoption-manifest schemas.
-- Valid and invalid examples for the machine-readable contracts.
-- Scope, stream-selection and cutover decisions.
-- Machine-readable target catalogs for all five libraries and the exact 146-kernel data registry.
-- Canonical CLI, Python SDK and runtime binding maps.
-- Cross-component Arrow composition matrix.
-- Closed Arrow metadata vocabulary with valid and invalid interoperability vectors.
-- Runtime request, success and typed-error conformance vectors.
-- Semantic validation across catalogs, bindings, composition and vectors.
-- Plan Budget 1.0: `max_domain_memory_bytes`, plan format v6 and the plan
-  identity boundary, with schema, examples and a semantic budget check.
+- Erratum to `data.run` version 3, before any adoption or release used it:
+  `rows_in` in `data-execution-result-v3.schema.json` is the list of the
+  rows of each step input, as in the version 2 result (an integer could not
+  describe a step with several inputs), and the success vector follows it;
+  DT-RUN-006 allows `never`, `quarantine` or `requires_recovery` for an
+  unproven publication outcome, as ERR-006 does. The schema is corrected in
+  place because no artifact had adopted it; see
+  [decision 0008](decisions/0008-data-run-runtime.md).
+- The summary line of `tools/validate_specs.py` wrote the error-bound probes
+  and the binding maps as literals (`7`, `3`); both are now counted from what
+  the run checked.

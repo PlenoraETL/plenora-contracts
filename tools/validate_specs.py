@@ -395,6 +395,36 @@ def error_bound_errors(error: dict[str, Any]) -> list[str]:
     return errors
 
 
+# Generated documents that each violate one semantic error bound; with the
+# violating fixtures of ERROR_BOUND_CASES they are the error-bound probes.
+ERROR_BOUND_PROBES = {
+    "details byte limit": (
+        {"items": ["x" * MAX_ERROR_DETAILS_STRING_BYTES] * 65},
+        "details JSON exceeds the byte limit",
+    ),
+    "error byte limit": (
+        {"items": ["x" * MAX_ERROR_DETAILS_STRING_BYTES] * 128},
+        "error JSON exceeds the byte limit",
+    ),
+    "object property limit": (
+        {f"field_{index}": index for index in range(129)},
+        "object exceeds the property limit",
+    ),
+    "array item limit": (
+        {"items": list(range(129))},
+        "array exceeds the item limit",
+    ),
+    "string byte limit": (
+        {"value": "x" * (MAX_ERROR_DETAILS_STRING_BYTES + 1)},
+        "string exceeds the byte limit",
+    ),
+    "JSON node limit": (
+        {"groups": [list(range(128)) for _ in range(16)]},
+        "exceed the JSON-node limit",
+    ),
+}
+
+
 def validate_error_bound_vectors(
     schemas: dict[str, dict[str, Any]], registry: Registry
 ) -> list[str]:
@@ -413,32 +443,6 @@ def validate_error_bound_vectors(
         if not must_violate and bound_errors:
             failures.append(f"{relative_path} must satisfy semantic error bounds")
 
-    probes = {
-        "details byte limit": (
-            {"items": ["x" * MAX_ERROR_DETAILS_STRING_BYTES] * 65},
-            "details JSON exceeds the byte limit",
-        ),
-        "error byte limit": (
-            {"items": ["x" * MAX_ERROR_DETAILS_STRING_BYTES] * 128},
-            "error JSON exceeds the byte limit",
-        ),
-        "object property limit": (
-            {f"field_{index}": index for index in range(129)},
-            "object exceeds the property limit",
-        ),
-        "array item limit": (
-            {"items": list(range(129))},
-            "array exceeds the item limit",
-        ),
-        "string byte limit": (
-            {"value": "x" * (MAX_ERROR_DETAILS_STRING_BYTES + 1)},
-            "string exceeds the byte limit",
-        ),
-        "JSON node limit": (
-            {"groups": [list(range(128)) for _ in range(16)]},
-            "exceed the JSON-node limit",
-        ),
-    }
     base_error = {
         "category": "internal",
         "phase": "unknown",
@@ -446,7 +450,7 @@ def validate_error_bound_vectors(
         "retry": {"kind": "never"},
         "message": "Semantic bound probe.",
     }
-    for name, (details, expected_fragment) in probes.items():
+    for name, (details, expected_fragment) in ERROR_BOUND_PROBES.items():
         probe_errors = error_bound_errors({**base_error, "details": details})
         if not any(expected_fragment in error for error in probe_errors):
             failures.append(f"generated {name} probe did not exercise its guard")
@@ -2279,12 +2283,16 @@ def main() -> int:
     invalid_count = sum(len(paths) for paths in CASES["invalid"].values())
     vector_count = len(list((ROOT / "vectors").glob("**/*.json")))
     composition_count = len(load_json(ROOT / "composition/pipelines-v1.json")["edges"])
+    # Every figure is counted from what the run checked, never written down.
+    probe_count = len(ERROR_BOUND_PROBES) + sum(ERROR_BOUND_CASES.values())
+    binding_count = len(list((ROOT / "bindings").glob("*.json")))
     print(
         f"validated {len(schemas)} schemas, {valid_count} valid examples, "
         f"{invalid_count} schema-rejected examples, "
-        f"{len(PUBLIC_SEMANTIC_CASES)} public semantic counterexamples, 7 semantic error-bound probes, "
+        f"{len(PUBLIC_SEMANTIC_CASES)} public semantic counterexamples, "
+        f"{probe_count} semantic error-bound probes, "
         f"{sum(len(item) for item in load_catalog_versions().values())} public catalogs, "
-        f"3 binding maps, {composition_count} composition edges and "
+        f"{binding_count} binding maps, {composition_count} composition edges and "
         f"{vector_count} conformance vectors"
     )
     return 0
