@@ -1,0 +1,8 @@
+# Strumento della misura di copertura dei gate (job `coverage` di
+# .github/workflows/spec-validation.yml). Lock con hash in
+# requirements-coverage.txt, rigenerato con il comando nella sua intestazione.
+#
+# coverage: misura righe e rami di tools/ durante la suite unittest e fa
+# fallire il job sotto la soglia di .coveragerc. Versione esatta perche la
+# soglia e tarata sui conteggi di questa versione.
+coverage==7.16.2

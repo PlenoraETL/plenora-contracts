@@ -1,0 +1,72 @@
+name: supply-chain
+
+# Audit dei lock Python dei gate e riesecuzione dei gate a calendario. Il
+# rischio qui non arriva da un commit: un'advisory pubblicata domani riguarda
+# il lock fermo di oggi, e senza una corsa schedulata resterebbe invisibile
+# fino alla PR successiva. Per la stessa ragione i gate si rieseguono: le
+# action e i runner cambiano anche quando il repository e fermo.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Lunedi 05:23 UTC. Minuto non tondo: gli orari tondi sono i piu
+    # congestionati su Actions e le corse schedulate vengono rimandate.
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supply-chain-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pip-audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --require-hashes -r requirements-audit.txt
+      # `--disable-pip`: i lock sono gia completi e con hash, quindi pip-audit
+      # li legge senza risolverli; `--require-hashes` rifiuta un lock senza.
+      - name: Audit the gate locks
+        run: >-
+          python -m pip_audit --strict --disable-pip --require-hashes
+          -r requirements-validation.txt
+          -r requirements-coverage.txt
+          -r requirements-audit.txt
+
+  gates:
+    name: gates (${{ matrix.os }})
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - run: python -m pip install --require-hashes -r requirements-validation.txt
+      # Senza un evento di push non c'e una base: si confronta HEAD con se
+      # stesso, che verifica comunque il pavimento ratificato e l'unicita
+      # degli identificatori.
+      - name: Published schemas, catalogs, bindings and vectors stay immutable
+        run: PLENORA_SCHEMA_BASE="$(git rev-parse HEAD)" python tools/check_schema_immutability.py
+      - name: Regression tests for the conformance gates
+        run: python -m unittest discover -s tools -p 'test_*.py'
+      - run: python tools/validate_specs.py

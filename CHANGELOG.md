@@ -51,6 +51,14 @@
 
 ### Changed
 
+- The validation gates run on Linux and Windows with Python 3.10 and 3.14
+  (they ran only on Linux with Python 3.12). Their dependencies are installed
+  from complete hashed locks (`requirements-*.txt`, generated from
+  `requirements-*.in`) with `--require-hashes`; only `jsonschema` was pinned
+  before. A weekly `supply-chain` workflow audits the locks with pip-audit and
+  reruns the gates; Dependabot proposes action and lock updates; the coverage
+  of the gate logic has a budget in `.coveragerc`. No contract document
+  changes.
 - Replaced the runtime vector `database-transaction-commit-success.json`
   with `database-query-success.json`: the database-tools catalog selects the
   `database.transaction.*` operations only on the Rust and Python surfaces,

@@ -118,3 +118,22 @@ Conformance is explicit and pinned to an immutable revision. A project cannot
 claim conformance merely because its internal types look similar. It must expose
 the required behavior and verify it through its public boundary as described in
 [ADOPTION.md](ADOPTION.md).
+
+## Validation gates
+
+The gates run in [spec-validation](.github/workflows/spec-validation.yml) on
+Linux and Windows with the oldest and newest supported Python (3.10 and 3.14).
+Locally:
+
+```sh
+python -m pip install --require-hashes -r requirements-validation.txt
+PLENORA_SCHEMA_BASE=<full commit SHA> python tools/check_schema_immutability.py
+python -m unittest discover -s tools -p 'test_*.py'
+python tools/validate_specs.py
+```
+
+`requirements-*.in` list the direct tools with the reason for each pin;
+`requirements-*.txt` are the complete hashed locks generated from them by the
+command in their header. Coverage of the gate logic has a budget in
+[.coveragerc](.coveragerc); [supply-chain](.github/workflows/supply-chain.yml)
+audits the locks and reruns the gates every week.
