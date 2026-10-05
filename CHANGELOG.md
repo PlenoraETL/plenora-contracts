@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed
+
+- Erratum to `data.run` version 3, before any adoption or release used it:
+  `rows_in` in `data-execution-result-v3.schema.json` is the list of the
+  rows of each step input, as in the version 2 result (an integer could not
+  describe a step with several inputs), and the success vector follows it;
+  DT-RUN-006 allows `never`, `quarantine` or `requires_recovery` for an
+  unproven publication outcome, as ERR-006 does. The schema is corrected in
+  place because no artifact had adopted it; see
+  [decision 0008](decisions/0008-data-run-runtime.md).
+
 ### Added
 
 - `data.run` version 3 in `data-tools-v2.json`: the runtime representation of

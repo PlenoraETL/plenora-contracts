@@ -71,3 +71,15 @@ Add `data.run` version 3 to `data-tools-v2.json`, next to version 2:
   `data-run-unknown-error-v3.json`.
 - **Adoption:** Data Tools adopts version 3 with a new pin, through a Rust
   entry point that takes resolver traits for sources and sinks (RT-015).
+
+## Erratum
+
+Corrected in place on 2026-10-05, before Data Tools adopted `data.run`
+version 3 and before any release used it: `rows_in` of the result is the list
+of the rows of each step input (an integer could not describe a step with
+several inputs), and an unproven publication outcome takes the retry
+dispositions ERR-006 allows. An in-place change of a published schema is
+otherwise a new version; it is accepted here only because no adopter or
+consumer existed. COMPATIBILITY.md records the exception («Errata before
+adoption»), and the immutability gate admits exactly this transition of
+`data-execution-result-v3.schema.json` (`ERRATA`), nothing else.

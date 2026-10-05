@@ -197,7 +197,8 @@ encoded: a failure while reading, executing or encoding publishes nothing
 (`remote_effect: none`). On success the result lists every plan output in
 plan order, with its sink reference, rows, columns and the artifact
 published: content type, exact byte size and the SHA-256 calculated over the
-published bytes, followed by the per-step counts of version 2.
+published bytes, followed by the per-step counts of version 2 (`rows_in`
+lists the rows of each step input, in step order).
 
 **DT-RUN-006** — Sinks are published one at a time, in plan output order.
 `overwrite: false` is enforced by the sink atomically with the publication
@@ -207,8 +208,9 @@ with `overwrite: false` whose artifact already exists fails (`conflict`); a
 sink with `overwrite: true` replaces it. The outcome of a failed
 publication:
 
-- not proven: `unknown` with `requires_recovery`, whatever was published
-  before it (ERR-004: uncertainty prevails);
+- not proven: `unknown`, with retry `never`, `quarantine` or
+  `requires_recovery` (ERR-006), whatever was published before it
+  (ERR-004: uncertainty prevails);
 - proven to have written nothing, with no earlier publication: `none`;
 - proven to have written part of its artifact (the first sink included,
   an `overwrite: true` replacement included), or proven to have written

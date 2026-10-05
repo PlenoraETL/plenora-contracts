@@ -26,7 +26,8 @@ These schemas are normative and use JSON Schema draft 2020-12.
 
 Schema identifiers are immutable. Modify a schema in place only for a change
 that cannot alter whether an existing instance validates. Otherwise add a new
-version.
+version. The single exception is a declared erratum before adoption
+([COMPATIBILITY.md](../COMPATIBILITY.md#errata-before-adoption)).
 
 Manifest v1 is retained for the historical CLI/SDK-only scope; manifests v2
 and v3 remain immutable. New component adoption uses manifest v4.

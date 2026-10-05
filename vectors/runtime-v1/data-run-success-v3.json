@@ -30,7 +30,9 @@
       {
         "out": "large",
         "op": "table.filter",
-        "rows_in": 40,
+        "rows_in": [
+          40
+        ],
         "rows_out": 12,
         "division_by_zero_rows": 0
       }

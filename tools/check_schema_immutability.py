@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -40,6 +41,32 @@ def assertions(schema: Any) -> Any:
     return result
 
 
+# Declared errata (COMPATIBILITY.md, «Errata before adoption»): an in-place
+# change of a published schema accepted once, for the exact transition from
+# the assertions digest `before` to `after`. Any other change of the same
+# schema, or the same change of another schema, is still rejected.
+ERRATA: dict[str, tuple[str, str, str]] = {
+    "schemas/data-execution-result-v3.schema.json": (
+        "679924dfaf4aa35c69ec7e859b86b4d6857a4dad80427e49c4243e4b64d7e9ab",
+        "b5195ecca8f7be5062208ec9e42d77fa2aa8e9b551dd6c7e82cc38abbe42c8c6",
+        "decisions/0008-data-run-runtime.md",
+    ),
+}
+
+
+def assertions_digest(schema: Any) -> str:
+    canonical = json.dumps(assertions(schema), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def declared_erratum(relative: str, previous: Any, current: Any) -> bool:
+    erratum = ERRATA.get(relative)
+    return erratum is not None and (
+        assertions_digest(previous),
+        assertions_digest(current),
+    ) == erratum[:2]
+
+
 def git(root: Path, *arguments: str) -> str:
     return subprocess.check_output(
         ["git", "-C", str(root), *arguments], text=True, encoding="utf-8", stderr=subprocess.PIPE
@@ -61,7 +88,9 @@ def check(root: Path, base: str) -> list[str]:
             continue
         previous = json.loads(git(root, "show", f"{base}:{relative}"))
         current = json.loads(path.read_text(encoding="utf-8"))
-        if assertions(previous) != assertions(current):
+        if assertions(previous) != assertions(current) and not declared_erratum(
+            relative, previous, current
+        ):
             errors.append(f"published schema assertions changed: {relative}; introduce a new version")
     identifiers = set()
     for path in sorted((root / "schemas").glob("*.schema.json")):
