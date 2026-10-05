@@ -22,7 +22,10 @@
   sections for one component and two REST capability entries for one
   identity are rejected instead of overwritten. Storage vector coverage and
   the data-tools catalog checks name the operation version. A null where an
-  object is expected is a validation error instead of a crash. The REST
+  object is expected is a validation error instead of a crash: a structural
+  failure stops the gate before the semantic checks, any other exception is
+  reported as an internal validator error without a traceback, and a null
+  fuzz over every member of every vector and example guards the class. The REST
   boundary examples now state `version: 1`.
 
 ### Added

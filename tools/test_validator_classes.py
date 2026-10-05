@@ -289,6 +289,33 @@ class SilentOverwriteTests(unittest.TestCase):
         self.assertTrue(any("repeats an operation identity" in error for error in errors), errors)
 
 
+class InternalErrorTests(unittest.TestCase):
+    def test_unexpected_exception_is_reported_as_a_validator_defect(self):
+        def broken(catalogs):
+            raise KeyError("probe")
+
+        with patch.object(validator, "validate_composition", broken),                 contextlib.redirect_stderr(io.StringIO()) as errors, contextlib.redirect_stdout(io.StringIO()):
+            status = validator.main()
+        self.assertEqual(status, 1)
+        self.assertIn("internal validator error (KeyError", errors.getvalue())
+        self.assertNotIn("Traceback", errors.getvalue())
+
+    def test_semantic_checks_do_not_run_on_a_structural_failure(self):
+        original = validator.load_json
+
+        def null_metadata(path):
+            document = original(path)
+            if path.name == "storage-put-request.json":
+                document["metadata"] = None
+            return document
+
+        with patch.object(validator, "load_json", null_metadata),                 contextlib.redirect_stderr(io.StringIO()) as errors, contextlib.redirect_stdout(io.StringIO()):
+            status = validator.main()
+        self.assertEqual(status, 1)
+        self.assertIn("storage-put-request.json must validate", errors.getvalue())
+        self.assertNotIn("internal validator error", errors.getvalue())
+
+
 class StrictJsonTests(unittest.TestCase):
     def test_repeated_key_is_rejected_at_every_depth(self):
         for text in ('{"a": 1, "a": 2}', '{"a": {"b": 1, "b": 1}}', '[{"x": null, "x": null}]'):

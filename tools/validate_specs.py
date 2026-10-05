@@ -2255,6 +2255,13 @@ def data_plan_errors(document: dict[str, Any], kernel_ids: set[str]) -> list[str
     """DPLAN-004, DPLAN-005 and the registry part of DPLAN-006."""
     problems: list[str] = []
     defined: set[str] = set()
+    if not isinstance(document, dict) or not all(
+        isinstance(document.get(key, []), list) for key in ("inputs", "steps", "outputs")
+    ) or not all(
+        isinstance(step, dict) and isinstance(step.get("in"), list) for step in document.get("steps", [])
+    ):
+        # The schema rejects this shape; the reference checks need it.
+        return ["plan is not shaped by data-plan-v1.schema.json (DPLAN-001)"]
     for name in document.get("inputs", []):
         if name in defined:
             problems.append(f"name {name} defined twice (DPLAN-004)")
@@ -2301,6 +2308,7 @@ def validate_data_plan(
                 f"{relative} must be accepted by the schema so that it probes "
                 f"the semantic check, but the schema rejected it: {shape[0]}"
             )
+            continue
         if not data_plan_errors(document, kernel_ids):
             failures.append(f"{relative} must be rejected by DPLAN-004..006")
     return failures
@@ -2329,6 +2337,15 @@ def main() -> int:
         # grammar: an explicit failure, never a partial pass.
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
+    except Exception as error:  # noqa: BLE001 - reported, never swallowed
+        # Any other exception is a defect of this validator, not a verdict on
+        # the documents: it fails the gate and says so, without a traceback.
+        print(
+            f"ERROR: internal validator error ({type(error).__name__}: {error}); "
+            "this is a defect of tools/validate_specs.py",
+            file=sys.stderr,
+        )
+        return 1
 
 
 def run_gate() -> int:
@@ -2352,11 +2369,18 @@ def run_gate() -> int:
             return 1
 
     registry = schema_registry(schemas)
-    catalogs = load_catalogs()
     failures = validate_examples(schemas, registry)
     failures.extend(validate_public_semantics(schemas, registry))
     failures.extend(validate_error_bound_vectors(schemas, registry))
     failures.extend(validate_machine_documents(schemas, registry))
+    if failures:
+        # The semantic checks below read documents their schemas shaped; a
+        # structural failure stops the run before them instead of letting
+        # them read a null or a wrong type.
+        for failure in failures:
+            print(f"ERROR: {failure}", file=sys.stderr)
+        return 1
+    catalogs = load_catalogs()
     failures.extend(validate_catalog_semantics(catalogs))
     failures.extend(validate_rest_examples(schemas, registry, catalogs[REST_COMPONENT]))
     failures.extend(validate_bindings(catalogs))
