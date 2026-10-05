@@ -43,6 +43,7 @@ EXPECTED_SCHEMAS = {
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
     "row-diagnostics-v1.schema.json",
+    "runtime-probe-v1.schema.json",
     "runtime-vector-v1.schema.json",
     "surface-bindings-v1.schema.json",
 }
@@ -113,6 +114,9 @@ CASES = {
             "examples/invalid/runtime-correlation-not-uuid.json",
             "examples/invalid/runtime-message-id-missing.json",
             "examples/invalid/runtime-message-id-not-uuid.json",
+        ],
+        "runtime-probe-v1.schema.json": [
+            "examples/invalid/runtime-probe-two-mutations.json",
         ],
         "plan-budget-v1.schema.json": [
             "examples/invalid/plan-budget-v5-with-domain.json",
@@ -510,6 +514,9 @@ def validate_machine_documents(
         ),
         "runtime-vector-v1.schema.json": sorted(
             (ROOT / "vectors/runtime-v1").glob("*.json")
+        ),
+        "runtime-probe-v1.schema.json": sorted(
+            (ROOT / "vectors/runtime-probes-v1").glob("*.json")
         ),
     }
     failures: list[str] = []
@@ -1959,6 +1966,16 @@ def validate_runtime_vectors(
                     f"{path.relative_to(ROOT)} has unbounded error: {bound_errors[0]}"
                 )
             if (
+                member(vector["payload"], "phase") == "cleanup"
+                and member(vector["payload"], "remote_effect") == "committed"
+                and member(member(vector["payload"], "retry"), "kind")
+                not in ("never", "requires_recovery")
+            ):
+                failures.append(
+                    f"{path.relative_to(ROOT)} retries a cleanup after a proven "
+                    "publication, which would publish again (ERR-015)"
+                )
+            if (
                 member(member(vector["payload"], "retry"), "kind") == "requires_idempotency_key"
                 and not operation["controls"]["idempotency_key"]
             ):
@@ -2002,6 +2019,184 @@ def validate_runtime_vectors(
         failures.append(f"data.run 3 runtime vector coverage is incomplete: {sorted(missing_run)}")
     failures.extend(data_run_3_manifest_errors(data_run_3_vectors))
     failures.extend(data_run_3_error_location_errors(data_run_3_vectors))
+    return failures
+
+
+RUNTIME_PROBE_DIR = "vectors/runtime-probes-v1"
+# RT-017: the grammar of each reserved request key. A value outside it is
+# malformed (`protocol`), never normalized into a well-formed one.
+ROUTING_GRAMMAR = {
+    "plenora.capability.name": re.compile(r"^plenora\.[a-z][a-z0-9-]*-tools$"),
+    "plenora.capability.version": re.compile(r"^[1-9][0-9]*$"),
+    "plenora.capability.operation": re.compile(r"^[a-z][a-z0-9_-]*(\.[a-z][a-z0-9_-]*)+$"),
+    "plenora.operation.version": re.compile(r"^[1-9][0-9]*$"),
+    "plenora.input.contract": re.compile(r"^plenora-[a-z0-9-]+-v[1-9][0-9]*$"),
+}
+IDENTITY_KEYS = (
+    "plenora.message.id", "plenora.trace.correlation_id", "plenora.message.causation_id",
+)
+REQUIRED_REQUEST_KEYS = (
+    *ROUTING_GRAMMAR, "plenora.message.id", "plenora.trace.correlation_id",
+)
+DEADLINE_KEY = "plenora.execution.deadline"
+IDEMPOTENCY_KEY = "plenora.execution.idempotency_key"
+# RT-021: any RFC 3339 date-time with an offset; UTC is `Z`, `z` or `+00:00`.
+RFC3339_DATE_TIME = re.compile(
+    r"^\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}:\d{2}(\.\d+)?(?P<offset>[Zz]|[+-]\d{2}:\d{2})$"
+)
+# The spelling every vector uses. Runtime Binding 1.0 does not decide the
+# others (decision 0010), so a probe may not rely on them.
+CANONICAL_DEADLINE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?Z$")
+# A probe deadline before this instant has elapsed for any run of the probe.
+ELAPSED_BEFORE = "2026-01-01T00:00:00Z"
+
+
+class ProbeUndecided(Exception):
+    """The probe relies on behavior Runtime Binding 1.0 does not decide."""
+
+
+def canonical_uuid(value: Any) -> bool:
+    try:
+        return isinstance(value, str) and str(UUID(value)) == value
+    except ValueError:
+        return False
+
+
+def well_formed(key: str, value: Any) -> bool:
+    if key in ROUTING_GRAMMAR:
+        return isinstance(value, str) and ROUTING_GRAMMAR[key].fullmatch(value) is not None
+    if key in IDENTITY_KEYS:
+        return canonical_uuid(value)
+    if key == DEADLINE_KEY:
+        if not isinstance(value, str):
+            return False
+        match = RFC3339_DATE_TIME.fullmatch(value)
+        if match is None or match.group("offset") not in ("Z", "z", "+00:00"):
+            # Not RFC 3339, a non-zero offset, or `-00:00`, which RFC 3339
+            # defines as an unknown local offset: never UTC.
+            return False
+        if CANONICAL_DEADLINE.fullmatch(value) is None:
+            raise ProbeUndecided(f"deadline spelling {value!r} is not decided by Runtime Binding 1.0")
+        return True
+    if key == IDEMPOTENCY_KEY:
+        return isinstance(value, str) and value != ""
+    raise ProbeUndecided(f"metadata key {key} is not reserved by Runtime Binding 1.0")
+
+
+def probe_outcome(
+    metadata: dict[str, Any], key: str, operations: dict[tuple[str, str, int], dict[str, Any]]
+) -> tuple[str, str]:
+    """Category and rule of the rejection of mutated request metadata
+    (RT-017, RT-018, RT-021, RT-022), checked in the order RT-018 states."""
+    rule_of_key = {DEADLINE_KEY: "RT-021", IDEMPOTENCY_KEY: "RT-022"}
+    for name in metadata:
+        if name.startswith("plenora.") and name != key:
+            well_formed(name, metadata[name])
+    if key not in metadata:
+        if key not in REQUIRED_REQUEST_KEYS:
+            raise ProbeUndecided(f"removing optional {key} is not a rejection")
+        return "protocol", "RT-017"
+    if not well_formed(key, metadata[key]):
+        return "protocol", rule_of_key.get(key, "RT-017")
+    component = None
+    for (candidate, operation_id, version), operation in operations.items():
+        if (
+            f"plenora.{candidate.removeprefix('plenora-')}" == metadata["plenora.capability.name"]
+            and metadata["plenora.capability.version"] == "1"
+            and operation_id == metadata["plenora.capability.operation"]
+            and str(version) == metadata["plenora.operation.version"]
+            and "runtime" in operation["surfaces"]
+            and operation["input"]["contract"] == metadata["plenora.input.contract"]
+        ):
+            component = operation
+    if component is None:
+        return "unsupported", "RT-018"
+    if DEADLINE_KEY in metadata and not component["controls"]["deadline"]:
+        return "unsupported", "RT-021"
+    if IDEMPOTENCY_KEY in metadata and not component["controls"]["idempotency_key"]:
+        return "unsupported", "RT-022"
+    if DEADLINE_KEY in metadata and metadata[DEADLINE_KEY] < ELAPSED_BEFORE:
+        return "timeout", "RT-021"
+    raise ProbeUndecided("the mutated request is not rejected")
+
+
+def probe_result_metadata(metadata: dict[str, Any]) -> dict[str, str]:
+    """RT-019: the routing and correlation keys a rejection reflects, byte for
+    byte, only when the request carried them well-formed."""
+    result = {"plenora.output.contract": "plenora-error-v1"}
+    for key in ("plenora.capability.operation", "plenora.operation.version"):
+        if key in metadata and well_formed(key, metadata[key]):
+            result[key] = metadata[key]
+    correlation = metadata.get("plenora.trace.correlation_id")
+    if canonical_uuid(correlation):
+        result["plenora.trace.correlation_id"] = correlation
+    return result
+
+
+def runtime_probe_errors(
+    probe: dict[str, Any],
+    operations: dict[tuple[str, str, int], dict[str, Any]],
+    schemas: dict[str, dict[str, Any]],
+    registry: Registry,
+) -> list[str]:
+    base_path = ROOT / "vectors/runtime-v1" / probe["base"]
+    if not base_path.is_file():
+        return [f"base {probe['base']} is not a runtime vector"]
+    base = load_json(base_path)
+    if member(base, "kind") != "request" or not isinstance(member(base, "metadata"), dict):
+        return [f"base {probe['base']} is not a request vector"]
+    metadata = dict(base["metadata"])
+    mutation = probe["mutation"]
+    if "remove" in mutation:
+        key = mutation["remove"]
+        if key not in metadata:
+            return [f"removes {key}, which the base does not carry"]
+        del metadata[key]
+    else:
+        ((key, value),) = mutation["set"].items()
+        if key in metadata and metadata[key] == value and type(metadata[key]) is type(value):
+            return [f"sets {key} to the value the base already carries"]
+        metadata[key] = value
+    try:
+        category, rule = probe_outcome(metadata, key, operations)
+        expected_metadata = probe_result_metadata(metadata)
+    except ProbeUndecided as undecided:
+        return [str(undecided)]
+    errors = []
+    expected_error = {
+        "category": category, "phase": "validate", "remote_effect": "none",
+        "retry": {"kind": "never"},
+    }
+    declared_error = probe["expected"]["error"]
+    schema_errors = instance_errors(
+        schemas["error-v1.schema.json"], {**declared_error, "message": "probe"}, registry
+    )
+    if schema_errors:
+        errors.append(f"expected error is not a plenora-error-v1 value: {schema_errors[0]}")
+    if declared_error != expected_error:
+        errors.append(
+            f"expects {declared_error}, but RT-016 and {rule} give {expected_error}"
+        )
+    if probe["rule"] != rule:
+        errors.append(f"names {probe['rule']}, but the rejection follows {rule}")
+    if probe["expected"]["metadata"] != expected_metadata:
+        errors.append(
+            f"expects result metadata {probe['expected']['metadata']}, "
+            f"but RT-019 gives {expected_metadata}"
+        )
+    return errors
+
+
+def validate_runtime_probes(
+    catalogs: dict[str, dict[str, Any]],
+    schemas: dict[str, dict[str, Any]],
+    registry: Registry,
+) -> list[str]:
+    operations = operation_index(catalogs)
+    failures = []
+    for path in sorted((ROOT / RUNTIME_PROBE_DIR).glob("*.json")):
+        for error in runtime_probe_errors(load_json(path), operations, schemas, registry):
+            failures.append(f"{path.relative_to(ROOT).as_posix()} {error}")
     return failures
 
 
@@ -2449,6 +2644,7 @@ def run_gate() -> int:
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
+    failures.extend(validate_runtime_probes(catalogs, schemas, registry))
     failures.extend(validate_plan_budget(schemas, registry))
     failures.extend(validate_data_plan(schemas, registry))
     failures.extend(validate_markdown_links())
