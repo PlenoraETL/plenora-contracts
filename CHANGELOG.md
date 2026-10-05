@@ -23,6 +23,21 @@
   and names the file, and only against a base that still published the error;
   the success vector of `data.run` 3, corrected by the same erratum, is now
   declared too. No contract document changes.
+- Validator defect classes. A REST boundary example is matched by
+  `(operation, version)` and must name its version (with one catalog version
+  the version was ignored, so version 99 passed). A null `artifact_source` no
+  longer counts as an upload source, a null forbidden artifact member is
+  still forbidden (REST and storage), and a null attribute dropped by a later
+  catalog is a change. Every JSON document is read rejecting repeated object
+  keys. Two `data.run` 3 requests with one correlation id, two binding
+  sections for one component and two REST capability entries for one
+  identity are rejected instead of overwritten. Storage vector coverage and
+  the data-tools catalog checks name the operation version. A null where an
+  object is expected is a validation error instead of a crash: a structural
+  failure stops the gate before the semantic checks, any other exception is
+  reported as an internal validator error without a traceback, and a null
+  fuzz over every member of every vector and example guards the class. The REST
+  boundary examples now state `version: 1`.
 
 ### Added
 
