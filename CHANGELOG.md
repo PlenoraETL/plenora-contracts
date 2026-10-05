@@ -91,6 +91,44 @@
   unproven publication outcome, as ERR-006 does. The schema is corrected in
   place because no artifact had adopted it; see
   [decision 0008](decisions/0008-data-run-runtime.md).
+- The immutability gate protected only `schemas/`: a published catalog,
+  operation registry, binding map or normative vector could change in place
+  unnoticed. It now compares them with the same bases and admits only the
+  additions COMPATIBILITY.md lists (a new operation identity, a new surface,
+  a new binding or kernel, a new vector file). The ratified floor moves to the
+  merge of PR #12, and a branch is also compared with the commit where it left
+  `origin/main`, so documents published after the floor are protected on its
+  first push. A declared erratum is admitted only while its decision exists
+  and names the file, and only against a base that still published the error;
+  the success vector of `data.run` 3, corrected by the same erratum, is now
+  declared too. No contract document changes.
+- Validator defect classes. A REST boundary example is matched by
+  `(operation, version)` and must name its version (with one catalog version
+  the version was ignored, so version 99 passed). A null `artifact_source` no
+  longer counts as an upload source, a null forbidden artifact member is
+  still forbidden (REST and storage), and a null attribute dropped by a later
+  catalog is a change. Every JSON document is read rejecting repeated object
+  keys. Two `data.run` 3 requests with one correlation id, two binding
+  sections for one component and two REST capability entries for one
+  identity are rejected instead of overwritten. Storage vector coverage and
+  the data-tools catalog checks name the operation version. A null where an
+  object is expected is a validation error instead of a crash: a structural
+  failure stops the gate before the semantic checks, any other exception is
+  reported as an internal validator error without a traceback, and a null
+  fuzz over every member of every vector and example guards the class. The REST
+  boundary examples now state `version: 1`.
+- The private-path and inline-credential guards of the validator missed
+  `./x`, `~/x`, `C:relative\x`, `%TEMP%\x` and `$HOME/x`, and recognized
+  credentials only by exact member name (`apiKey`, `client_secret` and
+  `access_token` passed). A REST artifact reference must now be an opaque
+  `scheme:` / `scheme://` reference; member names are compared lower-case
+  without `_`, `-`, `.` and spaces, by substring, a `*_ref` member must hold
+  an opaque reference, and authorization or PEM values are recognized under
+  any name. A string that is a valid opaque reference (the `reference`
+  grammar of `data-execution-input-v3.schema.json`) is never judged as a
+  path, so `artifact://tenant/$HOME/report` stays valid; a backslash marks a
+  path; member names are NFKC-folded. The residual limit of the heuristic is
+  declared in the validator and in the REST and storage profiles. No contract document changes.
 - The summary line of `tools/validate_specs.py` wrote the error-bound probes
   and the binding maps as literals (`7`, `3`); both are now counted from what
   the run checked.

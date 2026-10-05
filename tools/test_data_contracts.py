@@ -187,7 +187,7 @@ class DataContractTests(unittest.TestCase):
     def test_non_json_constants_are_rejected(self):
         self.assertTrue(validator.data_plan_number_errors('{"a": NaN}'))
         self.assertTrue(validator.data_plan_number_errors('{"a": -Infinity}'))
-        with self.assertRaises(ValueError):
+        with self.assertRaises(validator.SpecError):
             validator.reject_constant("NaN")
 
 

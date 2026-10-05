@@ -1,6 +1,7 @@
 {
   "surface": "runtime",
   "operation": "rest.download",
+  "version": 1,
   "input_contract": "plenora-rest-file-transfer-input-v1",
   "content_type": "application/json",
   "declared_side_effect": "remote",
