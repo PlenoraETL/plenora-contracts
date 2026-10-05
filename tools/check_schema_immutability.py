@@ -313,8 +313,12 @@ def check(root: Path, base: str, head: str | None = None) -> list[str]:
     present = worktree_paths(root) if head is None else None
 
     def read_text(relative: str) -> str | None:
-        if present is not None:
+        if present is not None and relative.split("/", 1)[0] in PROTECTED_DIRECTORIES:
             return (root / relative).read_text(encoding="utf-8") if relative in present else None
+        if present is not None:
+            # A decision of an erratum: informative, read as it is on disk.
+            path = root / relative
+            return path.read_text(encoding="utf-8") if path.is_file() else None
         try:
             return git(root, "show", f"{head}:{relative}")
         except subprocess.CalledProcessError:
@@ -361,17 +365,43 @@ def check(root: Path, base: str, head: str | None = None) -> list[str]:
 
 
 def worktree_paths(root: Path) -> set[str]:
-    """Tracked and untracked (not ignored) files, minus deleted ones, with
-    the exact spelling Git records."""
-    def listed(*options: str) -> set[str]:
-        return {path for path in git(root, "ls-files", "-z", *options).split("\0") if path}
+    """Files of the working tree under the protected directories, with the
+    exact spelling they have on disk.
 
-    return (listed("--cached") | listed("--others", "--exclude-standard")) - listed("--deleted")
+    Git lists the candidates: tracked files, and every untracked file under
+    the protected directories, ignored ones included (an ignored schema is
+    still a schema). Each candidate counts only if every component of its
+    path exists on disk with exactly that spelling: a case-only rename made
+    on a case-insensitive file system, which the index does not record,
+    leaves the old spelling openable but absent from its directory listing.
+    """
+    def listed(*options: str) -> set[str]:
+        output = git(root, "ls-files", "-z", *options, "--", *PROTECTED_DIRECTORIES)
+        return {path for path in output.split("\0") if path}
+
+    listings: dict[Path, set[str]] = {}
+
+    def spelled_on_disk(relative: str) -> bool:
+        directory = root
+        for part in relative.split("/"):
+            if directory not in listings:
+                try:
+                    listings[directory] = set(os.listdir(directory))
+                except OSError:
+                    listings[directory] = set()
+            if part not in listings[directory]:
+                return False
+            directory = directory / part
+        return directory.is_file()
+
+    candidates = (listed("--cached") | listed("--others")) - listed("--deleted")
+    return {path for path in candidates if spelled_on_disk(path)}
 
 
 # Local opt-out when no `origin/main` exists (a clone without that remote).
-# Never honored in CI.
+# Never honored in CI: any of `CI_MARKERS` set, with any value, disables it.
 NO_FORK_POINT_WAIVER = "PLENORA_ALLOW_NO_FORK_POINT"
+CI_MARKERS = ("CI", "GITHUB_ACTIONS", "GITHUB_RUN_ID")
 
 
 def fork_point(root: Path) -> str:
@@ -394,7 +424,9 @@ def main() -> int:
     try:
         fork = fork_point(ROOT)
     except ValueError as error:
-        waived = os.environ.get(NO_FORK_POINT_WAIVER) == "1" and os.environ.get("GITHUB_ACTIONS") != "true"
+        waived = os.environ.get(NO_FORK_POINT_WAIVER) == "1" and not any(
+            marker in os.environ for marker in CI_MARKERS
+        )
         if not waived:
             print(f"published document baseline check failed: {error}; fetch it, or set "
                   f"{NO_FORK_POINT_WAIVER}=1 outside CI to check only the floor and the event base")

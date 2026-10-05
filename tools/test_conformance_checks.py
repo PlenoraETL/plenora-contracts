@@ -2,6 +2,7 @@ import contextlib
 import copy
 import io
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -289,9 +290,13 @@ class SchemaImmutabilityTests(unittest.TestCase):
         self.assertIn("later-v1.schema.json", output.getvalue())
 
     def run_main(self, environment):
-        environment = {"PLENORA_SCHEMA_BASE": "0" * 40, "GITHUB_ACTIONS": "", "PLENORA_ALLOW_NO_FORK_POINT": "", **environment}
+        # The run's own CI markers (this suite runs in CI too) are removed.
+        environment = {
+            **{key: value for key, value in os.environ.items() if key not in immutability.CI_MARKERS},
+            "PLENORA_SCHEMA_BASE": "0" * 40, "PLENORA_ALLOW_NO_FORK_POINT": "", **environment,
+        }
         with patch.object(immutability, "ROOT", self.root), patch.object(immutability, "RATIFIED_BASE", self.base), \
-                patch.dict("os.environ", environment), patch("sys.argv", ["check"]), \
+                patch.dict("os.environ", environment, clear=True), patch("sys.argv", ["check"]), \
                 contextlib.redirect_stdout(io.StringIO()) as output:
             status = immutability.main()
         return status, output.getvalue()
@@ -304,8 +309,10 @@ class SchemaImmutabilityTests(unittest.TestCase):
         status, output = self.run_main({"PLENORA_ALLOW_NO_FORK_POINT": "1"})
         self.assertEqual(status, 0, output)
         self.assertIn("note:", output)
-        status, _ = self.run_main({"PLENORA_ALLOW_NO_FORK_POINT": "1", "GITHUB_ACTIONS": "true"})
-        self.assertEqual(status, 1)
+        for marker in [{"GITHUB_ACTIONS": "true"}, {"GITHUB_ACTIONS": ""}, {"CI": "false"}, {"GITHUB_RUN_ID": "1"}]:
+            with self.subTest(marker=marker):
+                status, _ = self.run_main({"PLENORA_ALLOW_NO_FORK_POINT": "1", **marker})
+                self.assertEqual(status, 1)
         subprocess.run(["git", "-C", str(self.root), "update-ref", "refs/remotes/origin/main", "HEAD"], check=True)
         self.assertEqual(self.run_main({"GITHUB_ACTIONS": "true"})[0], 0)
 
@@ -337,6 +344,11 @@ class SchemaImmutabilityTests(unittest.TestCase):
         self.assertEqual(immutability.check(self.root, self.base), [])
 
     def test_new_file_cannot_reuse_an_existing_schema_identifier(self):
+        self.schema_path.with_name("alias.schema.json").write_text(json.dumps(self.schema), encoding="utf-8")
+        self.assertTrue(any("duplicate schema" in error for error in immutability.check(self.root, self.base)))
+
+    def test_ignored_schema_is_still_checked(self):
+        (self.root / ".gitignore").write_text("schemas/alias.schema.json\n", encoding="utf-8")
         self.schema_path.with_name("alias.schema.json").write_text(json.dumps(self.schema), encoding="utf-8")
         self.assertTrue(any("duplicate schema" in error for error in immutability.check(self.root, self.base)))
 
@@ -497,6 +509,13 @@ class PublishedDocumentImmutabilityTests(unittest.TestCase):
         relative = "vectors/runtime-v1/probe-request.json"
         renamed = "vectors/runtime-v1/PROBE-REQUEST.json"
         subprocess.run(["git", "-C", str(self.root), "mv", relative, renamed], check=True, capture_output=True)
+        self.assertIn(f"published document removed: {relative}", immutability.check(self.root, self.base))
+
+    def test_case_only_rename_outside_the_index_is_a_removal(self):
+        # Renamed on disk only: the index keeps the old spelling, which a
+        # case-insensitive file system still opens.
+        relative = "vectors/runtime-v1/probe-request.json"
+        os.rename(self.root / relative, self.root / "vectors/runtime-v1/PROBE-REQUEST.json")
         self.assertIn(f"published document removed: {relative}", immutability.check(self.root, self.base))
 
     def test_deleted_tracked_file_is_a_removal(self):

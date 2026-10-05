@@ -95,8 +95,11 @@ immutable base, the ratified floor recorded in
 left `origin/main`. The last one protects documents published after the floor
 on the first push of a new branch, which has no event base. Without
 `origin/main` the gate fails; outside CI, `PLENORA_ALLOW_NO_FORK_POINT=1`
-waives that revision explicitly and the gate checks the other two. Files of
-the checked tree are listed by Git, case-sensitively, so a rename that changes
-only letter case is a removal on every file system. It rejects removed documents, changed assertions and identities, and reused schema
+waives that revision explicitly and the gate checks the other two (the waiver
+is ignored when `CI`, `GITHUB_ACTIONS` or `GITHUB_RUN_ID` is set). Files of
+the checked tree are listed by Git, ignored files under the protected
+directories included, and each counts only with the exact spelling it has on
+disk, so a rename that changes only letter case is a removal on every file
+system. It rejects removed documents, changed assertions and identities, and reused schema
 identifiers. The guard treats only schema annotations as editable prose; a
 property or literal named `description` remains part of the validation rules.
