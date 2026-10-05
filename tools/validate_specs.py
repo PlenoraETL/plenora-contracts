@@ -1385,9 +1385,7 @@ def rest_boundary_errors(
     if document.get("declared_side_effect") != operation["side_effect"]:
         errors.append("REST runtime request has a non-conservative side-effect class")
 
-    payload = document.get("input")
-    if not isinstance(payload, dict):
-        return errors + ["REST runtime request input must be an object"]
+    payload = document.get("input", {})
     secret_keys = {
         "authorization",
         "credentials",
@@ -1402,6 +1400,9 @@ def rest_boundary_errors(
                 f"REST runtime request contains inline credential field {key}"
             )
 
+    # The member checks above read nothing from a non-object; the rest does.
+    if not isinstance(payload, dict):
+        return errors + ["REST runtime request input must be an object"]
     # A required artifact is an object; a forbidden one is forbidden as a
     # member, even null.
     has_source = isinstance(payload.get("artifact_source"), dict)
