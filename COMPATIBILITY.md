@@ -103,3 +103,24 @@ disk, so a rename that changes only letter case is a removal on every file
 system. It rejects removed documents, changed assertions and identities, and reused schema
 identifiers. The guard treats only schema annotations as editable prose; a
 property or literal named `description` remains part of the validation rules.
+
+## Repository releases
+
+A repository release is an annotated Git tag `vMAJOR.MINOR.PATCH` on a commit
+of `main`, with a matching section in [CHANGELOG.md](CHANGELOG.md); the tag
+carries the date. The tag is a readable name for that commit and for the
+changes the CHANGELOG lists up to it; it does not replace the pin. An adoption manifest records the full
+commit SHA (see [ADOPTION.md](ADOPTION.md)) and may cite the tag next to it.
+A tag is never moved or reused.
+
+The repository version follows the documents it publishes:
+
+- MAJOR: a published document, identifier or rule is withdrawn or changes
+  meaning, which the immutability rules above admit only through a declared
+  erratum or a governance decision;
+- MINOR: new contract versions, operations, surfaces, schemas, catalogs or
+  vectors, next to the existing ones;
+- PATCH: compatible prose clarifications, errata, validator and tooling
+  changes that do not alter any published document.
+
+Every commit of `main` remains a valid pin; a release only names one.
