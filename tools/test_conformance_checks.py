@@ -288,6 +288,27 @@ class SchemaImmutabilityTests(unittest.TestCase):
             self.assertEqual(immutability.main(), 1)
         self.assertIn("later-v1.schema.json", output.getvalue())
 
+    def run_main(self, environment):
+        environment = {"PLENORA_SCHEMA_BASE": "0" * 40, "GITHUB_ACTIONS": "", "PLENORA_ALLOW_NO_FORK_POINT": "", **environment}
+        with patch.object(immutability, "ROOT", self.root), patch.object(immutability, "RATIFIED_BASE", self.base), \
+                patch.dict("os.environ", environment), patch("sys.argv", ["check"]), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            status = immutability.main()
+        return status, output.getvalue()
+
+    def test_missing_fork_point_fails_unless_waived_outside_ci(self):
+        # This repository has no origin/main.
+        status, output = self.run_main({})
+        self.assertEqual(status, 1)
+        self.assertIn("cannot find where HEAD left", output)
+        status, output = self.run_main({"PLENORA_ALLOW_NO_FORK_POINT": "1"})
+        self.assertEqual(status, 0, output)
+        self.assertIn("note:", output)
+        status, _ = self.run_main({"PLENORA_ALLOW_NO_FORK_POINT": "1", "GITHUB_ACTIONS": "true"})
+        self.assertEqual(status, 1)
+        subprocess.run(["git", "-C", str(self.root), "update-ref", "refs/remotes/origin/main", "HEAD"], check=True)
+        self.assertEqual(self.run_main({"GITHUB_ACTIONS": "true"})[0], 0)
+
     def test_only_the_declared_erratum_transition_is_allowed(self):
         relative = "schemas/probe-v1.schema.json"
         previous = json.loads(json.dumps(self.schema))
@@ -470,6 +491,18 @@ class PublishedDocumentImmutabilityTests(unittest.TestCase):
                 finally:
                     self.write_all()
                 self.assertIn(f"published document removed: {relative}", errors)
+
+    def test_case_only_rename_is_a_removal(self):
+        # On a case-insensitive file system the old spelling still opens.
+        relative = "vectors/runtime-v1/probe-request.json"
+        renamed = "vectors/runtime-v1/PROBE-REQUEST.json"
+        subprocess.run(["git", "-C", str(self.root), "mv", relative, renamed], check=True, capture_output=True)
+        self.assertIn(f"published document removed: {relative}", immutability.check(self.root, self.base))
+
+    def test_deleted_tracked_file_is_a_removal(self):
+        relative = "catalogs/probe-kernels-v1.json"
+        (self.root / relative).unlink()
+        self.assertIn(f"published document removed: {relative}", immutability.check(self.root, self.base))
 
     def test_repeated_key_cannot_hide_a_change(self):
         path = self.root / "catalogs/probe-tools-v1.json"

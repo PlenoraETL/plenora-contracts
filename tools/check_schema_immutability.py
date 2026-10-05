@@ -307,10 +307,14 @@ def check(root: Path, base: str, head: str | None = None) -> list[str]:
     if not any(path.startswith("schemas/") for path in paths):
         raise ValueError("baseline contains no versioned schemas")
 
+    # The working tree is listed by Git, case-sensitively: on a
+    # case-insensitive file system a renamed `X.json` would still open under
+    # its old spelling and hide the removal.
+    present = worktree_paths(root) if head is None else None
+
     def read_text(relative: str) -> str | None:
-        if head is None:
-            path = root / relative
-            return path.read_text(encoding="utf-8") if path.is_file() else None
+        if present is not None:
+            return (root / relative).read_text(encoding="utf-8") if relative in present else None
         try:
             return git(root, "show", f"{head}:{relative}")
         except subprocess.CalledProcessError:
@@ -340,8 +344,8 @@ def check(root: Path, base: str, head: str | None = None) -> list[str]:
                 f"published document changed: {relative}: {change}; introduce a new version"
                 for change in changes
             )
-    if head is None:
-        schema_files = [f"schemas/{path.name}" for path in sorted((root / "schemas").glob("*.schema.json"))]
+    if present is not None:
+        schema_files = sorted(path for path in present if path.startswith("schemas/") and is_protected(path))
     else:
         listed = git(root, "ls-tree", "-r", "--name-only", head, "--", "schemas").splitlines()
         schema_files = [path for path in listed if is_protected(path)]
@@ -356,12 +360,28 @@ def check(root: Path, base: str, head: str | None = None) -> list[str]:
     return errors
 
 
-def fork_point(root: Path) -> str | None:
-    """Where HEAD left `origin/main`, or None when that ref is absent."""
+def worktree_paths(root: Path) -> set[str]:
+    """Tracked and untracked (not ignored) files, minus deleted ones, with
+    the exact spelling Git records."""
+    def listed(*options: str) -> set[str]:
+        return {path for path in git(root, "ls-files", "-z", *options).split("\0") if path}
+
+    return (listed("--cached") | listed("--others", "--exclude-standard")) - listed("--deleted")
+
+
+# Local opt-out when no `origin/main` exists (a clone without that remote).
+# Never honored in CI.
+NO_FORK_POINT_WAIVER = "PLENORA_ALLOW_NO_FORK_POINT"
+
+
+def fork_point(root: Path) -> str:
+    """Where HEAD left `origin/main`. Without it a document published after
+    the ratified floor would go unchecked on a branch's first push, so its
+    absence fails the check."""
     try:
         return git(root, "merge-base", "HEAD", MAIN_REF).strip()
-    except (OSError, subprocess.CalledProcessError):
-        return None
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ValueError(f"cannot find where HEAD left {MAIN_REF}") from error
 
 
 def main() -> int:
@@ -371,9 +391,16 @@ def main() -> int:
     base = arguments.base
     if not base or base == "0" * 40:
         base = None
-    fork = fork_point(ROOT)
-    if fork is None:
-        print(f"note: {MAIN_REF} is not available; checked against the ratified floor and the event base only")
+    try:
+        fork = fork_point(ROOT)
+    except ValueError as error:
+        waived = os.environ.get(NO_FORK_POINT_WAIVER) == "1" and os.environ.get("GITHUB_ACTIONS") != "true"
+        if not waived:
+            print(f"published document baseline check failed: {error}; fetch it, or set "
+                  f"{NO_FORK_POINT_WAIVER}=1 outside CI to check only the floor and the event base")
+            return 1
+        fork = None
+        print(f"note: {error}; {NO_FORK_POINT_WAIVER}=1, checked against the ratified floor and the event base only")
     try:
         # The ratified floor remains protected even when a branch's prior push
         # already contained an invalid edit; the fork point protects what main

@@ -93,8 +93,10 @@ CI compares the protected documents against three revisions: the event's
 immutable base, the ratified floor recorded in
 `tools/check_schema_immutability.py` and the commit where the checked revision
 left `origin/main`. The last one protects documents published after the floor
-on the first push of a new branch, which has no event base; when
-`origin/main` is not available the gate says so and checks the other two. It
-rejects removed documents, changed assertions and identities, and reused schema
+on the first push of a new branch, which has no event base. Without
+`origin/main` the gate fails; outside CI, `PLENORA_ALLOW_NO_FORK_POINT=1`
+waives that revision explicitly and the gate checks the other two. Files of
+the checked tree are listed by Git, case-sensitively, so a rename that changes
+only letter case is a removal on every file system. It rejects removed documents, changed assertions and identities, and reused schema
 identifiers. The guard treats only schema annotations as editable prose; a
 property or literal named `description` remains part of the validation rules.
