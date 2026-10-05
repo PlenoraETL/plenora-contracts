@@ -44,6 +44,51 @@ class NormativeIndexTests(unittest.TestCase):
             len(validator.normative_index_errors("# Title\n\n## Scope\n", [])), 1
         )
 
+    def test_equivalent_relative_spellings_are_one_path(self):
+        for target in (
+            "./specs/data/DATA-PLAN-1.0.md",
+            "specs/x/../data/DATA-PLAN-1.0.md",
+            "specs/data/./DATA-PLAN-1.0.md#scope",
+        ):
+            readme = f"## Normative sources\n\n- [plan]({target}).\n"
+            self.assertEqual(
+                validator.normative_index_errors(readme, ["specs/data/DATA-PLAN-1.0.md"]),
+                [],
+                target,
+            )
+
+    def test_letter_case_is_preserved(self):
+        readme = "## Normative sources\n\n- [plan](specs/data/data-plan-1.0.md).\n"
+        errors = validator.normative_index_errors(readme, ["specs/data/DATA-PLAN-1.0.md"])
+        self.assertEqual(len(errors), 1)
+
+    def test_path_outside_the_repository_does_not_count(self):
+        readme = "## Normative sources\n\n- [plan](../specs/data/DATA-PLAN-1.0.md).\n"
+        errors = validator.normative_index_errors(readme, ["specs/data/DATA-PLAN-1.0.md"])
+        self.assertEqual(len(errors), 1)
+
+    def test_commented_entry_is_missing(self):
+        for readme in (
+            "## Normative sources\n\n<!-- - [plan](specs/data/DATA-PLAN-1.0.md); -->\n",
+            "## Normative sources\n\n<!--\n- [plan](specs/data/DATA-PLAN-1.0.md);\n-->\n",
+            "## Normative sources\n\n```md\n- [plan](specs/data/DATA-PLAN-1.0.md);\n```\n",
+            "## Normative sources\n\n~~~\n- [plan](specs/data/DATA-PLAN-1.0.md);\n~~~\n",
+            "## Normative sources\n\n- `[plan](specs/data/DATA-PLAN-1.0.md)`;\n",
+            "## Normative sources\n\n<!-- open\n- [plan](specs/data/DATA-PLAN-1.0.md);\n",
+            "## Normative sources\n\n```\n- [plan](specs/data/DATA-PLAN-1.0.md);\n",
+        ):
+            errors = validator.normative_index_errors(readme, ["specs/data/DATA-PLAN-1.0.md"])
+            self.assertEqual(len(errors), 1, readme)
+
+    def test_entry_after_a_comment_still_counts(self):
+        readme = (
+            "## Normative sources\n\n<!-- note -->\n"
+            "- [plan](specs/data/DATA-PLAN-1.0.md);\n"
+        )
+        self.assertEqual(
+            validator.normative_index_errors(readme, ["specs/data/DATA-PLAN-1.0.md"]), []
+        )
+
     def test_repository_readme_lists_every_specification(self):
         self.assertEqual(validator.validate_normative_index(), [])
 
