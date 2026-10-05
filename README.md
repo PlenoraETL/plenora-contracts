@@ -118,3 +118,9 @@ Conformance is explicit and pinned to an immutable revision. A project cannot
 claim conformance merely because its internal types look similar. It must expose
 the required behavior and verify it through its public boundary as described in
 [ADOPTION.md](ADOPTION.md).
+
+## License
+
+Proprietary; see [LICENSE](LICENSE). The repository is visible, but no right
+to use, copy, modify or distribute its contents is granted except under a
+separate written agreement with Plenora ETL.

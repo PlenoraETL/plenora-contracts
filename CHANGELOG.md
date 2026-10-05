@@ -4,6 +4,8 @@
 
 ### Added
 
+- `LICENSE`: the proprietary license of the other Plenora repositories. The
+  repository had no license file. No contract document changes.
 - `data.run` version 3 in `data-tools-v2.json`: the runtime representation of
   a `plenora-data-plan-v1` plan with named outputs, from artifact sources to
   artifact sinks, with a JSON manifest result. Conditional, Rust and runtime
