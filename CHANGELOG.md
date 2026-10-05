@@ -19,8 +19,11 @@
   `scheme:` / `scheme://` reference; member names are compared lower-case
   without `_`, `-`, `.` and spaces, by substring, a `*_ref` member must hold
   an opaque reference, and authorization or PEM values are recognized under
-  any name. The residual limit of the heuristic is declared in the validator
-  and in the REST and storage profiles. No contract document changes.
+  any name. A string that is a valid opaque reference (the `reference`
+  grammar of `data-execution-input-v3.schema.json`) is never judged as a
+  path, so `artifact://tenant/$HOME/report` stays valid; a backslash marks a
+  path; member names are NFKC-folded. The residual limit of the heuristic is
+  declared in the validator and in the REST and storage profiles. No contract document changes.
 
 ### Added
 

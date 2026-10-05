@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -1307,15 +1308,19 @@ def artifact_strings(value: Any):
 
 # Fixture guards for private local paths and inline credentials (RT-008,
 # SEC-007, the REST and storage profiles). Where the boundary has a grammar
-# the guard is positive: an artifact reference must be an opaque
-# `scheme:` / `scheme://` reference (`OPAQUE_REFERENCE`, the grammar of
-# `data-execution-input-v3.schema.json`), so a spelling nobody listed fails.
-# Elsewhere it is a heuristic over free text and member names. Declared
-# limit: it recognizes the spellings below and no others; a path or a secret
-# written otherwise (a relative name without separators such as
-# `report.csv`, a credential under an innocuous member name in an
-# unrecognized value format) can pass. It checks this repository's
-# fixtures; an adopter shows the property with its own boundary tests.
+# the guard is positive: an artifact reference must be an opaque reference,
+# exactly `$defs.reference` of `data-execution-input-v3.schema.json`
+# (`is_opaque_reference`), so a spelling nobody listed fails, and a string
+# that satisfies that grammar is never judged by the path heuristic
+# (`artifact://tenant/$HOME/report` is a valid opaque handle). Every other
+# string goes through the heuristic `LOCAL_PATH`, and member names through
+# `SECRET_NAME_PARTS` after NFKC folding (fullwidth `ａｐｉＫｅｙ` matches).
+# Declared limit: it recognizes the spellings below and no others; a
+# relative path with forward slashes or none (`dir/report.csv`,
+# `report.csv`) in a free field, or a credential under an innocuous member
+# name in an unrecognized value format, can pass. It checks this
+# repository's fixtures; an adopter shows the property with its own
+# boundary tests.
 LOCAL_PATH = re.compile(
     r"^[A-Za-z]:"  # a drive, absolute or relative (`C:\x`, `C:x`)
     r"|^[/\\]"  # a root or UNC path
@@ -1324,12 +1329,17 @@ LOCAL_PATH = re.compile(
     r"|(?:^|[/\\:])\.{1,2}(?:[/\\]|$)"  # a `.` or `..` segment (`./x`, `a/../b`)
     r"|%2e"  # an encoded dot
     r"|%[a-z_][a-z0-9_]*%"  # a Windows environment variable (`%TEMP%\x`)
-    r"|(?:^|[/\\])\$\{?[a-z_]",  # a POSIX environment variable (`$HOME/x`)
+    r"|(?:^|[/\\])\$\{?[a-z_]"  # a POSIX environment variable (`$HOME/x`)
+    r"|\\",  # a Windows separator anywhere (`dir\report.csv`)
     re.IGNORECASE,
 )
+# `$defs.reference` of data-execution-input-v3.schema.json: the grammar and
+# the spellings its `not` excludes, nothing more.
 OPAQUE_REFERENCE = re.compile(r"[a-z][a-z0-9+.-]{1,31}:(//)?[^\s\\]+")
-# Member names are compared lower-case without `_`, `-`, `.` and spaces, by
-# substring: `apiKey`, `client_secret` and `access-token` all match.
+OPAQUE_REFERENCE_EXCLUDED = re.compile(r"^[Ff][Ii][Ll][Ee]:|(^|[/:])\.{1,2}(/|$)|%2[Ee]|\s")
+# Member names are compared after NFKC and case folding, without `_`, `-`,
+# `.` and spaces, by substring: `apiKey`, `client_secret`, `access-token` and
+# fullwidth spellings all match.
 SECRET_NAME_PARTS = (
     "authorization", "credential", "password", "passwd", "passphrase", "token",
     "apikey", "secret", "privatekey", "accesskey", "bearer", "cookie",
@@ -1340,17 +1350,17 @@ SECRET_VALUE = re.compile(
 )
 
 
-def is_local_path(value: str) -> bool:
-    return LOCAL_PATH.search(value) is not None
-
-
 def is_opaque_reference(value: Any) -> bool:
     return (
         isinstance(value, str)
-        and len(value) <= 2048
+        and 4 <= len(value) <= 2048
         and OPAQUE_REFERENCE.fullmatch(value) is not None
-        and not is_local_path(value)
+        and OPAQUE_REFERENCE_EXCLUDED.search(value) is None
     )
+
+
+def is_local_path(value: str) -> bool:
+    return not is_opaque_reference(value) and LOCAL_PATH.search(value) is not None
 
 
 def inline_credential_errors(payload: Any, label: str) -> list[str]:
@@ -1359,7 +1369,7 @@ def inline_credential_errors(payload: Any, label: str) -> list[str]:
     reference; and string values that are credentials by their format."""
     errors = []
     for key, value in nested_items(payload):
-        name = re.sub(r"[\s_.-]", "", key.lower())
+        name = re.sub(r"[\s_.-]", "", unicodedata.normalize("NFKC", key).casefold())
         if not any(part in name for part in SECRET_NAME_PARTS):
             continue
         if name.endswith(("ref", "reference")) and is_opaque_reference(value):

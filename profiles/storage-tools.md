@@ -52,12 +52,16 @@ explicit missing-object policy.
 Conformance note (informative): this repository's gate checks the storage
 runtime vectors positively for artifact references (`artifact://` with a
 bounded opaque handle) and for `credential_ref`, and heuristically for private
-paths and inline credentials elsewhere in the payload: drive, root, UNC, home,
-`.`/`..`, `file:` and environment-variable spellings, member names containing
-a secret word after lower-casing and removing `_`, `-`, `.` and spaces, and
-authorization or PEM values. A path or secret spelled otherwise can pass that
-heuristic; the property itself is shown by the adopter's boundary tests, not
-by the gate.
+paths and inline credentials elsewhere: a string that is a valid opaque
+reference (the `reference` grammar of `data-execution-input-v3.schema.json`) is
+never judged as a path; any other string is a path when it has a drive, root,
+UNC, home, `.`/`..`, `file:`, environment-variable or backslash spelling; a
+member name is a credential when, after NFKC and case folding and without `_`,
+`-`, `.` and spaces, it contains a secret word; authorization and PEM values
+are credentials under any name. A relative path with forward slashes or none
+(`dir/report.csv`, `report.csv`) in a free field, or a secret spelled
+otherwise, can pass that heuristic; the property itself is shown by the
+adopter's boundary tests, not by the gate.
 
 `overwrite=false` is permitted only when the provider guarantees atomic
 create-if-absent for that specific operation; put and copy support are
