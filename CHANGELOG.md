@@ -12,6 +12,18 @@
   unproven publication outcome, as ERR-006 does. The schema is corrected in
   place because no artifact had adopted it; see
   [decision 0008](decisions/0008-data-run-runtime.md).
+- Validator defect classes. A REST boundary example is matched by
+  `(operation, version)` and must name its version (with one catalog version
+  the version was ignored, so version 99 passed). A null `artifact_source` no
+  longer counts as an upload source, a null forbidden artifact member is
+  still forbidden (REST and storage), and a null attribute dropped by a later
+  catalog is a change. Every JSON document is read rejecting repeated object
+  keys. Two `data.run` 3 requests with one correlation id, two binding
+  sections for one component and two REST capability entries for one
+  identity are rejected instead of overwritten. Storage vector coverage and
+  the data-tools catalog checks name the operation version. A null where an
+  object is expected is a validation error instead of a crash. The REST
+  boundary examples now state `version: 1`.
 
 ### Added
 

@@ -270,9 +270,34 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+class RepeatedKey(ValueError):
+    """A JSON object repeats a member name: `json` would keep the last value
+    and drop the others in silence, so every document is read strictly."""
+
+
+def unique_members(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    keys = [key for key, _ in pairs]
+    if len(keys) != len(set(keys)):
+        raise RepeatedKey("a JSON object repeats a member name")
+    return dict(pairs)
+
+
+def loads_json(text: str) -> Any:
+    return json.loads(text, parse_constant=reject_constant, object_pairs_hook=unique_members)
+
+
 def load_json(path: Path) -> Any:
-    with path.open(encoding="utf-8") as handle:
-        return json.load(handle, parse_constant=reject_constant)
+    try:
+        return loads_json(path.read_text(encoding="utf-8"))
+    except RepeatedKey as error:
+        raise RepeatedKey(f"{path.name}: {error}") from None
+
+
+def member(node: Any, key: str) -> Any:
+    """`node[key]` when `node` is an object, else None: a null or a wrong
+    type where an object is expected never crashes the gate; the comparison
+    that follows fails and reports it."""
+    return node.get(key) if isinstance(node, dict) else None
 
 
 def schema_registry(schemas: dict[str, dict[str, Any]]) -> Registry:
@@ -552,8 +577,13 @@ def repeated_identity_errors(
                     failures.append(f"{label} drops surfaces of catalog v{earlier_version}")
                 earlier_attributes = earlier.get("attributes", {})
                 attributes = operation.get("attributes", {})
+                if not isinstance(earlier_attributes, dict) or not isinstance(attributes, dict):
+                    failures.append(f"{label} attributes are not an object")
+                    continue
+                # Membership first: a null attribute that disappears is a
+                # change, not an equal `None`.
                 for name, value in earlier_attributes.items():
-                    if attributes.get(name) != value:
+                    if name not in attributes or attributes[name] != value:
                         failures.append(f"{label} changes attribute {name} of catalog v{earlier_version}")
                 seen[key] = (version, operation)
     return failures
@@ -814,11 +844,19 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
     return failures
 
 
+REGISTRY_FILE = re.compile(r"^data-kernels-v(?P<version>[1-9][0-9]*)\.json$")
+
+
 def data_registries() -> dict[int, dict[str, Any]]:
-    return {
-        int(path.stem.rsplit("-v", 1)[1]): load_json(path)
-        for path in sorted((ROOT / "catalogs").glob("data-kernels-v*.json"))
-    }
+    """Every registry file by version; a name outside the grammar would
+    collide with another version (`-v01`) or crash, so it fails."""
+    registries: dict[int, dict[str, Any]] = {}
+    for path in sorted((ROOT / "catalogs").glob("data-kernels-v*.json")):
+        match = REGISTRY_FILE.match(path.name)
+        if match is None:
+            raise ValueError(f"registry file name {path.name} is not data-kernels-v<N>.json")
+        registries[int(match["version"])] = load_json(path)
+    return registries
 
 
 def data_registry_errors() -> list[str]:
@@ -876,25 +914,24 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     found = sorted((item["id"], item["version"]) for item in catalog["operations"])
     if found != sorted(expected):
         return [f"data-tools v{version} must declare exactly {sorted(expected)}"]
+    # Catalog version N checks data.catalog, data.validate and data.run at
+    # operation version N (DATA_OPERATION_VERSIONS); data.run 3 has its own
+    # rule below. Each lookup names the version.
     by_identity = {(item["id"], item["version"]): item for item in catalog["operations"]}
-    operations = {
-        operation_id: by_identity[(operation_id, operation_version)]
-        for operation_id, operation_version in expected
-        if (operation_id, operation_version) != ("data.run", 3)
-    }
-    catalog_operation = operations.get("data.catalog")
-    if catalog_operation is None:
-        return [f"data-tools v{version} has no data.catalog operation"]
-    attributes = catalog_operation.get("attributes", {})
-    registry_path = ROOT / attributes.get("registry", "")
-    if not registry_path.is_file():
+    catalog_operation = by_identity[("data.catalog", version)]
+    run = by_identity[("data.run", version)]
+    attributes = catalog_operation.get("attributes")
+    if not isinstance(attributes, dict):
+        return [f"data-tools v{version} data.catalog attributes are not an object"]
+    registry_name = attributes.get("registry")
+    registry_path = ROOT / registry_name if isinstance(registry_name, str) and registry_name else None
+    if registry_path is None or not registry_path.is_file():
         return [f"data-tools v{version} data.catalog does not name an existing kernel registry"]
     registry_id = load_json(registry_path)["registry"]
-    run = operations.get("data.run", {})
     if version == 1:
         if catalog_operation["output"]["contract"] != registry_id:
             failures.append("data-tools v1 data.catalog output contract differs from its registry")
-        if run.get("attributes", {}).get("kernel_registry") != registry_id:
+        if member(run.get("attributes"), "kernel_registry") != registry_id:
             failures.append("data-tools v1 data.run names a different kernel registry")
         return failures
     if catalog_operation["output"]["contract"] != DATA_CATALOG_RESULT.get(version):
@@ -902,10 +939,10 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     if attributes.get("kernel_registry") != registry_id:
         failures.append(f"data-tools v{version} data.catalog names a different kernel registry")
     for operation_id in ("data.validate", "data.run"):
-        operation_attributes = operations.get(operation_id, {}).get("attributes", {})
-        if operation_attributes.get("kernel_registry") != registry_id:
+        operation_attributes = by_identity[(operation_id, version)].get("attributes")
+        if member(operation_attributes, "kernel_registry") != registry_id:
             failures.append(f"data-tools v{version} {operation_id} names a different kernel registry")
-        if operation_attributes.get("plan_contract") != DATA_PLAN_CONTRACT:
+        if member(operation_attributes, "plan_contract") != DATA_PLAN_CONTRACT:
             failures.append(
                 f"data-tools v{version} {operation_id} must declare plan contract {DATA_PLAN_CONTRACT}"
             )
@@ -956,7 +993,9 @@ def data_run_3_errors(catalog: dict[str, Any], version: int, registry_id: str) -
         for field, expected in DATA_RUN_3.items()
         if run.get(field) != expected
     ]
-    attributes = run.get("attributes", {})
+    attributes = run.get("attributes")
+    if not isinstance(attributes, dict):
+        return failures + [f"data-tools v{version} data.run 3 attributes are not an object"]
     if attributes.get("kernel_registry") != registry_id:
         failures.append(f"data-tools v{version} data.run 3 names a different kernel registry")
     if attributes.get("plan_contract") != DATA_PLAN_CONTRACT:
@@ -987,7 +1026,8 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
         document = load_json(path)
         surface = document["surface"]
         components = {item["component"]: item for item in document["components"]}
-        if set(components) != COMPONENTS:
+        # A repeated section would be dropped by the index in silence.
+        if set(components) != COMPONENTS or len(document["components"]) != len(components):
             failures.append(
                 f"{path.name} must contain all five components exactly once"
             )
@@ -1242,9 +1282,11 @@ def rest_capability_errors(
         return ["capability document has the wrong REST component identity"]
 
     expected = {(item["id"], item["version"]): item for item in catalog["operations"]}
-    actual = {
-        (item["id"], item["version"]): item for item in document.get("operations", [])
-    }
+    listed = document.get("operations", [])
+    actual = {(item["id"], item["version"]): item for item in listed}
+    if len(actual) != len(listed):
+        # The index would keep one of two entries for an identity in silence.
+        errors.append("REST capability document repeats an operation identity (CAP-005)")
     missing = sorted(set(expected) - set(actual))
     if missing:
         errors.append(f"REST capability document lacks catalog operations {missing}")
@@ -1320,12 +1362,15 @@ def rest_boundary_errors(
     document: dict[str, Any], catalog: dict[str, Any]
 ) -> list[str]:
     errors: list[str] = []
+    version = document.get("version")
+    if not isinstance(version, int) or isinstance(version, bool):
+        return ["REST artifact boundary example must name its operation version"]
+    # Always by (id, version): with a single catalog version an identifier
+    # alone would accept any version the document claims.
     candidates = [
-        item for item in catalog["operations"] if item["id"] == document.get("operation")
+        item for item in catalog["operations"]
+        if (item["id"], item["version"]) == (document.get("operation"), version)
     ]
-    if len(candidates) > 1:
-        # Several versions: the example names the one it exercises.
-        candidates = [item for item in candidates if item["version"] == document.get("version")]
     operation = candidates[0] if len(candidates) == 1 else None
     if document.get("surface") != "runtime":
         errors.append("REST artifact boundary example is not a runtime request")
@@ -1340,7 +1385,9 @@ def rest_boundary_errors(
     if document.get("declared_side_effect") != operation["side_effect"]:
         errors.append("REST runtime request has a non-conservative side-effect class")
 
-    payload = document.get("input", {})
+    payload = document.get("input")
+    if not isinstance(payload, dict):
+        return errors + ["REST runtime request input must be an object"]
     secret_keys = {
         "authorization",
         "credentials",
@@ -1355,17 +1402,19 @@ def rest_boundary_errors(
                 f"REST runtime request contains inline credential field {key}"
             )
 
-    has_source = "artifact_source" in payload
-    has_sink = "artifact_sink" in payload
+    # A required artifact is an object; a forbidden one is forbidden as a
+    # member, even null.
+    has_source = isinstance(payload.get("artifact_source"), dict)
+    has_sink = isinstance(payload.get("artifact_sink"), dict)
     if operation["id"] == "rest.download":
         if not has_sink:
             errors.append("REST download requires artifact_sink")
-        if has_source:
+        if "artifact_source" in payload:
             errors.append("REST download forbids artifact_source")
     if operation["id"] == "rest.upload":
         if not has_source:
             errors.append("REST upload requires artifact_source")
-        if has_sink:
+        if "artifact_sink" in payload:
             errors.append("REST upload forbids artifact_sink")
     artifact_nodes = [
         payload[key] for key in ("artifact_source", "artifact_sink") if key in payload
@@ -1374,7 +1423,12 @@ def rest_boundary_errors(
         if any(is_local_path(value) for value in artifact_strings(node)):
             errors.append("REST runtime artifact contains a private local path")
 
-    method = payload.get("connection", {}).get("method")
+    connection = payload.get("connection")
+    if "connection" in payload and not isinstance(connection, dict):
+        errors.append("REST runtime request connection must be an object")
+    method = member(connection, "method")
+    if "method" in (connection if isinstance(connection, dict) else {}) and not isinstance(method, str):
+        errors.append("REST runtime request method must be a string")
     if (
         operation["id"] == "rest.download"
         and isinstance(method, str)
@@ -1551,7 +1605,9 @@ def storage_vector_errors(
     vector: dict[str, Any], operation: dict[str, Any]
 ) -> list[str]:
     errors: list[str] = []
-    payload = vector.get("payload", {})
+    payload = vector.get("payload")
+    if not isinstance(payload, dict):
+        return ["storage vector payload must be an object"]
     operation_id = operation["id"]
 
     def validate_artifact_metadata(node: Any, label: str) -> None:
@@ -1618,17 +1674,18 @@ def storage_vector_errors(
 
         source = payload.get("artifact_source")
         sink = payload.get("artifact_sink")
+        # A forbidden artifact is forbidden as a member, even null.
         if operation_id == "storage.get":
             if not isinstance(sink, dict):
                 errors.append("storage.get requires artifact_sink")
             elif not isinstance(sink.get("overwrite"), bool):
                 errors.append("storage.get requires explicit sink overwrite")
-            if source is not None:
+            if "artifact_source" in payload:
                 errors.append("storage.get forbids artifact_source")
         if operation_id == "storage.put":
             if not isinstance(source, dict):
                 errors.append("storage.put requires artifact_source")
-            if sink is not None:
+            if "artifact_sink" in payload:
                 errors.append("storage.put forbids artifact_sink")
             if not isinstance(payload.get("overwrite"), bool):
                 errors.append("storage.put requires explicit overwrite")
@@ -1638,7 +1695,7 @@ def storage_vector_errors(
             }:
                 errors.append("storage.put requires an explicit publication policy")
         for name, node in (("artifact_source", source), ("artifact_sink", sink)):
-            if node is None:
+            if name not in payload:
                 continue
             reference = node.get("reference") if isinstance(node, dict) else None
             # The component-owned artifact reference v1 is opaque and bounded;
@@ -1707,10 +1764,10 @@ def storage_vector_errors(
         ):
             errors.append("storage.list result cursor must be opaque and bounded")
     if vector["kind"] == "error" and payload.get("remote_effect") == "unknown":
-        if payload.get("retry", {}).get("kind") != "requires_recovery":
+        if member(payload.get("retry"), "kind") != "requires_recovery":
             errors.append("ambiguous storage errors must require recovery")
     if vector["kind"] == "error" and payload.get("remote_effect") == "partial":
-        if payload.get("retry", {}).get("kind") not in {
+        if member(payload.get("retry"), "kind") not in {
             "never", "quarantine", "requires_recovery"
         }:
             errors.append("partial storage errors must forbid automatic retry")
@@ -1828,13 +1885,16 @@ def validate_runtime_vectors(
                 failures.append(
                     f"{path.relative_to(ROOT)} has invalid typed error: {errors[0]}"
                 )
-            bound_errors = error_bound_errors(vector["payload"])
+            bound_errors = (
+                error_bound_errors(vector["payload"]) if isinstance(vector["payload"], dict)
+                else ["error payload is not an object"]
+            )
             if bound_errors:
                 failures.append(
                     f"{path.relative_to(ROOT)} has unbounded error: {bound_errors[0]}"
                 )
             if (
-                vector["payload"].get("retry", {}).get("kind") == "requires_idempotency_key"
+                member(member(vector["payload"], "retry"), "kind") == "requires_idempotency_key"
                 and not operation["controls"]["idempotency_key"]
             ):
                 failures.append(
@@ -1844,7 +1904,7 @@ def validate_runtime_vectors(
         if (operation_id, operation["version"]) == ("data.run", 3):
             data_run_3_coverage.add(vector["kind"])
             if vector["kind"] == "error":
-                data_run_3_coverage.add(f"error:{vector['payload'].get('remote_effect')}")
+                data_run_3_coverage.add(f"error:{member(vector['payload'], 'remote_effect')}")
             data_run_3_vectors.append(vector)
             errors = data_run_3_vector_errors(vector, schemas, registry)
             if vector["kind"] == "request":
@@ -1854,16 +1914,18 @@ def validate_runtime_vectors(
                     f"{path.relative_to(ROOT)} violates data.run 3 semantics: {errors[0]}"
                 )
         if component == STORAGE_COMPONENT:
-            storage_coverage.add((operation_id, vector["kind"]))
+            storage_coverage.add((operation_id, operation["version"], vector["kind"]))
             errors = storage_vector_errors(vector, operation)
             if errors:
                 failures.append(
                     f"{path.relative_to(ROOT)} violates storage runtime semantics: {errors[0]}"
                 )
-    required_storage = {(operation, "request") for operation in STORAGE_OPERATIONS}
+    # By (id, version, kind): a vector of another version of an operation
+    # does not cover version 1.
+    required_storage = {(operation, 1, "request") for operation in STORAGE_OPERATIONS}
     required_storage.update({
-        ("storage.list", "success"), ("storage.get", "success"),
-        ("storage.put", "success"), ("storage.get", "error"), ("storage.put", "error"),
+        ("storage.list", 1, "success"), ("storage.get", 1, "success"),
+        ("storage.put", 1, "success"), ("storage.get", 1, "error"), ("storage.put", 1, "error"),
     })
     missing_storage = required_storage - storage_coverage
     if missing_storage:
@@ -1878,26 +1940,46 @@ def validate_runtime_vectors(
     return failures
 
 
+def string_items(value: Any) -> list[str]:
+    return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
+
+
+def requests_by_correlation(vectors: list[dict[str, Any]]) -> tuple[dict[Any, Any], list[str]]:
+    """The request payload of each correlation id. A second request with the
+    same correlation would replace the first in silence: it is rejected."""
+    requests: dict[Any, Any] = {}
+    failures: list[str] = []
+    for vector in vectors:
+        if vector["kind"] != "request":
+            continue
+        correlation = member(vector["metadata"], "plenora.trace.correlation_id")
+        if correlation in requests:
+            failures.append("two data.run 3 requests share one correlation id")
+            continue
+        requests[correlation] = vector["payload"]
+    return requests, failures
+
+
 def data_run_3_error_location_errors(vectors: list[dict[str, Any]]) -> list[str]:
     """No error carries a path or a reference location (DT-RUN-008); the plan
     names of the request with the same correlation are the caller's data and
     may appear as given."""
-    plans = {
-        vector["metadata"]["plenora.trace.correlation_id"]: vector["payload"].get("plan", {})
-        for vector in vectors
-        if vector["kind"] == "request"
-    }
-    failures: list[str] = []
+    requests, failures = requests_by_correlation(vectors)
+    plans = {correlation: member(payload, "plan") for correlation, payload in requests.items()}
     for vector in vectors:
         if vector["kind"] != "error":
             continue
-        plan = plans.get(vector["metadata"]["plenora.trace.correlation_id"], {})
+        plan = plans.get(member(vector["metadata"], "plenora.trace.correlation_id"))
+        steps = member(plan, "steps")
         names = frozenset(
-            list(plan.get("inputs", []))
-            + list(plan.get("outputs", []))
-            + [step.get("out") for step in plan.get("steps", []) if isinstance(step.get("out"), str)]
+            string_items(member(plan, "inputs"))
+            + string_items(member(plan, "outputs"))
+            + string_items([member(step, "out") for step in steps] if isinstance(steps, list) else [])
         )
         payload = vector["payload"]
+        if not isinstance(payload, dict):
+            failures.append("a data.run 3 error payload is not an object")
+            continue
         details = payload.get("details", {})
         if not isinstance(details, dict) or any(
             key not in ERROR_DETAIL_KEYS or not isinstance(value, str) or value not in names
@@ -1933,36 +2015,37 @@ def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
     """A success vector is the manifest of the request with its correlation:
     every plan output in plan order with its sink reference and content type,
     and one step count per plan step, in plan order (DT-RUN-005)."""
-    failures: list[str] = []
-    requests = {
-        vector["metadata"]["plenora.trace.correlation_id"]: vector["payload"]
-        for vector in vectors
-        if vector["kind"] == "request"
-    }
+    requests, failures = requests_by_correlation(vectors)
     for vector in vectors:
         if vector["kind"] != "success":
             continue
-        request = requests.get(vector["metadata"]["plenora.trace.correlation_id"])
+        request = requests.get(member(vector["metadata"], "plenora.trace.correlation_id"))
         if request is None:
             failures.append("a data.run 3 success has no request with its correlation")
             continue
-        plan = request["plan"]
-        outputs = vector["payload"].get("outputs", [])
+        plan, sinks = member(request, "plan"), member(request, "outputs")
+        plan_outputs, plan_steps = member(plan, "outputs"), member(plan, "steps")
+        outputs, result_steps = member(vector["payload"], "outputs"), member(vector["payload"], "steps")
+        if not all(isinstance(value, dict) for value in (plan, sinks)) or not all(
+            isinstance(value, list) for value in (plan_outputs, plan_steps, outputs, result_steps)
+        ):
+            failures.append("a data.run 3 success or its request lacks a plan, outputs or steps (DT-RUN-005)")
+            continue
         expected = [
-            (name, request["outputs"][name]["reference"], request["outputs"][name]["content_type"])
-            for name in plan["outputs"]
-            if name in request["outputs"]
+            (name, member(sinks[name], "reference"), member(sinks[name], "content_type"))
+            for name in plan_outputs
+            if isinstance(name, str) and name in sinks
         ]
         found = [
-            (item.get("name"), item.get("reference"), item.get("artifact", {}).get("content_type"))
+            (member(item, "name"), member(item, "reference"), member(member(item, "artifact"), "content_type"))
             for item in outputs
         ]
         if found != expected:
             failures.append(
                 "a data.run 3 manifest differs from the plan outputs and sinks of its request (DT-RUN-005)"
             )
-        steps = [(item.get("out"), item.get("op")) for item in vector["payload"].get("steps", [])]
-        if steps != [(step["out"], step["op"]) for step in plan["steps"]]:
+        steps = [(member(item, "out"), member(item, "op")) for item in result_steps]
+        if steps != [(member(step, "out"), member(step, "op")) for step in plan_steps]:
             failures.append(
                 "a data.run 3 manifest differs from the plan steps of its request (DT-RUN-005)"
             )
@@ -2053,11 +2136,13 @@ def data_run_3_vector_errors(
             return ["an artifact reference is a private local path (DT-RUN-002)"]
         return []
     errors = []
-    if payload.get("remote_effect") == "partial" and payload.get("retry", {}).get("kind") not in {
+    if not isinstance(payload, dict):
+        return ["an error payload must be an object"]
+    if payload.get("remote_effect") == "partial" and member(payload.get("retry"), "kind") not in {
         "never", "quarantine", "requires_recovery"
     }:
         errors.append("a partial publication must forbid automatic retry (DT-RUN-006)")
-    if payload.get("remote_effect") == "unknown" and payload.get("retry", {}).get("kind") not in {
+    if payload.get("remote_effect") == "unknown" and member(payload.get("retry"), "kind") not in {
         "never", "quarantine", "requires_recovery"
     }:
         errors.append("an unknown publication outcome must forbid automatic retry (DT-RUN-006)")
@@ -2084,9 +2169,9 @@ def plan_budget_errors(document: dict[str, Any]) -> list[str]:
     when the governed budget is omitted the comparison is against a component
     default this repository does not own, and the contract says so.
     """
-    limits = document.get("limits", {})
-    domain = limits.get("max_domain_memory_bytes")
-    governed = limits.get("max_governed_memory_bytes")
+    limits = member(document, "limits")
+    domain = member(limits, "max_domain_memory_bytes")
+    governed = member(limits, "max_governed_memory_bytes")
     if domain is None or governed is None:
         return []
     if domain < governed:
@@ -2202,8 +2287,8 @@ def validate_data_plan(
             failures.append(f"{relative} {problem}")
     for relative in DATA_PLAN_NUMBER_VIOLATING:
         text = (ROOT / relative).read_text(encoding="utf-8")
-        shape = instance_errors(schema, json.loads(text), registry)
-        if shape or data_plan_errors(json.loads(text), kernel_ids):
+        shape = instance_errors(schema, loads_json(text), registry)
+        if shape or data_plan_errors(loads_json(text), kernel_ids):
             failures.append(f"{relative} must differ from a valid plan only by DPLAN-003")
         if not data_plan_number_errors(text):
             failures.append(f"{relative} must be rejected by DPLAN-003")
@@ -2236,6 +2321,16 @@ def validate_markdown_links() -> list[str]:
 
 
 def main() -> int:
+    try:
+        return run_gate()
+    except ValueError as error:
+        # A repeated JSON key, malformed JSON or a file name outside the
+        # grammar: an explicit failure, never a partial pass.
+        print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+
+
+def run_gate() -> int:
     inventory_errors = validate_example_inventory()
     if inventory_errors:
         for error in inventory_errors:
