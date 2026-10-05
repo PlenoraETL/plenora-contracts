@@ -25,14 +25,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # pip-audit valuta i marker dei lock sull'interprete che lo esegue: una
+  # riga `; python_full_version < '3.11'` sotto 3.12 verrebbe saltata in
+  # silenzio. La matrice copre ogni variante dei lock fra le versioni
+  # supportate (3.10: rpds-py 0.30; 3.11-3.12: typing-extensions; 3.13+:
+  # nessuno dei due); tools/test_audit_matrix.py lo verifica. I lock non
+  # hanno marker di piattaforma, e quel test rifiuta un marker che non sa
+  # valutare.
   pip-audit:
-    name: pip-audit
+    name: pip-audit (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12", "3.14"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
       - run: python -m pip install --require-hashes -r requirements-audit.txt
       # `--disable-pip`: i lock sono gia completi e con hash, quindi pip-audit
       # li legge senza risolverli; `--require-hashes` rifiuta un lock senza.
