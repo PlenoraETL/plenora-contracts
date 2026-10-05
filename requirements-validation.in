@@ -1,0 +1,9 @@
+# Dipendenze dirette dei gate di validazione. Il lock completo, con le
+# dipendenze transitive e gli hash, e requirements-validation.txt: si
+# rigenera con il comando scritto nella sua intestazione e si installa con
+# `pip install --require-hashes -r requirements-validation.txt`.
+#
+# jsonschema: validazione Draft 2020-12 degli schemi, degli esempi e dei
+# vettori (tools/validate_specs.py). Versione esatta perche l'esito del gate
+# dipende dalla semantica del validatore.
+jsonschema==4.23.0

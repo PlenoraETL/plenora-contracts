@@ -1,0 +1,17 @@
+# Copertura dei gate di validazione: si misura la logica che decide l'esito
+# (validatore, controlli di conformita, gate di immutabilita), non i test.
+# La misura somma la suite unittest e le corse reali dei due gate, come le
+# esegue il job `validate`.
+#
+# Soglia: il valore misurato all'introduzione, arrotondato per difetto. Una
+# modifica che aggiunge logica non coperta la fa scendere e il job fallisce;
+# si alza quando la copertura migliora, non si abbassa per far passare.
+[run]
+branch = True
+source = tools
+omit =
+    tools/test_*.py
+
+[report]
+fail_under = 89
+precision = 1
