@@ -38,6 +38,18 @@
   reported as an internal validator error without a traceback, and a null
   fuzz over every member of every vector and example guards the class. The REST
   boundary examples now state `version: 1`.
+- The private-path and inline-credential guards of the validator missed
+  `./x`, `~/x`, `C:relative\x`, `%TEMP%\x` and `$HOME/x`, and recognized
+  credentials only by exact member name (`apiKey`, `client_secret` and
+  `access_token` passed). A REST artifact reference must now be an opaque
+  `scheme:` / `scheme://` reference; member names are compared lower-case
+  without `_`, `-`, `.` and spaces, by substring, a `*_ref` member must hold
+  an opaque reference, and authorization or PEM values are recognized under
+  any name. A string that is a valid opaque reference (the `reference`
+  grammar of `data-execution-input-v3.schema.json`) is never judged as a
+  path, so `artifact://tenant/$HOME/report` stays valid; a backslash marks a
+  path; member names are NFKC-folded. The residual limit of the heuristic is
+  declared in the validator and in the REST and storage profiles. No contract document changes.
 
 ### Added
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -1366,15 +1367,78 @@ def artifact_strings(value: Any):
             yield from artifact_strings(child)
 
 
-def is_local_path(value: str) -> bool:
-    return bool(
-        re.match(r"^[A-Za-z]:[\\/]", value)
-        or value.startswith(("/", "\\"))
-        or value.lower().startswith("file:")
-        or any(
-            segment == ".." for segment in value.replace(chr(92), "/").split("/")
-        )
+# Fixture guards for private local paths and inline credentials (RT-008,
+# SEC-007, the REST and storage profiles). Where the boundary has a grammar
+# the guard is positive: an artifact reference must be an opaque reference,
+# exactly `$defs.reference` of `data-execution-input-v3.schema.json`
+# (`is_opaque_reference`), so a spelling nobody listed fails, and a string
+# that satisfies that grammar is never judged by the path heuristic
+# (`artifact://tenant/$HOME/report` is a valid opaque handle). Every other
+# string goes through the heuristic `LOCAL_PATH`, and member names through
+# `SECRET_NAME_PARTS` after NFKC folding (fullwidth `ａｐｉＫｅｙ` matches).
+# Declared limit: it recognizes the spellings below and no others; a
+# relative path with forward slashes or none (`dir/report.csv`,
+# `report.csv`) in a free field, or a credential under an innocuous member
+# name in an unrecognized value format, can pass. It checks this
+# repository's fixtures; an adopter shows the property with its own
+# boundary tests.
+LOCAL_PATH = re.compile(
+    r"^[A-Za-z]:"  # a drive, absolute or relative (`C:\x`, `C:x`)
+    r"|^[/\\]"  # a root or UNC path
+    r"|^~"  # a home directory (`~/x`, `~user/x`)
+    r"|^file:"  # the file scheme
+    r"|(?:^|[/\\:])\.{1,2}(?:[/\\]|$)"  # a `.` or `..` segment (`./x`, `a/../b`)
+    r"|%2e"  # an encoded dot
+    r"|%[a-z_][a-z0-9_]*%"  # a Windows environment variable (`%TEMP%\x`)
+    r"|(?:^|[/\\])\$\{?[a-z_]"  # a POSIX environment variable (`$HOME/x`)
+    r"|\\",  # a Windows separator anywhere (`dir\report.csv`)
+    re.IGNORECASE,
+)
+# `$defs.reference` of data-execution-input-v3.schema.json: the grammar and
+# the spellings its `not` excludes, nothing more.
+OPAQUE_REFERENCE = re.compile(r"[a-z][a-z0-9+.-]{1,31}:(//)?[^\s\\]+")
+OPAQUE_REFERENCE_EXCLUDED = re.compile(r"^[Ff][Ii][Ll][Ee]:|(^|[/:])\.{1,2}(/|$)|%2[Ee]|\s")
+# Member names are compared after NFKC and case folding, without `_`, `-`,
+# `.` and spaces, by substring: `apiKey`, `client_secret`, `access-token` and
+# fullwidth spellings all match.
+SECRET_NAME_PARTS = (
+    "authorization", "credential", "password", "passwd", "passphrase", "token",
+    "apikey", "secret", "privatekey", "accesskey", "bearer", "cookie",
+)
+# Values that are credentials whatever their member name.
+SECRET_VALUE = re.compile(
+    r"^\s*(?:bearer|basic|digest)\s+\S|-----BEGIN [A-Z ]*PRIVATE KEY-----", re.IGNORECASE
+)
+
+
+def is_opaque_reference(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and 4 <= len(value) <= 2048
+        and OPAQUE_REFERENCE.fullmatch(value) is not None
+        and OPAQUE_REFERENCE_EXCLUDED.search(value) is None
     )
+
+
+def is_local_path(value: str) -> bool:
+    return not is_opaque_reference(value) and LOCAL_PATH.search(value) is not None
+
+
+def inline_credential_errors(payload: Any, label: str) -> list[str]:
+    """Members whose normalized name contains a secret word, unless the
+    member is a reference (`*_ref`, `*_reference`) holding an opaque
+    reference; and string values that are credentials by their format."""
+    errors = []
+    for key, value in nested_items(payload):
+        name = re.sub(r"[\s_.-]", "", unicodedata.normalize("NFKC", key).casefold())
+        if not any(part in name for part in SECRET_NAME_PARTS):
+            continue
+        if name.endswith(("ref", "reference")) and is_opaque_reference(value):
+            continue
+        errors.append(f"{label} contains inline credential field {key}")
+    if any(SECRET_VALUE.search(value) for value in artifact_strings(payload)):
+        errors.append(f"{label} contains an inline credential value")
+    return errors
 
 
 def rest_boundary_errors(
@@ -1405,19 +1469,7 @@ def rest_boundary_errors(
         errors.append("REST runtime request has a non-conservative side-effect class")
 
     payload = document.get("input", {})
-    secret_keys = {
-        "authorization",
-        "credentials",
-        "password",
-        "token",
-        "api_key",
-        "secret",
-    }
-    for key, _value in nested_items(payload):
-        if key.lower() in secret_keys:
-            errors.append(
-                f"REST runtime request contains inline credential field {key}"
-            )
+    errors.extend(inline_credential_errors(payload, "REST runtime request"))
 
     # The member checks above read nothing from a non-object; the rest does.
     if not isinstance(payload, dict):
@@ -1442,6 +1494,9 @@ def rest_boundary_errors(
     for node in artifact_nodes:
         if any(is_local_path(value) for value in artifact_strings(node)):
             errors.append("REST runtime artifact contains a private local path")
+        # Positive rule: the reference is opaque, whatever it is not.
+        if not isinstance(node, dict) or not is_opaque_reference(node.get("reference")):
+            errors.append("REST runtime artifact must use an opaque artifact reference")
 
     connection = payload.get("connection")
     if "connection" in payload and not isinstance(connection, dict):
@@ -1674,21 +1729,7 @@ def storage_vector_errors(
             ):
                 errors.append("storage request has a non-opaque credential reference")
 
-        secret_keys = {
-            "authorization",
-            "credentials",
-            "password",
-            "passwd",
-            "token",
-            "api_key",
-            "secret",
-            "private_key",
-            "access_key",
-            "secret_key",
-        }
-        for key, _value in nested_items(payload):
-            if key.lower() in secret_keys:
-                errors.append(f"storage request contains inline credential field {key}")
+        errors.extend(inline_credential_errors(payload, "storage request"))
         if any(is_local_path(value) for value in artifact_strings(payload)):
             errors.append("storage runtime request contains a private local path")
 
