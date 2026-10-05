@@ -6,4 +6,4 @@
 # jsonschema: validazione Draft 2020-12 degli schemi, degli esempi e dei
 # vettori (tools/validate_specs.py). Versione esatta perche l'esito del gate
 # dipende dalla semantica del validatore.
-jsonschema==4.23.0
+jsonschema==4.26.0
