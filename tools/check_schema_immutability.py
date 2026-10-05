@@ -107,6 +107,17 @@ def assertions_digest(schema: Any) -> str:
     return digest(assertions(schema))
 
 
+def strict_json(text: str, relative: str) -> Any:
+    """A repeated object key would keep one value in silence and could hide
+    a change: it fails the check."""
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        if len({key for key, _ in pairs}) != len(pairs):
+            raise ValueError(f"{relative} repeats a JSON object key")
+        return dict(pairs)
+
+    return json.loads(text, object_pairs_hook=unique)
+
+
 def git(root: Path, *arguments: str) -> str:
     return subprocess.check_output(
         ["git", "-C", str(root), *arguments], text=True, encoding="utf-8", stderr=subprocess.PIPE
@@ -317,8 +328,8 @@ def check(root: Path, base: str, head: str | None = None) -> list[str]:
         if text is None:
             errors.append(f"published {kind} removed: {relative}")
             continue
-        previous = json.loads(git(root, "show", f"{base}:{relative}"))
-        current = json.loads(text)
+        previous = strict_json(git(root, "show", f"{base}:{relative}"), relative)
+        current = strict_json(text, relative)
         changes = document_changes(relative, previous, current)
         if not changes or declared_erratum(root, base, relative, previous, current, read_text):
             continue
@@ -336,7 +347,7 @@ def check(root: Path, base: str, head: str | None = None) -> list[str]:
         schema_files = [path for path in listed if is_protected(path)]
     identifiers = set()
     for relative in schema_files:
-        document = json.loads(read_text(relative) or "null")
+        document = strict_json(read_text(relative) or "null", relative)
         identifier = document.get("$id") if isinstance(document, dict) else None
         if not isinstance(identifier, str) or identifier in identifiers:
             errors.append(f"missing or duplicate schema identifier: {Path(relative).name}")

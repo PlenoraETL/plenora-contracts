@@ -471,6 +471,16 @@ class PublishedDocumentImmutabilityTests(unittest.TestCase):
                     self.write_all()
                 self.assertIn(f"published document removed: {relative}", errors)
 
+    def test_repeated_key_cannot_hide_a_change(self):
+        path = self.root / "catalogs/probe-tools-v1.json"
+        text = path.read_text(encoding="utf-8")
+        path.write_text(
+            text.replace('"side_effect": "none"', '"side_effect": "remote", "side_effect": "none"'),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(ValueError, "repeats a JSON object key"):
+            immutability.check(self.root, self.base)
+
     def test_unrecognized_catalog_document_is_compared_whole(self):
         relative = "catalogs/probe-tools-v1.json"
         self.documents[relative]["contract"] = "plenora-public-catalog-v9"
