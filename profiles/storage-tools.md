@@ -49,6 +49,16 @@ credentials. Every destination requires an explicit `overwrite` value, put
 and copy require an explicit `publication_policy`, and delete requires an
 explicit missing-object policy.
 
+Conformance note (informative): this repository's gate checks the storage
+runtime vectors positively for artifact references (`artifact://` with a
+bounded opaque handle) and for `credential_ref`, and heuristically for private
+paths and inline credentials elsewhere in the payload: drive, root, UNC, home,
+`.`/`..`, `file:` and environment-variable spellings, member names containing
+a secret word after lower-casing and removing `_`, `-`, `.` and spaces, and
+authorization or PEM values. A path or secret spelled otherwise can pass that
+heuristic; the property itself is shown by the adopter's boundary tests, not
+by the gate.
+
 `overwrite=false` is permitted only when the provider guarantees atomic
 create-if-absent for that specific operation; put and copy support are
 advertised separately. Otherwise it is rejected before mutation. S3 uses a

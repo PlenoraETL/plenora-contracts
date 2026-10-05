@@ -12,6 +12,15 @@
   unproven publication outcome, as ERR-006 does. The schema is corrected in
   place because no artifact had adopted it; see
   [decision 0008](decisions/0008-data-run-runtime.md).
+- The private-path and inline-credential guards of the validator missed
+  `./x`, `~/x`, `C:relative\x`, `%TEMP%\x` and `$HOME/x`, and recognized
+  credentials only by exact member name (`apiKey`, `client_secret` and
+  `access_token` passed). A REST artifact reference must now be an opaque
+  `scheme:` / `scheme://` reference; member names are compared lower-case
+  without `_`, `-`, `.` and spaces, by substring, a `*_ref` member must hold
+  an opaque reference, and authorization or PEM values are recognized under
+  any name. The residual limit of the heuristic is declared in the validator
+  and in the REST and storage profiles. No contract document changes.
 
 ### Added
 

@@ -133,6 +133,15 @@ Credentials, tokens, PEM material, authorization headers, body previews and
 local paths MUST NOT appear in capability documents, public errors or persisted
 diagnostics.
 
+Conformance note (informative): this repository's gate checks the REST
+runtime examples positively for artifact references (an opaque `scheme:` or
+`scheme://` reference, nothing else) and heuristically for private paths and
+inline credentials: drive, root, UNC, home, `.`/`..`, `file:` and
+environment-variable spellings, member names containing a secret word after
+lower-casing and removing `_`, `-`, `.` and spaces, and authorization or PEM
+values. A path or secret spelled otherwise can pass that heuristic; the
+property itself is shown by the adopter's boundary tests, not by the gate.
+
 ## Not specified here
 
 This profile does not prescribe the HTTP client, connection pool, DNS resolver,
