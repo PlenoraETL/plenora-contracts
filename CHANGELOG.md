@@ -83,6 +83,13 @@
 
 ### Fixed
 
+- The README's normative sources omitted Data Plan 1.0. The validator now
+  rejects a specification under `specs/` that the list does not name.
+- CUTOVER.md is marked as a historical record: it said storage-tools did not
+  require Python (decision 0006 selected the Python SDK surface) and kept a
+  snapshot of component status, which belongs to the adoption manifests. The
+  snapshot is removed; the decisions it recorded are kept. No contract
+  document changes.
 - Erratum to `data.run` version 3, before any adoption or release used it:
   `rows_in` in `data-execution-result-v3.schema.json` is the list of the
   rows of each step input, as in the version 2 result (an integer could not

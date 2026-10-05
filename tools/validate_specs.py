@@ -2391,6 +2391,30 @@ def validate_markdown_links() -> list[str]:
     return failures
 
 
+def normative_index_errors(readme: str, specifications: list[str]) -> list[str]:
+    """Every specification under `specs/` is listed in the README's
+    «Normative sources»: the list is how an adopter finds them, and a missing
+    entry hides a normative document (DATA-PLAN-1.0 was missing)."""
+    match = re.search(r"^## Normative sources$(.*?)(?=^## |\Z)", readme, re.M | re.S)
+    if match is None:
+        return ["README.md has no \"Normative sources\" section"]
+    listed = {
+        target.split("#", 1)[0] for target in MARKDOWN_LINK.findall(match.group(1))
+    }
+    return [
+        f"README.md \"Normative sources\" does not list {specification}"
+        for specification in specifications
+        if specification not in listed
+    ]
+
+
+def validate_normative_index() -> list[str]:
+    specifications = sorted(
+        path.relative_to(ROOT).as_posix() for path in (ROOT / "specs").rglob("*.md")
+    )
+    return normative_index_errors(read_text(ROOT / "README.md"), specifications)
+
+
 def main() -> int:
     try:
         return run_gate()
@@ -2452,6 +2476,7 @@ def run_gate() -> int:
     failures.extend(validate_plan_budget(schemas, registry))
     failures.extend(validate_data_plan(schemas, registry))
     failures.extend(validate_markdown_links())
+    failures.extend(validate_normative_index())
     if failures:
         for failure in failures:
             print(f"ERROR: {failure}", file=sys.stderr)

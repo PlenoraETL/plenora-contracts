@@ -1,5 +1,10 @@
 # Cutover and adoption plan
 
+Historical record of the repository replacement of 2026-08-18. It is not
+maintained: the current status, verification and deviations of each component
+live in that component's adoption manifest (see [ADOPTION.md](ADOPTION.md)),
+and the current target surface in its [profile](profiles/README.md).
+
 The repository replacement was completed on 2026-08-18. The former remote
 history, branches and tags were not carried into this repository. The remaining
 work is component-owned adoption.
@@ -11,7 +16,8 @@ work is component-owned adoption.
 - Do not rewrite immutable release manifests or historical evidence in component
   repositories.
 - Do not claim compliance before a component has tests for the pinned contract.
-- The final repository was recreated as private with a clean Git history.
+- The final repository was recreated with a clean Git history (private at
+  the time; its visibility is not part of this record).
 
 ## Reference inventory
 
@@ -40,7 +46,7 @@ Observed live-reference areas:
 1. The candidate was reviewed and its normative scope was fixed.
 2. A clean local Git history was initialized.
 3. Explicit confirmation was obtained for the irreversible remote deletion.
-4. `PlenoraETL/plenora-contracts` was deleted and recreated as private.
+4. `PlenoraETL/plenora-contracts` was deleted and recreated (as private).
 5. Only the replacement history and branch `main` were published.
 6. The specification validator was run locally and in GitHub Actions.
 
@@ -54,32 +60,13 @@ Observed live-reference areas:
 
 ## Initial migration gaps
 
-The inventory identified these expected migrations:
-
-- `database-tools`: errors already use stdout and the four error axes, but the
-  CLI still uses protocol v1, lacks the canonical command set and does not
-  expose Capability Discovery 2.0. The Python SDK lacks the required
-  capability discovery surface, async close symmetry and structured retry
-  contract. Component-owned operation payload and capability-attribute schemas
-  must also be published before the provisional profile can be adopted.
-- `data-tools`: closest current implementation; its error stream and rich exit
-  mapping are the basis for protocol v2, but success envelopes remain uneven.
-- `IO-tools`: errors currently use stderr and its exit mapping differs; this is
-  an explicit breaking migration. The adopted decision is a component major
-  cutover: one artifact does not serve both CLI JSON protocols, and deprecated
-  command aliases may remain only when they emit protocol v2. This inventory
-  originally named `2.0.0` or later in the `2.x` line as the first conforming
-  release; `2.x` and `3.x` were published without performing the cutover, and
-  [the profile](profiles/io-tools.md) now names `4.0.0`. The migration decision
-  is unchanged; only the release that carries it is.
-- `runtime-tools`: no public common CLI or Python SDK surface was found; it may
-  declare both contracts not applicable until such a surface exists.
-- `rest-tools`: Python package naming, minimum Python version, lifecycle and
-  error shape require alignment before it can claim SDK v1 adoption.
-- `storage-tools`: the normative seven-operation profile selects Rust, CLI and
-  runtime surfaces; Python is not required. Artifact capabilities remain
-  experimental until manifest v4, digests and a qualified release are handled
-  separately.
+The migration gaps observed on 2026-08-18 were a snapshot of component status,
+which this repository does not own. They were removed; each component's
+adoption manifest records its status and deviations, and its profile the
+target. Two decisions recorded with them still hold: IO-tools performs the CLI
+protocol v2 cutover as a component major release, now `4.0.0`
+([profile](profiles/io-tools.md)), and the storage profile has since selected
+the Python SDK surface ([decision 0006](decisions/0006-storage-python-surface.md)).
 
 ## Scope after cutover
 
