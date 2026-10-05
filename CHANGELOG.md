@@ -12,6 +12,17 @@
   unproven publication outcome, as ERR-006 does. The schema is corrected in
   place because no artifact had adopted it; see
   [decision 0008](decisions/0008-data-run-runtime.md).
+- The immutability gate protected only `schemas/`: a published catalog,
+  operation registry, binding map or normative vector could change in place
+  unnoticed. It now compares them with the same bases and admits only the
+  additions COMPATIBILITY.md lists (a new operation identity, a new surface,
+  a new binding or kernel, a new vector file). The ratified floor moves to the
+  merge of PR #12, and a branch is also compared with the commit where it left
+  `origin/main`, so documents published after the floor are protected on its
+  first push. A declared erratum is admitted only while its decision exists
+  and names the file, and only against a base that still published the error;
+  the success vector of `data.run` 3, corrected by the same erratum, is now
+  declared too. No contract document changes.
 - Validator defect classes. A REST boundary example is matched by
   `(operation, version)` and must name its version (with one catalog version
   the version was ignored, so version 99 passed). A null `artifact_source` no

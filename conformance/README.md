@@ -41,10 +41,12 @@ validation and are exercised by positive examples and semantic counterexamples.
 The repository CI runs `tools/check_schema_immutability.py`, the regression
 tests under `tools/test_*.py`, and `tools/validate_specs.py`. The example inventory
 must include every JSON file under `examples/`; an unregistered example fails
-the gate. The schema guard compares published assertions with immutable Git
-revisions. It conservatively rejects assertion rewrites even if a reviewer
-believes them equivalent; descriptive annotations can change without changing
-the contract version.
+the gate. The immutability guard compares published schema assertions,
+catalogs, operation registries, binding maps and vectors with immutable Git
+revisions ([COMPATIBILITY.md](../COMPATIBILITY.md#immutability-of-published-documents)).
+It conservatively rejects assertion rewrites even if a reviewer believes them
+equivalent; descriptive annotations can change without changing the contract
+version.
 
 ## CLI checks
 
