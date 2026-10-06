@@ -574,6 +574,36 @@ def profile_path(component: str, profile: str) -> Path:
     return ROOT / "profiles" / f"{name}{suffix}.md"
 
 
+WIRE_CONTRACT_PAIR = re.compile(
+    r"^- `(plenora-[a-z0-9-]+-v[1-9][0-9]*)` and `(plenora-[a-z0-9-]+-v[1-9][0-9]*)`", re.M
+)
+
+
+def wire_contract_errors(profile: str, catalog: dict[str, Any]) -> list[str]:
+    """A profile that lists its component-owned wire contracts lists exactly
+    the input and output pairs of its catalog version: a pair copied from
+    another version would name a contract the artifact does not emit."""
+    match = re.search(
+        r"^## Component-owned wire contracts$(.*?)(?=^## |\Z)", profile, re.M | re.S
+    )
+    if match is None:
+        return []
+    listed = set(WIRE_CONTRACT_PAIR.findall(match.group(1)))
+    expected = {
+        (operation["input"]["contract"], operation["output"]["contract"])
+        for operation in catalog["operations"]
+    }
+    errors = [
+        f"profile lists wire contracts {pair[0]} and {pair[1]}, which its catalog does not pair"
+        for pair in sorted(listed - expected)
+    ]
+    errors.extend(
+        f"profile does not list wire contracts {pair[0]} and {pair[1]} of its catalog"
+        for pair in sorted(expected - listed)
+    )
+    return errors
+
+
 def repeated_identity_errors(
     versions: dict[str, dict[int, dict[str, Any]]],
 ) -> list[str]:
@@ -673,6 +703,11 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
         ):
             failures.append(
                 f"{component} v{version} profile identifier does not match its catalog"
+            )
+        else:
+            failures.extend(
+                f"{component} v{version} {error}"
+                for error in wire_contract_errors(path.read_text(encoding="utf-8"), catalog)
             )
 
     failures.extend(repeated_identity_errors(versions))

@@ -181,6 +181,14 @@
           ]
         },
         {
+          "operation": "io.catalog",
+          "version": 2,
+          "requirement": "required",
+          "entrypoints": [
+            "catalog --format json"
+          ]
+        },
+        {
           "operation": "io.inspect",
           "version": 1,
           "requirement": "required",
@@ -205,8 +213,24 @@
           ]
         },
         {
+          "operation": "io.read",
+          "version": 2,
+          "requirement": "required",
+          "entrypoints": [
+            "read SOURCE --output OUTPUT.arrow --format json"
+          ]
+        },
+        {
           "operation": "io.write",
           "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "write --input INPUT.arrow --output SINK --format json"
+          ]
+        },
+        {
+          "operation": "io.write",
+          "version": 2,
           "requirement": "required",
           "entrypoints": [
             "write --input INPUT.arrow --output SINK --format json"
