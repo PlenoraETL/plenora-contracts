@@ -1378,7 +1378,13 @@ def rest_capability_errors(
             or attributes.get("contract") != REST_ATTRIBUTE_CONTRACT
         ):
             errors.append(f"{operation['id']} lacks the REST attribute contract ID")
-        if set(operation["surfaces"]) != set(target["surfaces"]):
+        # A conditional target surface (the CLI) may be absent from an
+        # artifact; a required one may not, and none may be invented.
+        required_surfaces = {
+            surface for surface in target["surfaces"]
+            if catalog["target_surfaces"].get(surface) == "required"
+        }
+        if not required_surfaces <= set(operation["surfaces"]) <= set(target["surfaces"]):
             errors.append(f"{operation['id']} surfaces differ from the REST catalog")
         for direction in ("input", "output"):
             if operation[direction]["contract"] != target[direction]["contract"]:

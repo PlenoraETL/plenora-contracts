@@ -248,9 +248,54 @@
     },
     {
       "component": "plenora-rest-tools",
-      "artifact": null,
-      "discovery": [],
-      "bindings": []
+      "artifact": "plenora-rest",
+      "discovery": [
+        "--help",
+        "--version --format json",
+        "capabilities --format json"
+      ],
+      "bindings": [
+        {
+          "operation": "rest.test",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "test --input REQUEST.json --format json"
+          ]
+        },
+        {
+          "operation": "rest.generate",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "generate --input REQUEST.json --format json"
+          ]
+        },
+        {
+          "operation": "rest.enrich",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "enrich --input REQUEST.json --format json"
+          ]
+        },
+        {
+          "operation": "rest.download",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "download --input REQUEST.json --format json"
+          ]
+        },
+        {
+          "operation": "rest.upload",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "upload --input REQUEST.json --format json"
+          ]
+        }
+      ]
     },
     {
       "component": "plenora-storage-tools",
