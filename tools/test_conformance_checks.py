@@ -283,8 +283,14 @@ class SchemaImmutabilityTests(unittest.TestCase):
         ]:
             subprocess.run(["git", "-C", str(self.root), *args], check=True, capture_output=True)
         later_schema.write_text(json.dumps(dict(self.schema, **{"$id": "later", "maxLength": 1})), encoding="utf-8")
+        # Outside CI markers: this repository has no remote to verify
+        # origin/main against, which only CI requires.
+        environment = {
+            **{key: value for key, value in os.environ.items() if key not in immutability.CI_MARKERS},
+            "PLENORA_SCHEMA_BASE": "0" * 40,
+        }
         with patch.object(immutability, "ROOT", self.root), patch.object(immutability, "RATIFIED_BASE", floor), \
-                patch.dict("os.environ", {"PLENORA_SCHEMA_BASE": "0" * 40}), patch("sys.argv", ["check"]), \
+                patch.dict("os.environ", environment, clear=True), patch("sys.argv", ["check"]), \
                 contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(immutability.main(), 1)
         self.assertIn("later-v1.schema.json", output.getvalue())
