@@ -6,6 +6,17 @@ full commit SHA; a release tag names one of those commits.
 
 ## Unreleased
 
+### Added
+
+- rest-tools CLI as an optional surface: the catalog selects the CLI as
+  `conditional` and lists it for the five operations; `bindings/cli-v1.json`
+  names the `plenora-rest` command, its discovery entrypoints and
+  `<operation> --input REQUEST.json --format json`; the profile makes the
+  command optional. The validator lets a REST capability document omit a
+  conditional surface (it required the catalog's surfaces exactly). See
+  [decision 0012](decisions/0012-rest-cli-optional.md). No schema or vector
+  changes.
+
 ## 1.0.0
 
 First release, tag `v1.0.0`. It names the commit of `main` that merges this
