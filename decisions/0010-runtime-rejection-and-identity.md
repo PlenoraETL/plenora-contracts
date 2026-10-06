@@ -1,6 +1,6 @@
 # 0010: Rejection before invocation, result identity and controls on the runtime
 
-Status: proposed
+Status: accepted
 
 Date: 2026-10-06
 

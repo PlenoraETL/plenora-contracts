@@ -1,5 +1,9 @@
 # Changelog
 
+The repository versions are described in
+[COMPATIBILITY.md](COMPATIBILITY.md#repository-releases). Components pin the
+full commit SHA; a release tag names one of those commits.
+
 ## Unreleased
 
 ### Added
@@ -18,6 +22,20 @@
   unknown `plenora.*` keys stay as 1.0 states them: narrowing them is
   incompatible. No existing schema, catalog, binding or vector changes. See
   [decision 0010](decisions/0010-runtime-rejection-and-identity.md).
+
+## 1.0.0
+
+First release, tag `v1.0.0`. It names the commit of `main` that merges this
+section and contains everything published since the repository replacement
+of 2026-08-18. Every revision pinned by a component before this release is an
+ancestor of it: a pin includes exactly the changes in the history up to its
+SHA (`git log <sha>`), and an entry below merged after that SHA does not
+apply to it.
+
+### Added
+
+- `LICENSE`: the proprietary license of the other Plenora repositories. The
+  repository had no license file. No contract document changes.
 - `data.run` version 3 in `data-tools-v2.json`: the runtime representation of
   a `plenora-data-plan-v1` plan with named outputs, from artifact sources to
   artifact sinks, with a JSON manifest result. Conditional, Rust and runtime
@@ -65,6 +83,14 @@
 
 ### Changed
 
+- The validation gates run on Linux and Windows with Python 3.10 and 3.14
+  (they ran only on Linux with Python 3.12). Their dependencies are installed
+  from complete hashed locks (`requirements-*.txt`, generated from
+  `requirements-*.in`) with `--require-hashes`; only `jsonschema` was pinned
+  before. A weekly `supply-chain` workflow audits the locks with pip-audit and
+  reruns the gates; Dependabot proposes action and lock updates; the coverage
+  of the gate logic has a budget in `.coveragerc`. No contract document
+  changes.
 - Replaced the runtime vector `database-transaction-commit-success.json`
   with `database-query-success.json`: the database-tools catalog selects the
   `database.transaction.*` operations only on the Rust and Python surfaces,
@@ -97,6 +123,13 @@
 
 ### Fixed
 
+- The README's normative sources omitted Data Plan 1.0. The validator now
+  rejects a specification under `specs/` that the list does not name.
+- CUTOVER.md is marked as a historical record: it said storage-tools did not
+  require Python (decision 0006 selected the Python SDK surface) and kept a
+  snapshot of component status, which belongs to the adoption manifests. The
+  snapshot is removed; the decisions it recorded are kept. No contract
+  document changes.
 - Erratum to `data.run` version 3, before any adoption or release used it:
   `rows_in` in `data-execution-result-v3.schema.json` is the list of the
   rows of each step input, as in the version 2 result (an integer could not

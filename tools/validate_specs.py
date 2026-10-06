@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import posixpath
 import re
 import sys
 import unicodedata
@@ -265,6 +266,13 @@ ARROW_TYPES = [
 ]
 
 MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+# Markdown that is not rendered: HTML comments, fenced code blocks (``` or
+# ~~~, closed by the same fence) and code spans. A link inside them is text.
+# An unclosed comment or fence hides the rest of the document, as it renders.
+NON_RENDERED_MARKDOWN = re.compile(
+    r"<!--.*?(?:-->|\Z)|^(?P<fence>```|~~~)[^\n]*\n.*?(?:^(?P=fence)[^\n]*$|\Z)|`[^`\n]*`",
+    re.M | re.S,
+)
 
 
 class SpecError(Exception):
@@ -2586,6 +2594,42 @@ def validate_markdown_links() -> list[str]:
     return failures
 
 
+def normative_index_errors(readme: str, specifications: list[str]) -> list[str]:
+    """Every specification under `specs/` is listed in the README's
+    «Normative sources»: the list is how an adopter finds them, and a missing
+    entry hides a normative document (DATA-PLAN-1.0 was missing).
+
+    Only rendered links count: HTML comments, fenced code blocks and code
+    spans are removed first, so a commented entry is a missing one. Targets
+    are compared as normalized repository paths with their letter case kept,
+    so `./specs/x.md` and `specs/a/../x.md` name `specs/x.md`, and a target
+    that leaves the repository names nothing."""
+    rendered = NON_RENDERED_MARKDOWN.sub("", readme)
+    match = re.search(r"^## Normative sources$(.*?)(?=^## |\Z)", rendered, re.M | re.S)
+    if match is None:
+        return ["README.md has no \"Normative sources\" section"]
+    listed = set()
+    for target in MARKDOWN_LINK.findall(match.group(1)):
+        path = target.split("#", 1)[0]
+        if not path or path.startswith(("/", "http://", "https://")):
+            continue
+        normalized = posixpath.normpath(path)
+        if normalized != ".." and not normalized.startswith("../"):
+            listed.add(normalized)
+    return [
+        f"README.md \"Normative sources\" does not list {specification}"
+        for specification in specifications
+        if specification not in listed
+    ]
+
+
+def validate_normative_index() -> list[str]:
+    specifications = sorted(
+        path.relative_to(ROOT).as_posix() for path in (ROOT / "specs").rglob("*.md")
+    )
+    return normative_index_errors(read_text(ROOT / "README.md"), specifications)
+
+
 def main() -> int:
     try:
         return run_gate()
@@ -2648,6 +2692,7 @@ def run_gate() -> int:
     failures.extend(validate_plan_budget(schemas, registry))
     failures.extend(validate_data_plan(schemas, registry))
     failures.extend(validate_markdown_links())
+    failures.extend(validate_normative_index())
     if failures:
         for failure in failures:
             print(f"ERROR: {failure}", file=sys.stderr)
