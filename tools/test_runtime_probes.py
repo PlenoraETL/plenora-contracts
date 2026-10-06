@@ -33,8 +33,8 @@ def errors_of(document):
     )
     if structural:
         return structural
-    operations = validator.operation_index(validator.load_catalogs())
-    return validator.runtime_probe_errors(document, operations, schemas, registry)
+    versions = validator.catalog_versions(validator.load_catalogs())
+    return validator.runtime_probe_errors(document, versions, schemas, registry)
 
 
 def mutated(name, key, value):
@@ -134,6 +134,39 @@ class ProbeClassTests(unittest.TestCase):
         document = probe("io-read-deadline-expired.json")
         document["base"] = "io-read-success.json"
         self.assertTrue(errors_of(document))
+
+
+class OneCatalogPerArtifactTests(unittest.TestCase):
+    """An artifact implements one catalog version: an operation version that
+    only another catalog version declares is unsupported for it."""
+
+    def setUp(self):
+        self.versions = validator.catalog_versions(validator.load_catalogs())
+        self.schemas = {
+            path.name: validator.load_json(path)
+            for path in sorted(validator.SCHEMA_DIR.glob("*.schema.json"))
+        }
+        self.registry = validator.schema_registry(self.schemas)
+
+    def errors(self, document, versions):
+        return validator.runtime_probe_errors(document, versions, self.schemas, self.registry)
+
+    def test_version_of_another_catalog_is_unsupported(self):
+        io = self.versions["plenora-io-tools"]
+        self.assertTrue(any(
+            (op["id"], op["version"]) == ("io.read", 2)
+            for catalog in io.values() for op in catalog["operations"]
+        ), "the case needs io.read version 2 in some catalog")
+        self.assertEqual(self.errors(probe("io-read-operation-version-unknown.json"), self.versions), [])
+
+    def test_catalog_versions_that_disagree_are_refused(self):
+        versions = copy.deepcopy(self.versions)
+        io = versions["plenora-io-tools"]
+        newest = io[max(io)]
+        (read_1,) = [op for op in io[1]["operations"] if (op["id"], op["version"]) == ("io.read", 1)]
+        newest["operations"].append(copy.deepcopy(read_1))
+        errors = self.errors(probe("io-read-operation-version-unknown.json"), versions)
+        self.assertTrue(any("differently" in error for error in errors), errors)
 
 
 class CleanupAfterPublicationTests(unittest.TestCase):
