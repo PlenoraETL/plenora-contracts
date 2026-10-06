@@ -6,6 +6,14 @@ full commit SHA; a release tag names one of those commits.
 
 ## Unreleased
 
+## 1.1.0 - 2026-10-06
+
+Tag `v1.1.0` on the commit of `main` that merges this section. A minor
+release (COMPATIBILITY.md, "Repository releases"): new contract versions,
+rules, schemas, catalogs and vectors next to the published ones; no
+published document changes. Every revision pinned before it, including
+`v1.0.0`, is an ancestor.
+
 ### Added
 
 - Rejection before invocation, result identity and execution controls on the
