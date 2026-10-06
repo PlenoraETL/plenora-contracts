@@ -65,6 +65,13 @@ These schemas remain owned by IO-tools. This profile fixes their public
 identifiers, roles and the cross-component meaning of the members below, not
 their internal implementation.
 
+The three version 2 schemas, `plenora-io-read-result-v2`,
+`plenora-io-write-result-v2` and `plenora-io-catalog-v2`, are not published in
+this repository: IO-tools publishes them, with their examples, in the release
+that first claims this profile. Until then no artifact can claim profile
+version 2, and the meaning fixed below (IO-SER-001, IO-CAT-001, IO-NULL-001)
+is what those schemas MUST encode.
+
 When an IO error includes `details`, the value MUST conform to the
 component-owned `plenora-io-error-details-v1` schema. Omitting `details`
 remains valid when the four common error axes and optional `code` completely

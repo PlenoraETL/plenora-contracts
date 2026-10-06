@@ -140,3 +140,93 @@ The exact operation selectors for the five component profiles are registered
 in [`bindings/runtime-v1.json`](../../bindings/runtime-v1.json). Reusable
 request, success and error fixtures are defined by
 [Runtime Conformance Vectors 1.0](RUNTIME-VECTORS-1.0.md).
+
+## 11. Rejection before invocation
+
+These rules clarify sections 3, 4 and 7. Each one chooses, among the values
+those sections already admit, the one a conforming consumer can rely on; none
+admits a request or a result that 1.0 rejected. The reasons and the
+compatibility of each are recorded in
+[decision 0010](../../decisions/0010-runtime-rejection-and-identity.md).
+[`vectors/runtime-probes-v1`](../../vectors/runtime-probes-v1/) states the
+expected rejection of each probe as data ([RUNTIME-VECTORS-1.0
+§6](RUNTIME-VECTORS-1.0.md#6-rejection-probes)).
+
+**RT-016** — A request that fails RT-004, RT-005, RT-006, RT-011, RT-012 or a
+rule of this section is rejected before invocation: no domain functionality
+runs. The error has `phase: validate` (ERR-003: no later phase started),
+`remote_effect: none` (ERR-004: the absence of an effect is proven) and
+`retry.kind: never` (the same message fails the same way again).
+
+**RT-017** — A reserved request key that is required and absent, is not a
+JSON string, or does not match its grammar fails with `protocol`. A value
+outside the grammar is never normalized into a value inside it: `"01"`,
+`" 1"`, `1` and uppercase or braced UUID text are malformed, not aliases.
+
+| Key | Grammar |
+|---|---|
+| `plenora.capability.name` | `^plenora\.[a-z][a-z0-9-]*-tools$` |
+| `plenora.capability.version` | `^[1-9][0-9]*$` |
+| `plenora.capability.operation` | `^[a-z][a-z0-9_-]*(\.[a-z][a-z0-9_-]*)+$` |
+| `plenora.operation.version` | `^[1-9][0-9]*$` |
+| `plenora.input.contract` | `^plenora-[a-z0-9-]+-v[1-9][0-9]*$` |
+| `plenora.message.id`, `plenora.trace.correlation_id`, `plenora.message.causation_id` | canonical lowercase hyphenated UUID (RT-012) |
+| `plenora.execution.deadline` | RT-021 |
+| `plenora.execution.idempotency_key` | RT-022 |
+
+**RT-018** — The category of a rejection is the first that applies:
+
+1. `protocol`, by RT-017;
+2. `unsupported`, when every reserved value is well-formed but the capability
+   name, binding version, operation, operation version or input contract does
+   not agree with one available operation advertised on the runtime surface
+   (RT-004, RT-011), the content type is not advertised (RT-005), or a control
+   is present that the operation declares unsupported (RT-006);
+3. `timeout`, when the deadline has elapsed at entry (RT-021).
+
+A binding version such as `"2"` is well-formed and unsupported; `"01"` is
+malformed.
+
+**RT-019** — The result of a rejection carries the content type and output
+contract of section 7 and a new `plenora.message.id` (RT-020). It reflects
+`plenora.capability.operation`, `plenora.operation.version` and
+`plenora.trace.correlation_id` only when the request carried them
+well-formed, byte for byte; otherwise it omits them. It never normalizes a
+received value and never supplies one the request did not carry. A request
+without a canonical correlation has no originating correlation to preserve
+(RT-012), so its rejection carries none. The keys the vector schema requires in
+a stored error vector describe valid fixtures, not rejections of malformed
+requests.
+
+## 12. Result identity
+
+**RT-020** — Every result, success or error, carries a new
+`plenora.message.id`, distinct from the request's. A result SHOULD carry
+`plenora.message.causation_id`; when present it MUST equal the request's
+`plenora.message.id`, and only when that identity is canonical. A result
+never copies the request's own `plenora.message.causation_id`, which names
+an earlier cause.
+
+## 13. Execution controls on the runtime
+
+**RT-021** — `plenora.execution.deadline` is UTC: a value with a non-zero
+offset, or with `-00:00` (an unknown local offset in RFC 3339), fails with
+`protocol`. Senders SHOULD write `YYYY-MM-DDTHH:MM:SSZ`, with an optional
+fraction of one to nine digits before `Z`, the spelling of every vector;
+whether a receiver accepts the other RFC 3339 spellings of UTC is not decided
+by 1.0. A deadline that has elapsed at entry, `deadline <= now`, fails with
+`timeout` under RT-016. A deadline on an operation that does not advertise it
+fails with `unsupported` (RT-006).
+
+**RT-022** — `plenora.execution.idempotency_key`, when present, is a non-empty
+string within the bound the operation declares; a JSON `null`, an empty string
+or a value over the bound fails with `protocol`. On an operation that does not
+advertise the control it fails with `unsupported` (RT-006). Its absence is not
+an error: the operation runs without deduplication. Reuse of a key with
+different input (SURF-012) fails with `conflict`, `phase: validate`,
+`remote_effect: none`, `retry.kind: never`.
+
+**RT-023** — On the runtime surface the deadline travels only as metadata. A
+component input contract that also carries a deadline field MUST reject a
+runtime request that carries both, even with equal values, with
+`invalid_configuration` under RT-016.

@@ -8,6 +8,20 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- Rejection before invocation, result identity and execution controls on the
+  runtime, ratified as clarifications of Runtime Binding 1.0 and Typed Errors
+  1.0: RT-016 to RT-023 (one category order, `validate`/`none`/`never` for
+  every rejection, reflection of well-formed metadata only, a new result
+  message identity with the request's as causation, UTC-only deadlines and
+  elapsed deadlines as `timeout`, malformed or unsupported idempotency keys,
+  one deadline channel) and ERR-014, ERR-015 (unknown after an unproven
+  remote effect; cleanup after a proven publication). New schema
+  `runtime-probe-v1.schema.json` and 21 probes in `vectors/runtime-probes-v1`,
+  whose expected results the validator derives from the rules; two
+  `storage.put` cleanup error vectors. The deadline spelling beyond `Z` and
+  unknown `plenora.*` keys stay as 1.0 states them: narrowing them is
+  incompatible. No existing schema, catalog, binding or vector changes. See
+  [decision 0010](decisions/0010-runtime-rejection-and-identity.md).
 - IO-tools profile version 2 (`plenora-io-tools-profile-v2`, catalog
   `io-tools-v2.json`) next to version 1: `io.read` and `io.write` version 2
   with `plenora-io-read-result-v2` and `plenora-io-write-result-v2`, whose
@@ -19,7 +33,8 @@ full commit SHA; a release tag names one of those commits.
   `types_declaration: unresolved` is predictable from the catalog; null in IO
   success results means "not applicable" (IO-NULL-001). CLI and runtime
   binding maps and the composition matrix add version 2 entries; version 1
-  and every published document are unchanged. See
+  and every published document are unchanged. The three `-v2` schemas are
+  IO-owned and published by IO-tools, not here. See
   [decision 0011](decisions/0011-io-tools-v2.md).
 
 ## 1.0.0
