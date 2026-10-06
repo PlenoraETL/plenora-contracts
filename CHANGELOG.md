@@ -8,6 +8,20 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- Rejection before invocation, result identity and execution controls on the
+  runtime, ratified as clarifications of Runtime Binding 1.0 and Typed Errors
+  1.0: RT-016 to RT-023 (one category order, `validate`/`none`/`never` for
+  every rejection, reflection of well-formed metadata only, a new result
+  message identity with the request's as causation, UTC-only deadlines and
+  elapsed deadlines as `timeout`, malformed or unsupported idempotency keys,
+  one deadline channel) and ERR-014, ERR-015 (unknown after an unproven
+  remote effect; cleanup after a proven publication). New schema
+  `runtime-probe-v1.schema.json` and 21 probes in `vectors/runtime-probes-v1`,
+  whose expected results the validator derives from the rules; two
+  `storage.put` cleanup error vectors. The deadline spelling beyond `Z` and
+  unknown `plenora.*` keys stay as 1.0 states them: narrowing them is
+  incompatible. No existing schema, catalog, binding or vector changes. See
+  [decision 0010](decisions/0010-runtime-rejection-and-identity.md).
 - rest-tools CLI as an optional surface: the catalog selects the CLI as
   `conditional` and lists it for the five operations; `bindings/cli-v1.json`
   names the `plenora-rest` command, its discovery entrypoints and
