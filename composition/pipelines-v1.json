@@ -218,6 +218,114 @@
       "constraints": [
         "An explicit JSON-to-Arrow adapter consumes the complete REST result and must define field types, nullability, ordering and per-record error policy."
       ]
+    },
+    {
+      "from": {
+        "component": "plenora-io-tools",
+        "operation": "io.read",
+        "version": 2
+      },
+      "to": {
+        "component": "plenora-data-tools",
+        "operation": "data.run",
+        "version": 1
+      },
+      "mode": "direct",
+      "interchange_contract": "plenora-arrow-interchange-v1",
+      "content_type": "application/vnd.apache.arrow.stream",
+      "constraints": [
+        "The selected data plan must accept the source schema and preserve required field identifiers."
+      ]
+    },
+    {
+      "from": {
+        "component": "plenora-data-tools",
+        "operation": "data.run",
+        "version": 1
+      },
+      "to": {
+        "component": "plenora-io-tools",
+        "operation": "io.write",
+        "version": 2
+      },
+      "mode": "direct",
+      "interchange_contract": "plenora-arrow-interchange-v1",
+      "content_type": "application/vnd.apache.arrow.stream",
+      "constraints": [
+        "The selected sink format must advertise support for the result schema and required fidelity."
+      ]
+    },
+    {
+      "from": {
+        "component": "plenora-io-tools",
+        "operation": "io.read",
+        "version": 2
+      },
+      "to": {
+        "component": "plenora-database-tools",
+        "operation": "database.write",
+        "version": 1
+      },
+      "mode": "direct",
+      "interchange_contract": "plenora-arrow-interchange-v1",
+      "content_type": "application/vnd.apache.arrow.stream",
+      "constraints": [
+        "The database mapping policy must accept the source schema."
+      ]
+    },
+    {
+      "from": {
+        "component": "plenora-database-tools",
+        "operation": "database.read",
+        "version": 1
+      },
+      "to": {
+        "component": "plenora-io-tools",
+        "operation": "io.write",
+        "version": 2
+      },
+      "mode": "direct",
+      "interchange_contract": "plenora-arrow-interchange-v1",
+      "content_type": "application/vnd.apache.arrow.stream",
+      "constraints": [
+        "The selected sink format must accept the database result schema."
+      ]
+    },
+    {
+      "from": {
+        "component": "plenora-io-tools",
+        "operation": "io.read",
+        "version": 2
+      },
+      "to": {
+        "component": "plenora-data-tools",
+        "operation": "data.run",
+        "version": 2
+      },
+      "mode": "direct",
+      "interchange_contract": "plenora-arrow-interchange-v1",
+      "content_type": "application/vnd.apache.arrow.stream",
+      "constraints": [
+        "The selected data plan must accept the source schema and preserve required field identifiers."
+      ]
+    },
+    {
+      "from": {
+        "component": "plenora-data-tools",
+        "operation": "data.run",
+        "version": 2
+      },
+      "to": {
+        "component": "plenora-io-tools",
+        "operation": "io.write",
+        "version": 2
+      },
+      "mode": "direct",
+      "interchange_contract": "plenora-arrow-interchange-v1",
+      "content_type": "application/vnd.apache.arrow.stream",
+      "constraints": [
+        "The selected sink format must advertise support for the result schema and required fidelity."
+      ]
     }
   ]
 }

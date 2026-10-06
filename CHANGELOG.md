@@ -8,6 +8,42 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- Rejection before invocation, result identity and execution controls on the
+  runtime, ratified as clarifications of Runtime Binding 1.0 and Typed Errors
+  1.0: RT-016 to RT-023 (one category order, `validate`/`none`/`never` for
+  every rejection, reflection of well-formed metadata only, a new result
+  message identity with the request's as causation, UTC-only deadlines and
+  elapsed deadlines as `timeout`, malformed or unsupported idempotency keys,
+  one deadline channel) and ERR-014, ERR-015 (unknown after an unproven
+  remote effect; cleanup after a proven publication). New schema
+  `runtime-probe-v1.schema.json` and 21 probes in `vectors/runtime-probes-v1`,
+  whose expected results the validator derives from the rules; two
+  `storage.put` cleanup error vectors. The deadline spelling beyond `Z` and
+  unknown `plenora.*` keys stay as 1.0 states them: narrowing them is
+  incompatible. No existing schema, catalog, binding or vector changes. See
+  [decision 0010](decisions/0010-runtime-rejection-and-identity.md).
+- rest-tools CLI as an optional surface: the catalog selects the CLI as
+  `conditional` and lists it for the five operations; `bindings/cli-v1.json`
+  names the `plenora-rest` command, its discovery entrypoints and
+  `<operation> --input REQUEST.json --format json`; the profile makes the
+  command optional. The validator lets a REST capability document omit a
+  conditional surface (it required the catalog's surfaces exactly). See
+  [decision 0012](decisions/0012-rest-cli-optional.md). No schema or vector
+  changes.
+- IO-tools profile version 2 (`plenora-io-tools-profile-v2`, catalog
+  `io-tools-v2.json`) next to version 1: `io.read` and `io.write` version 2
+  with `plenora-io-read-result-v2` and `plenora-io-write-result-v2`, whose
+  results name the serialization actually delivered or received, IPC stream
+  or file (IO-SER-001; the version 1 schemas fix the file container and
+  cannot change in place); `io.catalog` version 2 with
+  `plenora-io-catalog-v2`, where every writable format states
+  `requires_declared_geometry_types` (IO-CAT-001), so a sink's refusal of
+  `types_declaration: unresolved` is predictable from the catalog; null in IO
+  success results means "not applicable" (IO-NULL-001). CLI and runtime
+  binding maps and the composition matrix add version 2 entries; version 1
+  and every published document are unchanged. The three `-v2` schemas are
+  IO-owned and published by IO-tools, not here. See
+  [decision 0011](decisions/0011-io-tools-v2.md).
 - Surface Bindings 1.0, SB-001: a surface that cannot return a result in
   process (a CLI whose machine stream carries one JSON document) writes it
   only to a destination the caller named and declares the effect it adds in
@@ -20,6 +56,25 @@ full commit SHA; a release tag names one of those commits.
   which also records why an established absence of geometry needs a
   successor Arrow vocabulary rather than an optional key in the closed 1.0
   vocabulary. No schema, catalog, binding or vector changes.
+
+### Fixed
+
+- The immutability gate in CI compared a push to any branch with the
+  branch's previous tip. After merging `main` into a long-lived branch that
+  tip predated changes `main` had made by decision, so the merge looked like
+  removing a published vector (PR #6). Only a push to `main`, forced or not,
+  is now compared with the previous tip; a release tag `v*` must point to a
+  commit of `main` and is compared with it; a pull request or a push to
+  another branch is compared with the commit where it leaves `main`, and
+  every document it changed is also compared with the current `origin/main`,
+  so an old branch cannot rewrite a document published after it forked
+  (`tools/ci_comparison_base.py`). In CI `origin/main` is fetched first and
+  must equal the remote's main, or the check fails. Tests on temporary Git
+  repositories with a bare origin cover the merged branch, the old branch,
+  the forced push, an obsolete `origin/main`, annotated and lightweight
+  tags, tags on merge commits and on older commits of main, and a synthetic
+  pull-request merge. No
+  contract document changes.
 
 ## 1.0.0
 

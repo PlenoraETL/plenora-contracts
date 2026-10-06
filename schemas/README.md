@@ -19,6 +19,7 @@ These schemas are normative and use JSON Schema draft 2020-12.
 | `composition-v1.schema.json` | Cross-component direct and adapter-required handoffs |
 | `arrow-metadata-vector-v1.schema.json` | Arrow metadata conformance fixtures |
 | `runtime-vector-v1.schema.json` | Runtime request, success and error fixtures |
+| `runtime-probe-v1.schema.json` | Runtime rejection probes: one request mutation and its expected rejection |
 | `plan-budget-v1.schema.json` | Plan-format versions and declared memory-budget fragment |
 | `data-plan-v1.schema.json` | Data-tools plan format `plenora-data-plan-v1` (Data Plan 1.0) |
 | `data-execution-input-v3.schema.json` | Request of data-tools `data.run` version 3: plan, artifact sources and sinks |
