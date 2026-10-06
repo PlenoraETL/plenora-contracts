@@ -150,9 +150,49 @@
     },
     {
       "component": "plenora-data-tools",
-      "artifact": null,
-      "discovery": [],
-      "bindings": []
+      "artifact": "plenora-data / plenora_data",
+      "discovery": [
+        "plenora_data.version",
+        "plenora_data.capabilities"
+      ],
+      "bindings": [
+        {
+          "operation": "data.catalog",
+          "version": 2,
+          "requirement": "required",
+          "entrypoints": [
+            "plenora_data.catalog",
+            "plenora_data.acatalog"
+          ]
+        },
+        {
+          "operation": "data.describe",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "plenora_data.describe",
+            "plenora_data.adescribe"
+          ]
+        },
+        {
+          "operation": "data.validate",
+          "version": 2,
+          "requirement": "required",
+          "entrypoints": [
+            "plenora_data.validate",
+            "plenora_data.avalidate"
+          ]
+        },
+        {
+          "operation": "data.run",
+          "version": 2,
+          "requirement": "required",
+          "entrypoints": [
+            "plenora_data.run",
+            "plenora_data.arun"
+          ]
+        }
+      ]
     },
     {
       "component": "plenora-io-tools",
@@ -212,9 +252,77 @@
     },
     {
       "component": "plenora-storage-tools",
-      "artifact": null,
-      "discovery": [],
-      "bindings": []
+      "artifact": "plenora-storage / plenora_storage",
+      "discovery": [
+        "plenora_storage.version",
+        "Engine.capabilities",
+        "AsyncEngine.capabilities"
+      ],
+      "bindings": [
+        {
+          "operation": "storage.test",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "Engine.test",
+            "AsyncEngine.test"
+          ]
+        },
+        {
+          "operation": "storage.list",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "Engine.list",
+            "AsyncEngine.list"
+          ]
+        },
+        {
+          "operation": "storage.stat",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "Engine.stat",
+            "AsyncEngine.stat"
+          ]
+        },
+        {
+          "operation": "storage.get",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "Engine.get",
+            "AsyncEngine.get"
+          ]
+        },
+        {
+          "operation": "storage.put",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "Engine.put",
+            "AsyncEngine.put"
+          ]
+        },
+        {
+          "operation": "storage.copy",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "Engine.copy",
+            "AsyncEngine.copy"
+          ]
+        },
+        {
+          "operation": "storage.delete",
+          "version": 1,
+          "requirement": "required",
+          "entrypoints": [
+            "Engine.delete",
+            "AsyncEngine.delete"
+          ]
+        }
+      ]
     }
   ]
 }

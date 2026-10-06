@@ -16,7 +16,15 @@ operation, not independent semantics. Each binding identifies exactly one
 `(operation, version)` pair from the component catalog.
 
 A surface MAY wrap inputs and results in idiomatic types. It MUST preserve the
-catalog contracts, defaults, error axes, side effects and execution controls.
+catalog contracts, defaults, error axes, side effects and execution controls;
+a surface that materializes a result declares the effect it adds (SB-001).
+
+When a component publishes several catalog versions, an artifact implements
+exactly one of them, the one its profile and capability document declare. A
+spelling MAY then be listed for several versions of the same operation that no
+single catalog version selects together; on a given artifact it identifies the
+version that artifact's catalog selects. An artifact exposing two versions of
+one operation on the same surface needs a distinct spelling for each.
 
 ### Materializing a result that the surface cannot return in process
 
@@ -31,21 +39,33 @@ a change to the operation. Such a surface:
 
 - MUST accept the destination as a declared input of its binding, never infer
   it, and never write to a location the caller did not name;
-- MUST declare the resulting effect on its own surface, so that discovery
-  describes the artifact that is running rather than the abstract operation;
+- MUST declare the resulting effect in the capability document of the artifact
+  (SB-001), so that discovery describes the artifact that is running rather
+  than the abstract operation;
 - MUST NOT change the operation identifier, version, contracts, error axes or
   execution controls.
 
-The operation's declared side effect continues to describe the operation. A
-binding that materializes a result therefore declares a local effect while the
-catalog entry keeps the effect of the operation itself, and the two are not in
-conflict: they describe different things, and a consumer reads the one that
-belongs to the surface it is calling.
+The operation's declared `side_effect` continues to describe the operation, in
+the catalog and in the capability document. A binding that materializes a
+result declares its own effect next to it, and the two are not in conflict:
+they describe different things, and a consumer reads the one that belongs to
+the surface it is calling.
 
 Without this distinction an operation whose output is a dataset could not be
 bound to a process-level CLI at all: the catalog would say the operation has no
 side effect, the surface would have to write a file, and no truthful
 declaration would exist.
+
+**SB-001** — The effect of a surface is declared in the operation's capability
+`attributes` under the shared key `plenora.surface_side_effects` (contract
+`plenora-surface-side-effects-v1`). Its value is an object whose members are
+surface names listed in that operation's `surfaces` and whose values are
+`local` or `remote`; each value MUST be stricter than the operation's
+`side_effect` in the order `none`, `local`, `remote`. A surface that is not a
+member has exactly the operation's `side_effect`. A consumer that calls an
+operation through a surface reads the stricter of the two as the effect of
+that call. The key is optional: its absence preserves the meaning of Capability
+Discovery 2.0, in which every surface has the operation's `side_effect`.
 
 ## 2. Rust binding
 
@@ -77,12 +97,15 @@ same machine result. New integrations MUST use the canonical entrypoint.
 ## 4. Python binding
 
 [`python-sdk-v1.json`](../../bindings/python-sdk-v1.json) defines distribution,
-import and symbol spellings. The required target packages are:
+import and symbol spellings. The target packages, required or selected by
+their profile, are:
 
 | Component | Distribution | Import |
 |---|---|---|
 | database-tools | `plenora-database` | `plenora_database` |
+| data-tools | `plenora-data` | `plenora_data` |
 | rest-tools | `plenora-rest` | `plenora_rest` |
+| storage-tools | `plenora-storage` | `plenora_storage` |
 
 Sync and async symbols listed for the same operation are semantically
 equivalent. Lifecycle helpers and query builders may expose several idiomatic

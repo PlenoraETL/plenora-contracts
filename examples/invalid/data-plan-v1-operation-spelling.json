@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "inputs": [
+    "t"
+  ],
+  "steps": [
+    {
+      "out": "x",
+      "op": "Table.Sort",
+      "in": [
+        "t"
+      ],
+      "config": {
+        "columns": [
+          "x"
+        ]
+      }
+    }
+  ],
+  "outputs": [
+    "x"
+  ]
+}

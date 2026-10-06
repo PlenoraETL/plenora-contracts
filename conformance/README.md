@@ -30,6 +30,24 @@ The repository validator additionally checks that target catalogs, surface
 bindings and composition edges agree. Adopters consume those artifacts as test
 inputs; they do not maintain independent copies of operation names.
 
+Schema validation is necessary but does not establish cross-field conformance.
+Capability documents also require unique `(id, version)` operation identities
+(CAP-005) and operation surfaces present in `interfaces` (CAP-007).
+Adoption manifests require unambiguous contract and artifact identities and
+resolvable deviation references, as described in [ADOPTION.md](../ADOPTION.md).
+The data-only checks in `tools/conformance_checks.py` run after structural
+validation and are exercised by positive examples and semantic counterexamples.
+
+The repository CI runs `tools/check_schema_immutability.py`, the regression
+tests under `tools/test_*.py`, and `tools/validate_specs.py`. The example inventory
+must include every JSON file under `examples/`; an unregistered example fails
+the gate. The immutability guard compares published schema assertions,
+catalogs, operation registries, binding maps and vectors with immutable Git
+revisions ([COMPATIBILITY.md](../COMPATIBILITY.md#immutability-of-published-documents)).
+It conservatively rejects assertion rewrites even if a reviewer believes them
+equivalent; descriptive annotations can change without changing the contract
+version.
+
 ## CLI checks
 
 Invoke the installed or released binary as a subprocess. Verify help, version,
@@ -64,6 +82,32 @@ error mapping at the receiving boundary.
 
 Run the fixtures in [`vectors/runtime-v1`](../vectors/runtime-v1/) for one
 request, result and typed failure before claiming the runtime surface.
+
+## Storage checks
+
+The storage target includes all seven operations on Rust, CLI, Python SDK and
+runtime. The common Python binding map names both `Engine` and `AsyncEngine`
+entrypoints; the repository gate rejects a missing mode or discovery symbol.
+An adopter still verifies the installed wheel and released artifacts itself.
+
+The runtime fixtures include a request for every storage operation, success
+results for list and both transfer directions, and partial/unknown error
+outcomes. `tools/validate_specs.py` validates their metadata, catalog identity,
+artifact roles, explicit policies, integrity and retry semantics. Missing
+operation request coverage fails the gate.
+
+`tools/test_storage_contracts.py`, run by the existing
+[spec-validation workflow](../.github/workflows/spec-validation.yml), mutates
+these fixtures to demonstrate rejection of missing policies, inline secrets,
+local paths, invalid artifact references, inconsistent integrity/byte counts,
+invalid cursors and unsafe retry. Positive boundary cases cover zero bytes,
+maximum reference/metadata lengths and unknown optional source/sink metadata.
+These checks do not replace validation against component-owned payload schemas.
+
+Component evidence additionally exercises provider-specific create-if-absent
+and atomic publication, pagination scope, cancellation and failures after a
+possible write. Offline checks, local service fixtures and real-system
+compatibility are separate claims. A missing real-account run is not a pass.
 
 ## Arrow checks
 

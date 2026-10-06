@@ -115,6 +115,30 @@
           "entrypoints": [
             "plenora.data-tools#data.run@1"
           ]
+        },
+        {
+          "operation": "data.catalog",
+          "version": 2,
+          "requirement": "required",
+          "entrypoints": [
+            "plenora.data-tools#data.catalog@2"
+          ]
+        },
+        {
+          "operation": "data.validate",
+          "version": 2,
+          "requirement": "required",
+          "entrypoints": [
+            "plenora.data-tools#data.validate@2"
+          ]
+        },
+        {
+          "operation": "data.run",
+          "version": 3,
+          "requirement": "conditional",
+          "entrypoints": [
+            "plenora.data-tools#data.run@3"
+          ]
         }
       ]
     },

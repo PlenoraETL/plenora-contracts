@@ -12,14 +12,67 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Linux e Windows: il gate di immutabilita confronta percorsi elencati da
+  # Git (maiuscole/minuscole, separatori) e le euristiche dei percorsi privati
+  # riconoscono forme Windows. Le due versioni di Python sono gli estremi
+  # supportati; il lock e risolto per entrambi (requirements-validation.txt).
   validate:
+    name: validate (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.14"]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements-validation.txt
+      - run: python -m pip install --require-hashes -r requirements-validation.txt
+      - name: Published schemas, catalogs, bindings and vectors stay immutable
+        env:
+          PLENORA_SCHEMA_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python tools/check_schema_immutability.py
+      - name: Regression tests for the conformance gates
+        run: python -m unittest discover -s tools -p 'test_*.py'
+      - run: python tools/validate_specs.py
+
+  # Copertura della logica dei gate (soglia in .coveragerc). Una sola
+  # piattaforma: la soglia e un budget sul codice, non una prova di
+  # portabilita, che resta al job `validate`.
+  coverage:
+    name: coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: requirements-validation.txt
-      - run: python -m pip install -r requirements-validation.txt
-      - run: python tools/validate_specs.py
+          cache-dependency-path: |
+            requirements-validation.txt
+            requirements-coverage.txt
+      - run: >-
+          python -m pip install --require-hashes
+          -r requirements-validation.txt
+          -r requirements-coverage.txt
+      - name: Measure the gates
+        env:
+          PLENORA_SCHEMA_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          python -m coverage erase
+          python -m coverage run -m unittest discover -s tools -p 'test_*.py'
+          python -m coverage run -a tools/check_schema_immutability.py
+          python -m coverage run -a tools/validate_specs.py
+      - name: Coverage budget
+        run: python -m coverage report

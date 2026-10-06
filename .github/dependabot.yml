@@ -1,0 +1,14 @@
+# Aggiornamenti proposti come PR: le action sono fissate per SHA e i lock
+# Python con hash, quindi nulla cambia senza una PR che passi i gate.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday

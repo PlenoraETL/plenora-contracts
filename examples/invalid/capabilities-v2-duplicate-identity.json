@@ -1,0 +1,103 @@
+{
+  "schema_version": 2,
+  "component": "plenora-io-tools",
+  "component_version": "4.0.0",
+  "interfaces": [
+    {
+      "kind": "rust",
+      "contract": "plenora-rust-public-v1",
+      "version": 1,
+      "artifact": "plenora-io-core"
+    },
+    {
+      "kind": "cli",
+      "contract": "plenora-cli-v2",
+      "version": 2,
+      "artifact": "plenora-io-tools"
+    }
+  ],
+  "operations": [
+    {
+      "id": "io.catalog",
+      "version": 1,
+      "status": "available",
+      "surfaces": [
+        "rust",
+        "cli"
+      ],
+      "input": {
+        "contract": "plenora-io-catalog-query-v1",
+        "content_types": [
+          "application/json"
+        ]
+      },
+      "output": {
+        "contract": "plenora-io-catalog-v1",
+        "content_types": [
+          "application/json"
+        ]
+      },
+      "side_effect": "none",
+      "controls": {
+        "cancellation": false,
+        "deadline": false,
+        "idempotency_key": false
+      }
+    },
+    {
+      "id": "io.read",
+      "version": 1,
+      "status": "available",
+      "surfaces": [
+        "rust",
+        "cli"
+      ],
+      "input": {
+        "contract": "plenora-io-read-input-v1",
+        "content_types": [
+          "application/json"
+        ]
+      },
+      "output": {
+        "contract": "plenora-io-read-result-v1",
+        "content_types": [
+          "application/vnd.apache.arrow.stream"
+        ]
+      },
+      "side_effect": "none",
+      "controls": {
+        "cancellation": true,
+        "deadline": true,
+        "idempotency_key": false
+      }
+    },
+    {
+      "id": "io.catalog",
+      "version": 1,
+      "status": "unavailable",
+      "surfaces": [
+        "rust",
+        "cli"
+      ],
+      "input": {
+        "contract": "plenora-io-catalog-query-v1",
+        "content_types": [
+          "application/json"
+        ]
+      },
+      "output": {
+        "contract": "plenora-io-catalog-v1",
+        "content_types": [
+          "application/json"
+        ]
+      },
+      "side_effect": "none",
+      "controls": {
+        "cancellation": false,
+        "deadline": false,
+        "idempotency_key": false
+      },
+      "reason": "Duplicate identity with contradictory availability."
+    }
+  ]
+}

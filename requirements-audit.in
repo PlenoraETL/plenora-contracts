@@ -1,0 +1,8 @@
+# Strumento dell'audit schedulato (.github/workflows/supply-chain.yml). Lock
+# con hash in requirements-audit.txt, rigenerato con il comando nella sua
+# intestazione.
+#
+# pip-audit: confronta i lock dei gate con il database di advisory PyPA/OSV.
+# Versione esatta perche l'esito del job dipende dal suo formato di lettura
+# dei requirements con hash.
+pip-audit==2.10.1
