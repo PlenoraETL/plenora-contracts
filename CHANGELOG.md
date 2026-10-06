@@ -1,6 +1,19 @@
 # Changelog
 
+The repository versions are described in
+[COMPATIBILITY.md](COMPATIBILITY.md#repository-releases). Components pin the
+full commit SHA; a release tag names one of those commits.
+
 ## Unreleased
+
+## 1.0.0
+
+First release, tag `v1.0.0`. It names the commit of `main` that merges this
+section and contains everything published since the repository replacement
+of 2026-08-18. Every revision pinned by a component before this release is an
+ancestor of it: a pin includes exactly the changes in the history up to its
+SHA (`git log <sha>`), and an entry below merged after that SHA does not
+apply to it.
 
 ### Added
 
