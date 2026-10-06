@@ -19,7 +19,7 @@ current implementation status.
 | database-tools | required | required | required | conditional |
 | data-tools | required | required | not required | conditional |
 | io-tools | required | required | not required | conditional |
-| rest-tools | required | not required | required | required |
+| rest-tools | required | conditional | required | required |
 | storage-tools | required | required | required | required |
 
 The exact target operations are machine-readable in:

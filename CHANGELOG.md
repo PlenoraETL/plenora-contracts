@@ -22,6 +22,14 @@ full commit SHA; a release tag names one of those commits.
   unknown `plenora.*` keys stay as 1.0 states them: narrowing them is
   incompatible. No existing schema, catalog, binding or vector changes. See
   [decision 0010](decisions/0010-runtime-rejection-and-identity.md).
+- rest-tools CLI as an optional surface: the catalog selects the CLI as
+  `conditional` and lists it for the five operations; `bindings/cli-v1.json`
+  names the `plenora-rest` command, its discovery entrypoints and
+  `<operation> --input REQUEST.json --format json`; the profile makes the
+  command optional. The validator lets a REST capability document omit a
+  conditional surface (it required the catalog's surfaces exactly). See
+  [decision 0012](decisions/0012-rest-cli-optional.md). No schema or vector
+  changes.
 
 ## 1.0.0
 

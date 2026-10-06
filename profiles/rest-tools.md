@@ -11,6 +11,7 @@ Normative target catalog: [`rest-tools-v1.json`](../catalogs/rest-tools-v1.json)
 - [Typed Errors 1.0](../specs/errors/ERRORS-1.0.md)
 - [Public Security 1.0](../specs/security/PUBLIC-SECURITY-1.0.md)
 - [Python SDK 1.0](../specs/sdk/PYTHON-SDK-1.0.md)
+- [CLI 2.0](../specs/cli/CLI-2.0.md), when exposed
 - [Runtime Binding 1.0](../specs/runtime/RUNTIME-BINDING-1.0.md)
 - [Arrow Interchange 1.0](../specs/data/ARROW-INTERCHANGE-1.0.md), when advertised
 - [Surface Bindings 1.0](../specs/surfaces/SURFACE-BINDINGS-1.0.md)
@@ -53,7 +54,12 @@ identifiers without centralizing provider or implementation details.
 ## Public surfaces
 
 - Rust API: required.
-- CLI: not required by this profile.
+- CLI: optional (`conditional` in the catalog). An artifact MAY ship the
+  `plenora-rest` command; when it does, the command is governed by CLI 2.0,
+  exposes the five operations with the spellings of
+  [`bindings/cli-v1.json`](../bindings/cli-v1.json) and lists `cli` among the
+  surfaces of each operation in its capability document. An artifact without
+  the command omits `cli` and remains conforming.
 - Python SDK: required and governed by Python SDK 1.0.
 - Runtime: required for every REST operation selected for orchestration.
 
