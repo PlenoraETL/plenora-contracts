@@ -138,3 +138,9 @@ python tools/validate_specs.py
 command in their header. Coverage of the gate logic has a budget in
 [.coveragerc](.coveragerc); [supply-chain](.github/workflows/supply-chain.yml)
 audits the locks and reruns the gates every week.
+
+## License
+
+Proprietary; see [LICENSE](LICENSE). The repository is visible, but no right
+to use, copy, modify or distribute its contents is granted except under a
+separate written agreement with Plenora ETL.
