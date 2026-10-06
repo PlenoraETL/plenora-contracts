@@ -63,6 +63,13 @@ schema and bounded valid and invalid examples. Omitting `details` remains valid
 when the four common error axes and optional `code` completely express the
 failure.
 
+**IO-NULL-001** — In the success results of every IO operation, a member whose
+value is JSON `null` means "not applicable to this result": the quantity or
+reference does not exist for this dataset, format or outcome. It never means
+zero, empty, unknown or failed, and a consumer MUST NOT read it as any of
+them. A value that is unknown or failed is reported through a typed member or
+a typed failure (Typed Errors 1.0), not through `null`.
+
 ## Public surfaces
 
 - Rust API: required.

@@ -6,6 +6,14 @@ full commit SHA; a release tag names one of those commits.
 
 ## Unreleased
 
+### Changed
+
+- IO-tools profile version 1, IO-NULL-001: JSON `null` in the success results
+  of IO operations means "not applicable to this result", never zero, empty,
+  unknown or failed; unknown or failed values are typed members or typed
+  failures. It states the meaning the published IO-owned schemas give to
+  their nullable members; no schema, catalog or vector changes.
+
 ## 1.0.0
 
 First release, tag `v1.0.0`. It names the commit of `main` that merges this
