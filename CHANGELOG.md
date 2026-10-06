@@ -44,6 +44,18 @@ full commit SHA; a release tag names one of those commits.
   and every published document are unchanged. The three `-v2` schemas are
   IO-owned and published by IO-tools, not here. See
   [decision 0011](decisions/0011-io-tools-v2.md).
+- Surface Bindings 1.0, SB-001: a surface that cannot return a result in
+  process (a CLI whose machine stream carries one JSON document) writes it
+  only to a destination the caller named and declares the effect it adds in
+  the shared capability attribute `plenora.surface_side_effects`, an object
+  from the operation's surfaces to `local` or `remote`, stricter than the
+  operation's `side_effect`. Capability Discovery 2.0 reserves attribute keys
+  beginning with `plenora.` for shared contracts. The validator checks SB-001
+  on capability examples. See
+  [decision 0009](decisions/0009-surface-materialization-and-established-absence.md),
+  which also records why an established absence of geometry needs a
+  successor Arrow vocabulary rather than an optional key in the closed 1.0
+  vocabulary. No schema, catalog, binding or vector changes.
 
 ### Fixed
 

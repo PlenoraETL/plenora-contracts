@@ -59,6 +59,7 @@ CASES = {
         "capabilities-v2.schema.json": [
             "examples/valid/capabilities-v2.json",
             "examples/valid/capabilities-rest-v2.json",
+            "examples/valid/capabilities-v2-surface-side-effects.json",
         ],
         "error-v1.schema.json": ["examples/valid/error-details-bounded.json"],
         "row-diagnostics-v1.schema.json": ["examples/valid/row-diagnostics.json"],
@@ -164,6 +165,10 @@ PUBLIC_SEMANTIC_CASES = {
     "examples/invalid/capabilities-v2-undeclared-surface.json": [
         "capabilities-v2.schema.json",
         "CAP-007"
+    ],
+    "examples/invalid/capabilities-v2-surface-side-effect-not-stricter.json": [
+        "capabilities-v2.schema.json",
+        "SB-001"
     ],
     "examples/invalid/adoption-v4-duplicate-contract.json": [
         "adoption-manifest-v4.schema.json",

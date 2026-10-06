@@ -93,6 +93,12 @@ immutable, versioned component-owned contract named by the component profile.
 Untyped attributes are opaque diagnostics: consumers MUST NOT interpret them
 for orchestration or compatibility decisions.
 
+Attribute keys beginning with `plenora.` are reserved for shared contracts of
+this repository and a component MUST NOT use them for its own data. The only
+shared attribute is `plenora.surface_side_effects`
+([Surface Bindings 1.0, SB-001](../surfaces/SURFACE-BINDINGS-1.0.md#materializing-a-result-that-the-surface-cannot-return-in-process)),
+the effect a surface adds to the operation's `side_effect`.
+
 A component profile MAY instead assign detailed discovery to a versioned public
 catalog operation. In that case the operation result is the sole normative
 source for those details, and `attributes` MUST NOT duplicate them.
