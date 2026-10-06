@@ -6,6 +6,16 @@ full commit SHA; a release tag names one of those commits.
 
 ## Unreleased
 
+### Fixed
+
+- The immutability gate in CI compared a push to any branch with the
+  branch's previous tip. After merging `main` into a long-lived branch that
+  tip predated changes `main` had made by decision, so the merge looked like
+  removing a published vector (PR #6). Only a push to `main` is now compared
+  with the previous tip; a pull request or a push to another branch is
+  compared with the commit where it leaves `main`. No contract document
+  changes.
+
 ## 1.0.0
 
 First release, tag `v1.0.0`. It names the commit of `main` that merges this
