@@ -45,6 +45,25 @@ full commit SHA; a release tag names one of those commits.
   IO-owned and published by IO-tools, not here. See
   [decision 0011](decisions/0011-io-tools-v2.md).
 
+### Fixed
+
+- The immutability gate in CI compared a push to any branch with the
+  branch's previous tip. After merging `main` into a long-lived branch that
+  tip predated changes `main` had made by decision, so the merge looked like
+  removing a published vector (PR #6). Only a push to `main`, forced or not,
+  is now compared with the previous tip; a release tag `v*` must point to a
+  commit of `main` and is compared with it; a pull request or a push to
+  another branch is compared with the commit where it leaves `main`, and
+  every document it changed is also compared with the current `origin/main`,
+  so an old branch cannot rewrite a document published after it forked
+  (`tools/ci_comparison_base.py`). In CI `origin/main` is fetched first and
+  must equal the remote's main, or the check fails. Tests on temporary Git
+  repositories with a bare origin cover the merged branch, the old branch,
+  the forced push, an obsolete `origin/main`, annotated and lightweight
+  tags, tags on merge commits and on older commits of main, and a synthetic
+  pull-request merge. No
+  contract document changes.
+
 ## 1.0.0
 
 First release, tag `v1.0.0`. It names the commit of `main` that merges this
