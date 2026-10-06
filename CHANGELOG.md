@@ -56,8 +56,12 @@ full commit SHA; a release tag names one of those commits.
   another branch is compared with the commit where it leaves `main`, and
   every document it changed is also compared with the current `origin/main`,
   so an old branch cannot rewrite a document published after it forked
-  (`tools/ci_comparison_base.py`). Tests on temporary Git repositories cover
-  the merged branch, the old branch, the forced push and the tags. No
+  (`tools/ci_comparison_base.py`). In CI `origin/main` is fetched first and
+  must equal the remote's main, or the check fails. Tests on temporary Git
+  repositories with a bare origin cover the merged branch, the old branch,
+  the forced push, an obsolete `origin/main`, annotated and lightweight
+  tags, tags on merge commits and on older commits of main, and a synthetic
+  pull-request merge. No
   contract document changes.
 
 ## 1.0.0

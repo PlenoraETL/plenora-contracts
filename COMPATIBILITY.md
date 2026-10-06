@@ -101,6 +101,9 @@ legitimately. In addition, every document the checked tree changed since it
 left `main` is compared with the current `origin/main`, so a branch cannot
 rewrite a document `main` published after the branch forked; a document the
 branch did not touch takes `main`'s content when merged and is not compared.
+In CI `origin/main` is fetched first and must equal the remote's
+`refs/heads/main`; an older ref fails the check instead of hiding what `main`
+published since.
 The fork point also protects documents published after the floor on the first
 push of a new branch. Without
 `origin/main` the gate fails; outside CI, `PLENORA_ALLOW_NO_FORK_POINT=1`

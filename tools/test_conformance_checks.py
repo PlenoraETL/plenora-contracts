@@ -314,6 +314,16 @@ class SchemaImmutabilityTests(unittest.TestCase):
                 status, _ = self.run_main({"PLENORA_ALLOW_NO_FORK_POINT": "1", **marker})
                 self.assertEqual(status, 1)
         subprocess.run(["git", "-C", str(self.root), "update-ref", "refs/remotes/origin/main", "HEAD"], check=True)
+        # In CI origin/main must also match the remote's main; this
+        # repository has no remote, so the gate cannot verify it and fails.
+        status, output = self.run_main({"GITHUB_ACTIONS": "true"})
+        self.assertEqual(status, 1)
+        self.assertIn("origin", output)
+        origin = self.root.parent / (self.root.name + "-origin.git")
+        subprocess.run(["git", "init", "--quiet", "--bare", str(origin)], check=True, capture_output=True)
+        self.addCleanup(shutil.rmtree, origin, True)
+        for args in [["remote", "add", "origin", str(origin)], ["push", "--quiet", "origin", "HEAD:refs/heads/main"]]:
+            subprocess.run(["git", "-C", str(self.root), *args], check=True, capture_output=True)
         self.assertEqual(self.run_main({"GITHUB_ACTIONS": "true"})[0], 0)
 
     def test_only_the_declared_erratum_transition_is_allowed(self):

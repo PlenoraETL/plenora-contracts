@@ -435,6 +435,29 @@ def fork_point(root: Path) -> str:
         raise ValueError(f"cannot find where HEAD left {MAIN_REF}") from error
 
 
+def stale_main_error(root: Path) -> str | None:
+    """`origin/main` as the remote has it now. A runner with an older
+    `origin/main` would compare with a main that has since moved, and skip
+    what was published in between, so CI fails instead."""
+    try:
+        local = git(root, "rev-parse", MAIN_REF).strip()
+        listed = git(root, "ls-remote", "origin", "refs/heads/main").split()
+    except (OSError, subprocess.CalledProcessError):
+        return "cannot read refs/heads/main from origin"
+    if not listed:
+        return "origin has no refs/heads/main"
+    if listed[0] != local:
+        return (
+            f"{MAIN_REF} is {local[:12]} but origin's main is {listed[0][:12]}; "
+            "fetch origin main before checking"
+        )
+    return None
+
+
+def in_ci() -> bool:
+    return any(marker in os.environ for marker in CI_MARKERS)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default=os.environ.get("PLENORA_SCHEMA_BASE"))
@@ -454,6 +477,11 @@ def main() -> int:
             return 1
         fork = None
         print(f"note: {error}; {NO_FORK_POINT_WAIVER}=1, checked against the ratified floor and the event base only")
+    if fork is not None and in_ci():
+        stale = stale_main_error(ROOT)
+        if stale is not None:
+            print(f"published document baseline check failed: {stale}")
+            return 1
     try:
         # The ratified floor remains protected even when a branch's prior push
         # already contained an invalid edit; the fork point protects what main

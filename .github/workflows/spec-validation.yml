@@ -46,6 +46,9 @@ jobs:
         env:
           EVENT_BEFORE: ${{ github.event.before }}
         run: |
+          # The current main, not the one the checkout saw: the script and
+          # the gate both fail if origin/main differs from the remote.
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           base="$(python tools/ci_comparison_base.py)"
           echo "PLENORA_SCHEMA_BASE=$base" >> "$GITHUB_ENV"
       - name: Published schemas, catalogs, bindings and vectors stay immutable
@@ -84,6 +87,9 @@ jobs:
         env:
           EVENT_BEFORE: ${{ github.event.before }}
         run: |
+          # The current main, not the one the checkout saw: the script and
+          # the gate both fail if origin/main differs from the remote.
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           base="$(python tools/ci_comparison_base.py)"
           echo "PLENORA_SCHEMA_BASE=$base" >> "$GITHUB_ENV"
       - name: Measure the gates

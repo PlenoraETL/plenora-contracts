@@ -42,17 +42,36 @@ def is_ancestor(root: str, ancestor: str, descendant: str) -> bool:
     return result.returncode == 0
 
 
+def current_main(root: str) -> str:
+    """`origin/main`, verified against the remote: an older ref would hide
+    what main published since."""
+    try:
+        local = git(root, "rev-parse", MAIN_REF)
+        listed = git(root, "ls-remote", "origin", "refs/heads/main").split()
+    except subprocess.CalledProcessError as error:
+        raise ValueError(f"cannot read {MAIN_REF} or origin's main") from error
+    if not listed:
+        raise ValueError("origin has no refs/heads/main")
+    if listed[0] != local:
+        raise ValueError(
+            f"{MAIN_REF} is {local[:12]} but origin's main is {listed[0][:12]}; "
+            "fetch origin main first"
+        )
+    return local
+
+
 def comparison_base(event: str, ref: str, before: str, root: str = ".") -> str:
+    main_tip = current_main(root)
     if event == "push" and ref == MAIN:
         if not before or before == NO_COMMIT:
             raise ValueError("a push to main has no previous tip")
         return before
     if event == "push" and ref.startswith("refs/tags/v"):
         tagged = git(root, "rev-parse", "HEAD^{commit}")
-        if not is_ancestor(root, tagged, MAIN_REF):
+        if not is_ancestor(root, tagged, main_tip):
             raise ValueError(f"release tag {ref.removeprefix('refs/tags/')} does not point to a commit of main")
         return tagged
-    return git(root, "merge-base", "HEAD", MAIN_REF)
+    return git(root, "merge-base", "HEAD", main_tip)
 
 
 def main() -> int:
