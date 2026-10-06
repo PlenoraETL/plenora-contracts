@@ -51,6 +51,21 @@ MUST NOT include it.
 **ERR-008** — `requires_idempotency_key` is valid only when the public
 operation advertises idempotency-key support.
 
+**ERR-014** — When a remote mutation may have started and its outcome is not
+proven, the error reports `remote_effect: unknown` (ERR-004), even when the
+failure that ends the operation is local, such as writing a downloaded body,
+and whatever the request method: a method's conventional safety is not proof.
+An idempotency key does not change this (ERR-006). The retry disposition
+SHOULD be `requires_recovery`, unless the component profile states another
+of those ERR-006 admits.
+
+**ERR-015** — When a publication or commit is proven and a later cleanup
+fails, the error reports `phase: cleanup` and `remote_effect: committed`: the
+result was published, so it is neither a success (SURF-014) nor `partial`.
+`retry.kind` is `never` when the residue is local only, because a retry would
+publish again, and `requires_recovery` when a remote residue remains. When the
+remote outcome of the cleanup itself is unknown, ERR-014 applies.
+
 ## 6. Message and details
 
 **ERR-009** — `message` is diagnostic text for people. It MUST be bounded and
