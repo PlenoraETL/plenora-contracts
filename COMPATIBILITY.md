@@ -92,11 +92,17 @@ ancestors); against a later base the erratum admits nothing. Recorded errata:
 CI compares the protected documents against three revisions: the base of
 the change, the ratified floor recorded in
 `tools/check_schema_immutability.py` and the commit where the checked revision
-left `origin/main`. The base of a push to `main` is the previous tip of
-`main`; the base of a pull request, or of a push to another branch, is the
-commit where it leaves `main`, because a branch's previous tip may predate
-changes that `main` made legitimately. The fork point also protects documents
-published after the floor on the first push of a new branch. Without
+left `origin/main` (`tools/ci_comparison_base.py`). The base of a push to
+`main`, forced or not, is the previous tip of `main`; the base of a release
+tag `v*` is the tagged commit, which must be a commit of `main`; the base of a
+pull request, or of a push to another branch, is the commit where it leaves
+`main`, because a branch's previous tip may predate changes that `main` made
+legitimately. In addition, every document the checked tree changed since it
+left `main` is compared with the current `origin/main`, so a branch cannot
+rewrite a document `main` published after the branch forked; a document the
+branch did not touch takes `main`'s content when merged and is not compared.
+The fork point also protects documents published after the floor on the first
+push of a new branch. Without
 `origin/main` the gate fails; outside CI, `PLENORA_ALLOW_NO_FORK_POINT=1`
 waives that revision explicitly and the gate checks the other two (the waiver
 is ignored when `CI`, `GITHUB_ACTIONS` or `GITHUB_RUN_ID` is set). Files of

@@ -37,21 +37,16 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-validation.txt
       - run: python -m pip install --require-hashes -r requirements-validation.txt
-      # Base of the immutability comparison: what this change publishes on
-      # `main`. A push to `main` is compared with the previous tip of `main`.
-      # A pull request, and a push to any other branch, with the commit where
-      # it leaves `main`: a branch's previous tip may predate changes `main`
-      # made legitimately (a vector removed by its own decision), and merging
-      # `main` into the branch would then look like removing it.
+      # Base of the immutability comparison, chosen by
+      # tools/ci_comparison_base.py: the previous tip of main for a push to
+      # main (forced or not); the tagged commit for a release tag, which must
+      # be a commit of main; otherwise where the change leaves main, and the
+      # gate also compares what the branch changed with the current main.
       - name: Base of the comparison
         env:
           EVENT_BEFORE: ${{ github.event.before }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; then
-            base="$EVENT_BEFORE"
-          else
-            base="$(git merge-base HEAD origin/main)"
-          fi
+          base="$(python tools/ci_comparison_base.py)"
           echo "PLENORA_SCHEMA_BASE=$base" >> "$GITHUB_ENV"
       - name: Published schemas, catalogs, bindings and vectors stay immutable
         run: python tools/check_schema_immutability.py
@@ -80,21 +75,16 @@ jobs:
           python -m pip install --require-hashes
           -r requirements-validation.txt
           -r requirements-coverage.txt
-      # Base of the immutability comparison: what this change publishes on
-      # `main`. A push to `main` is compared with the previous tip of `main`.
-      # A pull request, and a push to any other branch, with the commit where
-      # it leaves `main`: a branch's previous tip may predate changes `main`
-      # made legitimately (a vector removed by its own decision), and merging
-      # `main` into the branch would then look like removing it.
+      # Base of the immutability comparison, chosen by
+      # tools/ci_comparison_base.py: the previous tip of main for a push to
+      # main (forced or not); the tagged commit for a release tag, which must
+      # be a commit of main; otherwise where the change leaves main, and the
+      # gate also compares what the branch changed with the current main.
       - name: Base of the comparison
         env:
           EVENT_BEFORE: ${{ github.event.before }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; then
-            base="$EVENT_BEFORE"
-          else
-            base="$(git merge-base HEAD origin/main)"
-          fi
+          base="$(python tools/ci_comparison_base.py)"
           echo "PLENORA_SCHEMA_BASE=$base" >> "$GITHUB_ENV"
       - name: Measure the gates
         run: |

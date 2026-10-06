@@ -298,8 +298,16 @@ def is_protected(relative: str) -> bool:
     return VERSIONED_FILE.fullmatch(relative) is not None
 
 
-def check(root: Path, base: str, head: str | None = None) -> list[str]:
-    """Differences of the working tree (or of revision `head`) from `base`."""
+def check(
+    root: Path, base: str, head: str | None = None, touched_since: str | None = None
+) -> list[str]:
+    """Differences of the working tree (or of revision `head`) from `base`.
+
+    With `touched_since`, only the documents the checked tree changed since
+    that revision are compared: `base` is then the current `origin/main`,
+    newer than where a branch left it, and a document the branch did not
+    touch takes `main`'s content when the branch is merged.
+    """
     if not re.fullmatch(r"[0-9a-f]{40}", base):
         raise ValueError("baseline must be a full immutable commit SHA")
     listed = git(root, "ls-tree", "-r", "--name-only", base, "--", *PROTECTED_DIRECTORIES).splitlines()
@@ -324,13 +332,26 @@ def check(root: Path, base: str, head: str | None = None) -> list[str]:
         except subprocess.CalledProcessError:
             return None
 
+    def untouched(relative: str) -> bool:
+        if touched_since is None:
+            return False
+        try:
+            before = git(root, "show", f"{touched_since}:{relative}")
+        except subprocess.CalledProcessError:
+            before = None
+        return read_text(relative) == before
+
     errors = []
     # Every declaration for a document this base or tree publishes must be
     # verifiable; one for a document neither carries is inert.
     for relative, erratum in sorted(ERRATA.items()):
+        if untouched(relative):
+            continue
         if relative in paths or read_text(relative) is not None:
             errors += erratum_errors(relative, erratum, read_text)
     for relative in paths:
+        if untouched(relative):
+            continue
         text = read_text(relative)
         kind = "schema" if relative.startswith("schemas/") else "document"
         if text is None:
@@ -440,6 +461,13 @@ def main() -> int:
         errors = []
         for revision in dict.fromkeys(item for item in (RATIFIED_BASE, fork, base) if item):
             errors.extend(check(ROOT, revision))
+        # What main has published since the branch left it: a document the
+        # branch also changed is compared with main's current content, so an
+        # old branch cannot rewrite it unseen.
+        if fork is not None:
+            tip = git(ROOT, "rev-parse", MAIN_REF).strip()
+            if tip not in (fork, base):
+                errors.extend(check(ROOT, tip, touched_since=fork))
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
         print(f"published document baseline check failed: {error}")
         return 1

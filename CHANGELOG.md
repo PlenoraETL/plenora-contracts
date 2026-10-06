@@ -11,10 +11,15 @@ full commit SHA; a release tag names one of those commits.
 - The immutability gate in CI compared a push to any branch with the
   branch's previous tip. After merging `main` into a long-lived branch that
   tip predated changes `main` had made by decision, so the merge looked like
-  removing a published vector (PR #6). Only a push to `main` is now compared
-  with the previous tip; a pull request or a push to another branch is
-  compared with the commit where it leaves `main`. No contract document
-  changes.
+  removing a published vector (PR #6). Only a push to `main`, forced or not,
+  is now compared with the previous tip; a release tag `v*` must point to a
+  commit of `main` and is compared with it; a pull request or a push to
+  another branch is compared with the commit where it leaves `main`, and
+  every document it changed is also compared with the current `origin/main`,
+  so an old branch cannot rewrite a document published after it forked
+  (`tools/ci_comparison_base.py`). Tests on temporary Git repositories cover
+  the merged branch, the old branch, the forced push and the tags. No
+  contract document changes.
 
 ## 1.0.0
 
