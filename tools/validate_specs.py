@@ -581,6 +581,36 @@ def profile_path(component: str, profile: str) -> Path:
     return ROOT / "profiles" / f"{name}{suffix}.md"
 
 
+WIRE_CONTRACT_PAIR = re.compile(
+    r"^- `(plenora-[a-z0-9-]+-v[1-9][0-9]*)` and `(plenora-[a-z0-9-]+-v[1-9][0-9]*)`", re.M
+)
+
+
+def wire_contract_errors(profile: str, catalog: dict[str, Any]) -> list[str]:
+    """A profile that lists its component-owned wire contracts lists exactly
+    the input and output pairs of its catalog version: a pair copied from
+    another version would name a contract the artifact does not emit."""
+    match = re.search(
+        r"^## Component-owned wire contracts$(.*?)(?=^## |\Z)", profile, re.M | re.S
+    )
+    if match is None:
+        return []
+    listed = set(WIRE_CONTRACT_PAIR.findall(match.group(1)))
+    expected = {
+        (operation["input"]["contract"], operation["output"]["contract"])
+        for operation in catalog["operations"]
+    }
+    errors = [
+        f"profile lists wire contracts {pair[0]} and {pair[1]}, which its catalog does not pair"
+        for pair in sorted(listed - expected)
+    ]
+    errors.extend(
+        f"profile does not list wire contracts {pair[0]} and {pair[1]} of its catalog"
+        for pair in sorted(expected - listed)
+    )
+    return errors
+
+
 def repeated_identity_errors(
     versions: dict[str, dict[int, dict[str, Any]]],
 ) -> list[str]:
@@ -680,6 +710,11 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
         ):
             failures.append(
                 f"{component} v{version} profile identifier does not match its catalog"
+            )
+        else:
+            failures.extend(
+                f"{component} v{version} {error}"
+                for error in wire_contract_errors(path.read_text(encoding="utf-8"), catalog)
             )
 
     failures.extend(repeated_identity_errors(versions))
@@ -2134,6 +2169,49 @@ def probe_outcome(
     raise ProbeUndecided("the mutated request is not rejected")
 
 
+def artifact_probe_outcome(
+    base: dict[str, Any],
+    metadata: dict[str, Any],
+    key: str,
+    versions: dict[str, dict[int, dict[str, Any]]],
+) -> tuple[str, str]:
+    """The rejection as an artifact sees it. An artifact implements exactly
+    one catalog version (Surface Bindings 1.0 section 1), one that carries the
+    base request's operation version on the runtime surface: an operation
+    version that only another catalog version declares is unsupported there.
+    When several catalog versions qualify, they must agree."""
+    outcomes = set()
+    for component, by_version in versions.items():
+        if f"plenora.{component.removeprefix('plenora-')}" != base.get("plenora.capability.name"):
+            continue
+        for catalog in by_version.values():
+            index = {
+                (component, operation["id"], operation["version"]): operation
+                for operation in catalog["operations"]
+            }
+            carries_base = any(
+                operation_id == base.get("plenora.capability.operation")
+                and str(version) == base.get("plenora.operation.version")
+                and "runtime" in operation["surfaces"]
+                for (_, operation_id, version), operation in index.items()
+            )
+            if carries_base:
+                try:
+                    outcomes.add(probe_outcome(metadata, key, index))
+                except ProbeUndecided as undecided:
+                    outcomes.add(("undecided", str(undecided)))
+    if not outcomes:
+        raise ProbeUndecided("no catalog version carries the base request on the runtime")
+    if len(outcomes) > 1:
+        raise ProbeUndecided(
+            "the catalog versions that carry the base request reject it differently"
+        )
+    outcome = outcomes.pop()
+    if outcome[0] == "undecided":
+        raise ProbeUndecided(outcome[1])
+    return outcome
+
+
 def probe_result_metadata(metadata: dict[str, Any]) -> dict[str, str]:
     """RT-019: the routing and correlation keys a rejection reflects, byte for
     byte, only when the request carried them well-formed."""
@@ -2149,7 +2227,7 @@ def probe_result_metadata(metadata: dict[str, Any]) -> dict[str, str]:
 
 def runtime_probe_errors(
     probe: dict[str, Any],
-    operations: dict[tuple[str, str, int], dict[str, Any]],
+    versions: dict[str, dict[int, dict[str, Any]]],
     schemas: dict[str, dict[str, Any]],
     registry: Registry,
 ) -> list[str]:
@@ -2172,7 +2250,7 @@ def runtime_probe_errors(
             return [f"sets {key} to the value the base already carries"]
         metadata[key] = value
     try:
-        category, rule = probe_outcome(metadata, key, operations)
+        category, rule = artifact_probe_outcome(base["metadata"], metadata, key, versions)
         expected_metadata = probe_result_metadata(metadata)
     except ProbeUndecided as undecided:
         return [str(undecided)]
@@ -2206,10 +2284,10 @@ def validate_runtime_probes(
     schemas: dict[str, dict[str, Any]],
     registry: Registry,
 ) -> list[str]:
-    operations = operation_index(catalogs)
+    versions = catalog_versions(catalogs)
     failures = []
     for path in sorted((ROOT / RUNTIME_PROBE_DIR).glob("*.json")):
-        for error in runtime_probe_errors(load_json(path), operations, schemas, registry):
+        for error in runtime_probe_errors(load_json(path), versions, schemas, registry):
             failures.append(f"{path.relative_to(ROOT).as_posix()} {error}")
     return failures
 

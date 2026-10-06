@@ -30,6 +30,20 @@ full commit SHA; a release tag names one of those commits.
   conditional surface (it required the catalog's surfaces exactly). See
   [decision 0012](decisions/0012-rest-cli-optional.md). No schema or vector
   changes.
+- IO-tools profile version 2 (`plenora-io-tools-profile-v2`, catalog
+  `io-tools-v2.json`) next to version 1: `io.read` and `io.write` version 2
+  with `plenora-io-read-result-v2` and `plenora-io-write-result-v2`, whose
+  results name the serialization actually delivered or received, IPC stream
+  or file (IO-SER-001; the version 1 schemas fix the file container and
+  cannot change in place); `io.catalog` version 2 with
+  `plenora-io-catalog-v2`, where every writable format states
+  `requires_declared_geometry_types` (IO-CAT-001), so a sink's refusal of
+  `types_declaration: unresolved` is predictable from the catalog; null in IO
+  success results means "not applicable" (IO-NULL-001). CLI and runtime
+  binding maps and the composition matrix add version 2 entries; version 1
+  and every published document are unchanged. The three `-v2` schemas are
+  IO-owned and published by IO-tools, not here. See
+  [decision 0011](decisions/0011-io-tools-v2.md).
 
 ## 1.0.0
 

@@ -30,7 +30,8 @@ The exact target operations are machine-readable in:
   target; [`data-tools-v1.json`](../catalogs/data-tools-v1.json) with
   [`data-kernels-v1.json`](../catalogs/data-kernels-v1.json) remains
   available;
-- [`io-tools-v1.json`](../catalogs/io-tools-v1.json);
+- [`io-tools-v2.json`](../catalogs/io-tools-v2.json), current target;
+  [`io-tools-v1.json`](../catalogs/io-tools-v1.json) remains available;
 - [`rest-tools-v1.json`](../catalogs/rest-tools-v1.json);
 - [`storage-tools-v1.json`](../catalogs/storage-tools-v1.json).
 
@@ -67,7 +68,7 @@ temporary deviations.
 
 - [database-tools](database-tools.md)
 - [data-tools](data-tools-v2.md) (version 2; [version 1](data-tools.md))
-- [io-tools](io-tools.md)
+- [io-tools](io-tools-v2.md) (version 2; [version 1](io-tools.md))
 - [rest-tools](rest-tools.md)
 - [storage-tools](storage-tools.md)
 
