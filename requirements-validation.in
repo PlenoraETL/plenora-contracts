@@ -6,4 +6,9 @@
 # jsonschema: validazione Draft 2020-12 degli schemi, degli esempi e dei
 # vettori (tools/validate_specs.py). Versione esatta perche l'esito del gate
 # dipende dalla semantica del validatore.
-jsonschema==4.23.0
+#
+# Il lock e universale da Python 3.10: rpds-py, transitiva, ha due righe con
+# marker, 0.30.0 (l'ultima per 3.10) e la piu recente per 3.11 e oltre. Un
+# lock con la sola riga recente non si installa su 3.10; va rigenerato con il
+# comando dell'intestazione, non ritoccato a mano.
+jsonschema==4.26.0
