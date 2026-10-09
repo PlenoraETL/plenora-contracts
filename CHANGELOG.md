@@ -6,6 +6,16 @@ full commit SHA; a release tag names one of those commits.
 
 ## Unreleased
 
+### Changed
+
+- The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
+  universal from Python 3.10: `rpds-py` keeps 0.30.0, its last release for
+  Python 3.10, under `python_full_version < '3.11'` and 2026.9.1 above; the
+  other transitive dependencies are unchanged. Every schema check and every
+  validation of the schemas, examples and vectors gives the same result,
+  error messages and paths included, on Python 3.10 and 3.14. No contract
+  document changes.
+
 ## 1.1.0 - 2026-10-06
 
 Tag `v1.1.0` on the commit of `main` that merges this section. A minor
