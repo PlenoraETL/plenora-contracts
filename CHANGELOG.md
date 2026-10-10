@@ -6,6 +6,23 @@ full commit SHA; a release tag names one of those commits.
 
 ## Unreleased
 
+### Added
+
+- Catalog surfaces are the target, never availability (Public Catalogs 1.0,
+  CAT-001 to CAT-003): a consumer selects surfaces from the artifact's
+  capability document, and a cataloged surface it does not list is planned
+  for that artifact; no surface is removed and no marker added; a surface a
+  profile declares intentionally absent is never added to that operation
+  identity, which the validator checks. The reasons of the intentional
+  absences are in the profiles: DB-ABS-001 (transactions without CLI and
+  runtime), DB-ABS-002 (`database.execute` without runtime), DB-ABS-003
+  (handle and savepoint contracts as logical shapes, never serialized),
+  DT-ABS-001 (`data.run` version 3 without CLI and Python SDK), DT-ABS-002
+  (`data.run` version 2 without runtime). The runtime of IO-tools,
+  database-tools and data-tools version 1 is stated `conditional`, as their
+  catalogs select it. No schema, catalog, binding or vector changes. See
+  [decision 0015](decisions/0015-intentional-absences-and-planned-surfaces.md).
+
 ### Changed
 
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays

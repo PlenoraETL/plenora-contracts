@@ -48,7 +48,10 @@ They do not expose executor internals.
 - Rust API: required.
 - CLI: required and governed by CLI 2.0.
 - Python SDK: not required by this profile.
-- Runtime: required for every transformation selected for orchestration.
+- Runtime: conditional. An artifact that publishes the runtime surface
+  follows Runtime Binding 1.0 for every operation it exposes there; an
+  artifact without it omits `runtime` from its capability document, and the
+  catalog's runtime entries are planned for it (CAT-001).
 
 ## Interchange
 

@@ -77,10 +77,52 @@ every mode universally available.
 - Rust API: required.
 - CLI: required and governed by CLI 2.0.
 - Python SDK: required and governed by Python SDK 1.0.
-- Runtime: required for every database operation selected for orchestration.
+- Runtime: conditional. An artifact that publishes the runtime surface
+  follows Runtime Binding 1.0 for every operation it exposes there; an
+  artifact without it omits `runtime` from its capability document, and the
+  catalog's runtime entries are planned for it (CAT-001).
 
 The same operation version exposed on multiple surfaces has equivalent input
 validation, results, error axes and remote-effect semantics.
+
+## Surfaces intentionally absent
+
+These gaps in the catalog are decisions, not missing work. Public Catalogs
+1.0 CAT-003 keeps them: none of these surfaces is ever added to these
+operation identities.
+
+**DB-ABS-001** — `database.transaction.begin`, `database.transaction.commit`,
+`database.transaction.rollback` and `database.transaction.savepoint` are bound
+to the Rust API and the Python SDK only.
+
+- Not to the CLI: a transaction handle does not survive the process that
+  opened it, and CLI 2.0 answers one invocation with one envelope. Spreading
+  a transaction over several invocations needs a session process that holds
+  the connection between them, which no shared contract defines.
+- Not to the runtime: Runtime Binding 1.0 messages are independent requests
+  that a transport may route to different workers. A transaction spread over
+  several messages needs session affinity, a lease and the recovery of a
+  transaction whose owner disappeared, which no shared contract defines.
+
+A process-level caller that needs atomicity uses an operation whose single
+invocation is the transaction, such as `database.write`.
+
+**DB-ABS-002** — `database.execute` is not bound to the runtime. It runs a
+statement the caller supplies, with remote effects the component cannot
+characterize, and its controls accept no idempotency key. Runtime Binding 1.0
+does not promise at-most-once delivery: a transport may deliver a request
+again after a lost acknowledgement, and the shared defense against a second
+execution is an idempotency key (SURF-012, RT-022), which this operation does
+not accept. A runtime binding needs a new operation version that accepts the
+key and states how a repeated key is recognized.
+
+**DB-ABS-003** — `plenora-database-transaction-handle-v1` and
+`plenora-database-savepoint-input-v1` are logical shapes. The Rust API and the
+Python SDK realize them as native handle objects (SURF-009); no surface
+serializes them, and the `application/json` content type the catalog declares
+names the representation a serialized surface would use, not one that
+exists. A consumer MUST NOT expect, persist or exchange them as JSON
+documents; a handle is valid only in the process and session that created it.
 
 ## Interchange
 

@@ -81,6 +81,31 @@ They do not expose executor internals.
   the published outputs. It is conditional and lists the Rust and runtime
   surfaces only.
 
+## Surfaces intentionally absent
+
+These gaps in the catalog are decisions, not missing work. Public Catalogs
+1.0 CAT-003 keeps them: none of these surfaces is ever added to these
+operation identities.
+
+**DT-ABS-001** — `data.run` version 3 is bound to neither the CLI nor the
+Python SDK. It resolves artifact references through the resolver the final
+application provides (RT-015, DT-RUN-002); a CLI process and a Python call
+have none of their own. The local case is already served by version 2 with
+the same semantics (DT-RUN-004): `--input NAME=PATH` and `--output NAME=PATH`
+on the CLI, tables or paths in Python. A spelling of version 3 on those
+surfaces would add a second way to name local files with a different
+reference grammar; it needs a decision that defines the resolver of that
+surface.
+
+**DT-ABS-002** — `data.run` version 2 is not bound to the runtime: its result
+names any number of outputs and Runtime Binding 1.0 carries one payload per
+response. Version 3 is its runtime representation.
+
+`data.catalog` version 2, `data.describe` version 1, `data.validate` version
+2 and `data.run` version 3 list the runtime as a conditional target: an
+artifact without a runtime binding omits it from its capability document,
+and those entries are planned for it (CAT-001).
+
 ## Interchange
 
 Tabular and geospatial operations accept and return Arrow according to Arrow
