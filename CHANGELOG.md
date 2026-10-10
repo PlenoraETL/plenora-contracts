@@ -6,6 +6,24 @@ full commit SHA; a release tag names one of those commits.
 
 ## Unreleased
 
+### Added
+
+- Meaning of the geometry keys, ratified in Arrow Vocabulary 1.0 as
+  clarifications (sections 7 to 12, VOC-001 to VOC-015): `axis_order` is the
+  order of the coordinates stored in the WKB, not the registry order, and
+  the producer declares it from the source convention; `crs_id` is
+  normative, a definition whose top-level identifier contradicts it fails
+  with `crs`, and a consumer that computes verifies the definition first
+  (identifier at the root and decidable parts); every consumer accepts both
+  `wkb` and `ewkb`, an EWKB SRID different from the field's fails with
+  `crs`; several geometry types and several geometry fields are valid, and a
+  target that cannot store them fails with `unsupported`; identity and
+  precision of produced fields. New schema `arrow-data-vector-v1.schema.json`
+  and 29 vectors in `vectors/arrow-data-v1` with row values, whose verdicts
+  the validator derives by decoding every geometry. No existing schema,
+  catalog, binding or vector changes. See
+  [decision 0013](decisions/0013-geometry-vocabulary-semantics.md).
+
 ### Changed
 
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
