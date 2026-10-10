@@ -95,6 +95,14 @@ Profiles:
   `conditional` for the runtime instead of "required for every operation
   selected for orchestration", which the catalogs never said.
 
+### Results beyond a bound (second reading)
+
+A runtime result can meet a bound: the payload limit of the transport or the
+component's materialization limit. **RT-024** makes either a typed
+`resource_limit` error and forbids a truncated success (SURF-014);
+**DB-RT-003** applies it to `database.query`, says where database-tools
+declares its bound, and two runtime vectors show both errors.
+
 ### Content types on the runtime (database-tools)
 
 database-tools asked how the runtime carries the content types its catalog
@@ -126,13 +134,22 @@ no idempotency key, the catalogs also bind `database.write` (append mode
 repeated adds rows), `data.run` version 3 (an `overwrite: true` sink is
 replaced again; `false` fails with `conflict`) and `storage.put`,
 `storage.copy`, `storage.delete`. Those surfaces are published and cannot be
-removed (CAT-002). The safe rule is one the transport keeps: a request for
-such an operation is delivered at most once, and an unproven outcome is
-reported `remote_effect: unknown` (ERR-004, ERR-014), never retried
-automatically. Options: (a) state it in the runtime-tools profile; (b) a new
-version of each operation with the idempotency-key control; (c) both, (a)
-first. Recommended: (c). Not ratified here: it changes the runtime-tools
-profile, a separate adopter.
+removed (CAT-002). The safe rule is one the transport keeps. Recorded here as
+a **requirement for the runtime-tools profile** (second reading, Codex), to
+be ratified there:
+
+1. at most one start of the operation per request, across workers and after
+   a crash: the request identity is recorded durably before the invocation;
+2. a request already started whose outcome is unknown is never run again: it
+   reports `remote_effect: unknown` and needs an explicit recovery (ERR-004,
+   ERR-006, ERR-014);
+3. a transport that cannot give this guarantee rejects such a request before
+   any effect;
+4. later, new versions of these operations with a mandatory idempotency key.
+
+The ratification belongs to a separate change of the runtime-tools profile,
+tracked by issue
+[plenora-contracts#35](https://github.com/PlenoraETL/plenora-contracts/issues/35).
 
 ## Change statement
 
@@ -141,13 +158,17 @@ profile, a separate adopter.
 - **Before:** catalog surfaces could be read as availability; four absences
   had no stated reason; the handle contracts declared a JSON form that no
   surface has.
-- **After:** CAT-001 to CAT-003, DB-ABS-001 to DB-ABS-003, DB-RT-001,
-  DB-RT-002, DT-ABS-001, DT-ABS-002 and the validator guard.
-- **Compatible:** yes: no catalog, binding, schema or vector changes; the
-  rules restate what Capability Discovery 2.0 already makes authoritative and
-  forbid only additions that no published document contains.
+- **After:** CAT-001 to CAT-003, DB-ABS-001 to DB-ABS-003, DB-RT-001 to
+  DB-RT-003, RT-024, DT-ABS-001, DT-ABS-002 and the validator guard, which
+  checks that each absence carries a reason.
+- **Compatible:** yes: no catalog, binding or schema changes; the rules
+  restate what Capability Discovery 2.0 already makes authoritative, forbid
+  only additions that no published document contains, and RT-024 restates
+  SURF-014 for bounded results.
 - **Schemas, examples and profiles:** profiles of database-tools, data-tools
-  (versions 1 and 2), IO-tools (versions 1 and 2) and the profile index.
+  (versions 1 and 2), IO-tools (versions 1 and 2) and the profile index;
+  Runtime Binding 1.0 (RT-024); two runtime error vectors for
+  `database.query` beyond a bound.
 - **Adoption impact:**
   - IO-tools: no change while its capability document omits `runtime`
     (it does: `capability.rs` lists Rust and CLI); PR #27 adds it when it

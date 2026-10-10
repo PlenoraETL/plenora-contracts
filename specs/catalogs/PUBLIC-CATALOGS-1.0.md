@@ -100,7 +100,9 @@ operation, with its reason, is never added to that operation identity: a
 binding on it needs a new operation version whose contract removes the
 reason. The validator checks every catalog version and binding map against
 the absences the profiles declare (DB-ABS-001, DB-ABS-002, DT-ABS-001,
-DT-ABS-002).
+DT-ABS-002), and that each profile states the rule with its reason. It
+checks the coherence of the documents, not what any artifact exposes:
+availability is reported only by capability discovery (CAP-004, CAP-008).
 
 The exact CLI, Python and runtime spellings are defined by
 [Surface Bindings 1.0](../surfaces/SURFACE-BINDINGS-1.0.md).

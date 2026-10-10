@@ -20,9 +20,14 @@ full commit SHA; a release tag names one of those commits.
   DT-ABS-001 (`data.run` version 3 without CLI and Python SDK), DT-ABS-002
   (`data.run` version 2 without runtime). On the runtime, `database.query`
   returns its complete result as JSON (DB-RT-001) and `database.write`
-  receives its rows by artifact reference (DB-RT-002). The runtime of IO-tools,
-  database-tools and data-tools version 1 is stated `conditional`, as their
-  catalogs select it. No schema, catalog, binding or vector changes. See
+  receives its rows by artifact reference (DB-RT-002); a result beyond a
+  bound of the transport or of the component fails with `resource_limit`,
+  never a truncated success (Runtime Binding 1.0 RT-024, DB-RT-003, two
+  runtime error vectors). The runtime of IO-tools, database-tools and
+  data-tools version 1 is stated `conditional`, as their catalogs select it.
+  The requirement of at most one start per request for mutating runtime
+  operations without idempotency key is recorded for the runtime-tools
+  profile (issue #35). No schema, catalog or binding changes. See
   [decision 0015](decisions/0015-intentional-absences-and-planned-surfaces.md).
 
 ### Changed

@@ -3,7 +3,9 @@ declares intentionally absent stay absent in every catalog version, and the
 profile states the rule that gives the reason."""
 
 import copy
+import tempfile
 import unittest
+from pathlib import Path
 
 import validate_specs as validator
 
@@ -63,6 +65,33 @@ class IntentionalAbsenceTests(unittest.TestCase):
             validator.profile_path = original
         self.assertEqual(len(errors), 5)
         self.assertTrue(all("does not state" in error for error in errors))
+
+    def test_the_rule_needs_a_reason(self):
+        self.assertGreaterEqual(
+            len(validator.stated_reason("x **DB-ABS-002** — " + "a reason. " * 10, "DB-ABS-002")), 80
+        )
+        self.assertEqual(validator.stated_reason("**DB-ABS-002** —\n\nnext", "DB-ABS-002"), "")
+        self.assertEqual(validator.stated_reason("nothing", "DB-ABS-002"), "")
+        original = validator.profile_path
+
+        def bare(component, profile):
+            path = original(component, profile)
+            if component != validator.DATABASE_COMPONENT:
+                return path
+            target = Path(tempfile.mkdtemp()) / "database-tools.md"
+            target.write_text(
+                f"Profile identifier: `{profile}`\n\n**DB-ABS-001** — short.\n\n**DB-ABS-002** —\n",
+                encoding="utf-8",
+            )
+            return target
+
+        validator.profile_path = bare
+        try:
+            errors = validator.intentional_absence_errors(versions())
+        finally:
+            validator.profile_path = original
+        self.assertEqual(len(errors), 5)
+        self.assertTrue(all("without a reason" in error for error in errors))
 
     def test_an_absence_for_an_unknown_operation_is_reported(self):
         key = (validator.DATA_COMPONENT, "data.unknown", 1)

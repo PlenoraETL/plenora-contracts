@@ -668,6 +668,20 @@ INTENTIONAL_ABSENCES = {
 }
 
 
+MIN_REASON_CHARACTERS = 80
+
+
+def stated_reason(profile: str, rule: str) -> str:
+    """The paragraph that follows `**RULE** —` in a profile, up to the next
+    blank line: the reason of a declared absence. Empty when absent."""
+    marker = f"**{rule}**"
+    start = profile.find(marker)
+    if start < 0:
+        return ""
+    rest = profile[start + len(marker):].lstrip(" \u2014-")
+    return rest.split("\n\n", 1)[0].strip()
+
+
 def intentional_absence_errors(
     versions: dict[str, dict[int, dict[str, Any]]],
 ) -> list[str]:
@@ -697,6 +711,10 @@ def intentional_absence_errors(
                     failures.append(
                         f"{component} profile v{version} does not state {rule} "
                         f"for {key[1]}@{key[2]}"
+                    )
+                elif len(stated_reason(profile, rule)) < MIN_REASON_CHARACTERS:
+                    failures.append(
+                        f"{component} profile v{version} states {rule} without a reason"
                     )
     for key in sorted(set(INTENTIONAL_ABSENCES) - found):
         failures.append(f"declared absence for unknown operation {key}")

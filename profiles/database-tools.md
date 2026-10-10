@@ -138,6 +138,16 @@ without the rows is not the operation's result (RT-008). Arrow on the runtime
 needs a new version of the operation whose input names an artifact sink, as
 `data.run` version 3 does.
 
+**DB-RT-003** — A query result larger than the bound of the runtime surface
+fails with `resource_limit` under RT-024, before any row is returned; it is
+never cut to the bound. `database.query` is read-only, so the remote effect
+is `none`. database-tools declares its bound for the runtime surface in its
+capability document, under its component-owned
+`plenora-database-capability-attributes-v1`, and in its adoption manifest
+while that contract has no member for it; the bound of the transport is the
+transport's (RT-024). The vectors `database-query-result-limit-error.json`
+and `database-query-transport-limit-error.json` show both.
+
 **DB-RT-002** — On the runtime, the payload of `database.write` is
 `application/json` (`plenora-database-write-input-v1`), and the rows travel
 as an artifact reference that the application resolves (RT-013, RT-015); the
