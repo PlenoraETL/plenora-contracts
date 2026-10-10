@@ -491,5 +491,97 @@ class VectorErrorTests(unittest.TestCase):
             validator.ROOT = original
 
 
+class ClosedGrammarTests(unittest.TestCase):
+    """GEO-019, generatively: an unknown node or member anywhere in a verified
+    definition makes it undecidable."""
+
+    def accepted(self):
+        for path in sorted(VECTORS.glob("*.json")):
+            document = json.loads(path.read_text(encoding="utf-8"))
+            if document.get("computation") == "accepted":
+                for field in document["fields"]:
+                    if "plenora.geometry.crs_definition" in field["metadata"]:
+                        yield path.name, field
+
+    def test_an_unknown_wkt_node_anywhere(self):
+        count = 0
+        for name, field in self.accepted():
+            metadata = field["metadata"]
+            if metadata["plenora.geometry.crs_definition_format"] == "projjson":
+                continue
+            text = metadata["plenora.geometry.crs_definition"]
+            for position, character in enumerate(text):
+                if character != "[":
+                    continue
+                mutated = copy.deepcopy(field)
+                mutated["metadata"]["plenora.geometry.crs_definition"] = (
+                    text[:position + 1] + "ZZUNKNOWN[1]," + text[position + 1:]
+                )
+                with self.subTest(name=name, position=position):
+                    at_input = data._crs([mutated])
+                    if at_input is not None:
+                        # Inside a root identifier: not even a conforming input.
+                        self.assertEqual(at_input, data.Verdict("crs", "GEO-005"))
+                    else:
+                        self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-019"))
+                count += 1
+        self.assertGreater(count, 50)
+
+    def test_an_unknown_projjson_member_anywhere(self):
+        count = 0
+        for name, field in self.accepted():
+            metadata = field["metadata"]
+            if metadata["plenora.geometry.crs_definition_format"] != "projjson":
+                continue
+            root = json.loads(metadata["plenora.geometry.crs_definition"])
+
+            def objects(value, trail=()):
+                if isinstance(value, dict):
+                    yield trail
+                    for key, child in value.items():
+                        yield from objects(child, trail + (key,))
+                elif isinstance(value, list):
+                    for index, child in enumerate(value):
+                        yield from objects(child, trail + (index,))
+
+            for trail in list(objects(root)):
+                mutated_root = copy.deepcopy(root)
+                target = mutated_root
+                for step in trail:
+                    target = target[step]
+                target["zz_unknown"] = 1
+                mutated = copy.deepcopy(field)
+                mutated["metadata"]["plenora.geometry.crs_definition"] = json.dumps(mutated_root)
+                with self.subTest(name=name, trail=trail):
+                    self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-019"))
+                count += 1
+        self.assertGreater(count, 10)
+
+    def test_the_reported_extensions(self):
+        wkt2 = json.loads((VECTORS / "crs-id-with-consistent-definition.json").read_text(encoding="utf-8"))
+        field = wkt2["fields"][1]
+        text = field["metadata"]["plenora.geometry.crs_definition"]
+        for extension in ("DYNAMIC[FRAMEEPOCH[2020]],", 'USAGE[SCOPE["x"],AREA["y"],BBOX[0,0,1,1]],', 'REMARK["r"],'):
+            mutated = copy.deepcopy(field)
+            mutated["metadata"]["plenora.geometry.crs_definition"] = text.replace("DATUM[", extension + "DATUM[", 1)
+            with self.subTest(extension):
+                self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-019"))
+        axis_unit = copy.deepcopy(field)
+        axis_unit["metadata"]["plenora.geometry.crs_definition"] = text.replace(
+            "north]", 'north,ANGLEUNIT["grad",0.015707963267948967]]', 1)
+        self.assertEqual(data.computation_verdict(axis_unit), data.Verdict("crs", "GEO-019"))
+        projjson = json.loads((VECTORS / "crs-projjson-consistent-32632.json").read_text(encoding="utf-8"))
+        pfield = projjson["fields"][1]
+        root = json.loads(pfield["metadata"]["plenora.geometry.crs_definition"])
+        dynamic = copy.deepcopy(root)
+        dynamic["base_crs"]["datum"]["type"] = "DynamicGeodeticReferenceFrame"
+        ensemble = copy.deepcopy(root)
+        ensemble["base_crs"]["datum_ensemble"] = ensemble["base_crs"].pop("datum")
+        for variant in (dynamic, ensemble):
+            mutated = copy.deepcopy(pfield)
+            mutated["metadata"]["plenora.geometry.crs_definition"] = json.dumps(variant)
+            self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-019"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -16,7 +16,8 @@ full commit SHA; a release tag names one of those commits.
   `crs_id` is normative, a contradictory top-level identifier is `crs`, and a
   component verifies a definition before computing with one conservative
   subset (exact decimals, two spellings of the degree, closed aliases, units
-  by quantity, datum and conversion); both `wkb` and `ewkb` are accepted;
+  by quantity, datum and conversion) over a closed grammar of the three
+  formats, outside which a definition is undecidable (GEO-019); both `wkb` and `ewkb` are accepted;
   several types and geometry fields are valid; identity and precision of
   produced fields. Arrow Vocabulary 1.0 keeps its published text, with an
   informative pointer. New schema `arrow-data-vector-v1` and 42 vectors in

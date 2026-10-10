@@ -298,6 +298,66 @@ whether a definition is verified:
   undecidable. Parameters compare as a set, whatever their order;
 - **reference values** are those of the EPSG registry for the identifier.
 
+**GEO-019** — The closed grammar. A definition is verifiable only when it is
+made entirely of the nodes and members below; any other node, member, object
+type or attribute, whatever it says, makes it undecidable, so the operation
+that computes fails with `crs` and a pass-through carries the field
+unchanged. A dynamic frame (`DYNAMIC`, `FRAMEEPOCH`,
+`DynamicGeodeticReferenceFrame`, `frame_reference_epoch`), a datum ensemble,
+`USAGE`, `SCOPE`, `AREA`, `BBOX`, `REMARK`, a datum shift, a unit on an axis
+and any member a later version of a format adds are therefore undecidable: a
+format's extension never turns into a verified definition.
+
+WKT 1, outermost `GEOGCS` or `PROJCS`; each node admits at most the number
+of values shown and the children listed, each once unless marked `*`:
+
+| node | values | children |
+|---|---|---|
+| `GEOGCS` | 1 | `DATUM`, `PRIMEM`, `UNIT`, `AXIS`*, `AUTHORITY` |
+| `PROJCS` | 1 | `GEOGCS`, `PROJECTION`, `PARAMETER`*, `UNIT`, `AXIS`*, `AUTHORITY` |
+| `DATUM` | 1 | `SPHEROID`, `AUTHORITY` |
+| `SPHEROID` | 3 | `AUTHORITY` |
+| `PRIMEM`, `UNIT` | 2 | `AUTHORITY` |
+| `PROJECTION` | 1 | `AUTHORITY` |
+| `AXIS`, `PARAMETER`, `AUTHORITY` | 2 | none |
+
+WKT 2, outermost `GEOGCRS` or `PROJCRS`:
+
+| node | values | children |
+|---|---|---|
+| `GEOGCRS` | 1 | `DATUM`, `PRIMEM`, `CS`, `AXIS`*, `ANGLEUNIT`, `ID`* |
+| `PROJCRS` | 1 | `BASEGEOGCRS`, `CONVERSION`, `CS`, `AXIS`*, `LENGTHUNIT`, `ID`* |
+| `BASEGEOGCRS` | 1 | `DATUM`, `PRIMEM`, `ANGLEUNIT`, `ID`* |
+| `DATUM` | 1 | `ELLIPSOID`, `ID`* |
+| `ELLIPSOID` | 3 | `LENGTHUNIT`, `ID`* |
+| `PRIMEM` | 2 | `ANGLEUNIT`, `ID`* |
+| `CONVERSION` | 1 | `METHOD`, `PARAMETER`*, `ID`* |
+| `METHOD` | 1 | `ID`* |
+| `PARAMETER` | 2 | `ANGLEUNIT`, `LENGTHUNIT`, `SCALEUNIT`, `ID`* |
+| `ANGLEUNIT`, `LENGTHUNIT`, `SCALEUNIT` | 2 | `ID`* |
+| `CS`, `AXIS`, `ID` | 2 | none |
+
+PROJJSON, root of type `GeographicCRS` or `ProjectedCRS`; each object admits
+only the members listed (an `id` or `ids` holds objects with `authority` and
+`code` only; a unit object holds `type`, `name` and `conversion_factor`; a
+number may be an object with `value` and `unit`):
+
+| object | members |
+|---|---|
+| `GeographicCRS` | `$schema`, `type`, `name`, `datum`, `coordinate_system`, `id`, `ids` |
+| `ProjectedCRS` | `$schema`, `type`, `name`, `base_crs`, `conversion`, `coordinate_system`, `id`, `ids` |
+| base CRS (type `GeographicCRS` when stated) | `type`, `name`, `datum`, `coordinate_system`, `id`, `ids` |
+| datum (type `GeodeticReferenceFrame` when stated) | `type`, `name`, `ellipsoid`, `prime_meridian`, `id`, `ids` |
+| ellipsoid | `name`, `semi_major_axis`, `inverse_flattening`, `id`, `ids` |
+| prime meridian | `name`, `longitude`, `id`, `ids` |
+| coordinate system | `subtype`, `axis` |
+| axis | `name`, `abbreviation`, `direction`, `unit` |
+| conversion | `name`, `method`, `parameters`, `id`, `ids` |
+| method | `name`, `id`, `ids` |
+| parameter | `name`, `value`, `unit`, `id`, `ids` |
+
+A definition admitted by the grammar is then verified by GEO-015 and GEO-017.
+
 ## 8. Effects
 
 **GEO-018** — "Before any effect" means before anything is published or
