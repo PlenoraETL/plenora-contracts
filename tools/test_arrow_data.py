@@ -287,9 +287,17 @@ class VerdictTests(unittest.TestCase):
         for metadata in cases:
             with self.subTest(metadata):
                 self.assertVerdict(table(geometry_field(**metadata)), "schema", data.VOCABULARY)
-        for metadata in ({"crs_id": ""}, {"crs_id": "4326"}, {"types": ""}, {"plenora.geometry.sird": "4326"}):
+        for metadata in ({"types": ""}, {"plenora.geometry.sird": "4326"}):
             with self.subTest(metadata):
                 self.assertVerdict(table(geometry_field(**metadata)), "schema", "GEO-016")
+        for metadata in ({"crs_id": ""}, {"crs_id": "4326"}):
+            with self.subTest(metadata):
+                self.assertVerdict(table(geometry_field(**metadata)), "crs", "GEO-016")
+        for metadata in ({"axis_order": "xy"}, {"crs_resolution": "maybe"},
+                         {"crs_definition": "", "crs_definition_format": "wkt2"},
+                         {"crs_definition": "GEOGCRS[\"x\"]", "crs_definition_format": "gml"}):
+            with self.subTest(metadata):
+                self.assertVerdict(table(geometry_field(**metadata)), "crs", data.VOCABULARY)
         plain = {"name": "geometry", "type": "binary", "nullable": True,
                  "metadata": {"plenora.geometry.encoding": "wkb"}}
         self.assertVerdict(table(plain), "schema", data.VOCABULARY)
@@ -469,7 +477,22 @@ class VectorErrorTests(unittest.TestCase):
         self.assertEqual(len(data.vector_errors(silent)), 1)
         plain = vector("axis-lon-lat-epsg4326.json")
         plain["computation"] = "accepted"
+        self.assertEqual(data.vector_errors(plain), [])
+        plain["computation"] = {"category": "crs", "rules": ["GEO-015"]}
         self.assertEqual(len(data.vector_errors(plain)), 1)
+        unknown = vector("crs-unknown-identifier.json")
+        unknown["computation"] = "accepted"
+        self.assertEqual(len(data.vector_errors(unknown)), 1)
+        missing = vector("two-geometry-fields.json")
+        for field in missing["fields"][1:]:
+            for key in ("crs_id", "axis_order", "srid"):
+                field["metadata"].pop(f"plenora.geometry.{key}", None)
+            field["metadata"]["plenora.geometry.crs_resolution"] = "missing"
+            field["metadata"]["plenora.geometry.encoding"] = "wkb"
+        missing["rows"][0]["site"] = None
+        self.assertEqual(data.vector_errors(missing), [])
+        missing["computation"] = "accepted"
+        self.assertEqual(len(data.vector_errors(missing)), 1)
 
     def test_cited_rules_must_exist(self):
         known = validator.defined_rules()
@@ -491,6 +514,49 @@ class VectorErrorTests(unittest.TestCase):
             validator.ROOT = original
 
 
+class PrecedenceTests(unittest.TestCase):
+    """REJ-002: the first class in the fixed order is the one reported."""
+
+    def test_version_before_every_other_class(self):
+        field = geometry_field(crs_definition='GEOGCRS["x",ID["EPSG",3003]]', crs_definition_format="wkt2")
+        self.assertEqual(data.verdict(table(field, b"\x01", version="2")), data.Verdict("unsupported", "ARROW-002"))
+
+    def test_vocabulary_before_crs_and_crs_before_values(self):
+        field = geometry_field(encoding=None, crs_resolution="missing")
+        self.assertEqual(data.verdict(table(field, b"\x01")), data.Verdict("schema", data.VOCABULARY))
+        field = geometry_field(crs_definition='GEOGCRS["x",ID["EPSG",3003]]', crs_definition_format="wkt2")
+        self.assertEqual(data.verdict(table(field, b"\x01")), data.Verdict("crs", "GEO-005"))
+
+    def test_first_row_wins_among_values(self):
+        field = geometry_field(encoding="ewkb", srid="4326")
+        document = table(field)
+        document["rows"] = [
+            {"geometry": struct.pack("<BII", 1, 2, 0).hex()},
+            {"geometry": point(srid=3003).hex()},
+        ]
+        self.assertEqual(data.verdict(document), data.Verdict("data_mapping", "GEO-011"))
+        document["rows"].reverse()
+        self.assertEqual(data.verdict(document), data.Verdict("crs", "GEO-009"))
+
+    def test_a_crs_key_on_a_field_that_is_not_geometry(self):
+        """REJ-001: on a field without geoarrow.wkb any geometry key, a CRS key
+        included, is of the vocabulary class."""
+        plain = {"name": "label", "type": "utf8", "nullable": True,
+                 "metadata": {"plenora.geometry.crs_id": "EPSG:4326"}}
+        document = {"schema_metadata": {"plenora.contract.version": "1"}, "fields": [plain], "rows": [{"label": "x"}]}
+        self.assertEqual(data.verdict(document), data.Verdict("schema", data.VOCABULARY))
+
+    def test_an_absent_crs_key_is_the_crs_class(self):
+        """REJ-001: the classes are disjoint; CRS keys belong to the CRS class."""
+        self.assertEqual(data.verdict(table(geometry_field(axis_order=None))), data.Verdict("crs", data.VOCABULARY))
+        self.assertEqual(data.verdict(table(geometry_field(crs_resolution=None))), data.Verdict("crs", data.VOCABULARY))
+
+    def test_published_precedence_vectors(self):
+        names = sorted(path.name for path in VECTORS.glob("invalid-precedence-*.json"))
+        self.assertEqual(len(names), 4)
+        for name in names:
+            with self.subTest(name):
+                self.assertIn("REJ-002", vector(name)["rules"])
 class ClosedGrammarTests(unittest.TestCase):
     """GEO-019, generatively: an unknown node or member anywhere in a verified
     definition makes it undecidable."""

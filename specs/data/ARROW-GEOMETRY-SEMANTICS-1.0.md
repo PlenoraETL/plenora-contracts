@@ -383,3 +383,64 @@ validator decodes every geometry value and derives every verdict from the
 rules, so a vector cannot state one the rules do not give. The vectors
 illustrate the rules; their number does not attest that every rule, phase or
 remote effect is covered.
+
+## 10. Rejection categories
+
+The same invalid input reaches every component of a pipeline. These rules fix
+how each component that claims this contract reports it, so that a consumer
+of the error acts on the category without knowing which component found the
+defect. They classify the rejections that are due; they never turn into a
+rejection an input that a profile accepts (GEO-000).
+
+**REJ-001** — A component that rejects an Arrow input for one of these
+classes reports the category the table gives, on every surface. The classes
+are disjoint: each defect belongs to exactly one.
+
+| class | defects | category |
+|---|---|---|
+| contract version | `plenora.contract.version` absent or not a decimal integer (`01`, `1.0`) | `schema` |
+| contract version | a well-formed version the component does not support, such as `2` (ARROW-002, ERR-002) | `unsupported` |
+| vocabulary | any `plenora.geometry.` key, a CRS key included and whatever its value, on a field without `geoarrow.wkb`; on a `geoarrow.wkb` field, every defect of a key that is not a CRS key: a value outside its closed set or grammar (GEO-016 included); a required key absent; `geoarrow.wkb` on a storage other than binary; types out of canonical order; a repeated field identifier; an unknown `plenora.geometry.` key | `schema` |
+| CRS | on a `geoarrow.wkb` field, every defect of a CRS key (`crs_resolution`, `crs_id`, `crs_definition`, `crs_definition_format`, `axis_order`), whatever its kind: absent where required, such as a resolved CRS without `axis_order`; a value outside its closed set or grammar, such as an empty definition or a `crs_id` without authority (GEO-016); a dependency of Arrow Vocabulary 1.0 section 4; a contradictory or malformed definition (GEO-005); and a CRS the operation must compute with and cannot verify or does not know (GEO-006, GEO-015) | `crs` |
+| support | an Arrow type the component cannot represent; several geometry fields (GEO-012); a set of geometry types its target cannot store (GEO-010); `geography` semantics for a planar operation | `unsupported` |
+| operation schema | a field the operation requires is absent; a field type differs from the target's and the operation's declared mapping does not convert it; a nullable field into a non-nullable target, when the schema decides it | `schema` |
+| invalid value | malformed WKB or EWKB, a value outside the declared types or dimensions (GEO-011); the SRID flag under `wkb` or on a member (GEO-008, GEO-009); a value the target type cannot hold, such as an overflow or a null into a non-nullable target | `data_mapping` |
+| value contradicting the CRS | an EWKB SRID different from the field's, or an SRID on a field that declares none (GEO-009) | `crs` |
+
+These classes are never reported as `invalid_plan` or
+`invalid_configuration`, which describe the request, nor as `resource_limit`,
+`io`, `execution` or `internal`, whatever internal layer detected them. A
+defect outside the table keeps the most precise category of ERR-001.
+
+**REJ-002** — When an input shows defects of several classes, the component
+reports the first in this order: contract version; vocabulary; CRS; support;
+operation schema; values. Values are checked in row order, and fields in
+field order within a row; for one geometry value, well-formedness, then the
+SRID, then types and dimensions. The two value classes are found only in this
+last step, whatever their category: a defect of row 1 is reported before any
+defect of row 2. A component does not interpret any metadata of a contract
+version it does not support. The order includes the operation: a CRS that an
+operation cannot use is reported before an invalid value, and a support
+limit before an invalid value.
+
+**REJ-003** — A rejection of every class except the two value classes is
+decided from the schema alone and is reported before any effect (GEO-018),
+with `remote_effect: none` and `retry.kind: never`. Its phase is `validate`,
+or `connect` or `probe` when deciding it required reading the target, such as
+the definition of an existing table (ERR-003). A value class is reported with
+the phase in which the component met the value (ERR-003): `read` for a
+component that reads it from its input, `write` for one that writes it to a
+target; the remote effect is the one ERR-004 requires: `none` when nothing
+was published or committed, `rolled_back` when a provisional write was proven
+undone (GEO-018). `retry.kind` is `never`, unless an unproven effect requires
+`quarantine` or `requires_recovery` (ERR-006). The CLI projects every class
+to exit code 3 (CLI 2.0 section 8); a Python SDK raises the exception of the
+category (Python SDK 1.0 section 6).
+
+**REJ-004** — The invalid vectors of
+[`vectors/arrow-data-v1`](../../vectors/arrow-data-v1/) state the category of
+their class and cite the rules that decide it; the validator derives the
+category with the order of REJ-002. The classes that depend on the operation
+or on the component's support are exercised by the interoperability vectors
+of [Composition 1.0](../composition/COMPOSITION-1.0.md), which name the
+operation.

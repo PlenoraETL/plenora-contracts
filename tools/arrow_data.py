@@ -6,11 +6,13 @@ does not, the category and the rule that decide the rejection. The validator
 compares that verdict with the one the vector states, so a vector cannot
 claim a category the rules do not give.
 
-The checks run in a fixed order: the schema contract version (ARROW-001,
-ARROW-002), the well-formedness of the vocabulary (section 4), the CRS state
-(section 4, GEO-005), then each geometry value in row order and, within a
-row, in field order (GEO-008, GEO-009, GEO-011). The first failure is the
-verdict; every vector of this version has a single defect.
+The checks run in the order a component reports (Arrow Geometry
+Semantics 1.0, REJ-002): the schema contract version (ARROW-001, ARROW-002), the
+well-formedness of the vocabulary (section 4), the CRS state (section 4,
+GEO-005), then each geometry value in row order and, within a row, in field
+order (GEO-008, GEO-009, GEO-011). The first failure is the verdict. The
+classes that depend on the operation (support, operation schema) are not
+decided here: the interoperability vectors name the operation.
 
 `FixtureError` is a defect of the vector itself (a value that does not fit
 its Arrow type, a null in a non-nullable field): no consumer could even build
@@ -794,6 +796,11 @@ GEOMETRY_KEYS = set(REQUIRED_GEOMETRY) | set(CLOSED_VALUES) | {
     "plenora.geometry.crs_definition",
 }
 NATIVE_PREFIX = "plenora.geometry.native."
+# REJ-001: the keys whose every defect is of the CRS class.
+CRS_KEYS = {
+    "plenora.geometry.crs_resolution", "plenora.geometry.crs_id", "plenora.geometry.crs_definition",
+    "plenora.geometry.crs_definition_format", "plenora.geometry.axis_order",
+}
 INTEGER_RANGES = {"int32": 2**31, "int64": 2**63}
 VOCABULARY = "VOCABULARY-4"
 
@@ -823,7 +830,8 @@ def _vocabulary(fields: list[dict[str, Any]]) -> Verdict | None:
             continue
         if field["type"] not in ("binary", "large_binary"):
             return Verdict("schema", VOCABULARY)
-        if any(key not in metadata for key in REQUIRED_GEOMETRY):
+        # REJ-001: every defect of a CRS key belongs to the CRS class.
+        if any(key not in metadata for key in REQUIRED_GEOMETRY if key not in CRS_KEYS):
             return Verdict("schema", VOCABULARY)
         if any(
             key.startswith("plenora.geometry.") and key not in GEOMETRY_KEYS
@@ -832,7 +840,7 @@ def _vocabulary(fields: list[dict[str, Any]]) -> Verdict | None:
         ):
             return Verdict("schema", "GEO-016")
         for key, values in CLOSED_VALUES.items():
-            if key in metadata and metadata[key] not in values:
+            if key not in CRS_KEYS and key in metadata and metadata[key] not in values:
                 return Verdict("schema", VOCABULARY)
         if "plenora.geometry.srid" in metadata:
             srid = metadata["plenora.geometry.srid"]
@@ -852,10 +860,6 @@ def _vocabulary(fields: list[dict[str, Any]]) -> Verdict | None:
             positions = [CANONICAL_TYPES.index(item) for item in types]
             if positions != sorted(set(positions)):
                 return Verdict("schema", VOCABULARY)
-        if "plenora.geometry.crs_definition" in metadata and metadata["plenora.geometry.crs_definition"] == "":
-            return Verdict("schema", VOCABULARY)
-        if "plenora.geometry.crs_id" in metadata and not CRS_ID.fullmatch(metadata["plenora.geometry.crs_id"]):
-            return Verdict("schema", "GEO-016")
     if len(identities) != len(set(identities)):
         return Verdict("schema", VOCABULARY)
     return None
@@ -865,7 +869,16 @@ def _crs(fields: list[dict[str, Any]]) -> Verdict | None:
     """The CRS state of every geometry field (section 4, GEO-005)."""
     for field in filter(is_geometry, fields):
         metadata = field["metadata"]
-        resolution = metadata["plenora.geometry.crs_resolution"]
+        resolution = metadata.get("plenora.geometry.crs_resolution")
+        if resolution is None:
+            return Verdict("crs", VOCABULARY)
+        for key, values in CLOSED_VALUES.items():
+            if key in CRS_KEYS and key in metadata and metadata[key] not in values:
+                return Verdict("crs", VOCABULARY)
+        if metadata.get("plenora.geometry.crs_definition") == "":
+            return Verdict("crs", VOCABULARY)
+        if "plenora.geometry.crs_id" in metadata and not CRS_ID.fullmatch(metadata["plenora.geometry.crs_id"]):
+            return Verdict("crs", "GEO-016")
         crs_id = metadata.get("plenora.geometry.crs_id")
         definition = metadata.get("plenora.geometry.crs_definition")
         definition_format = metadata.get("plenora.geometry.crs_definition_format")
@@ -974,24 +987,29 @@ def verdict(vector: dict[str, Any]) -> Verdict | None:
 
 def computation_errors(vector: dict[str, Any]) -> list[str]:
     """A valid vector with a CRS definition states the verdict of a consumer
-    that computes with the coordinates (GEO-015); one without states none."""
-    with_definition = [
+    that computes with the coordinates (GEO-015); one with a declared CRS and
+    no definition may state it; one without a declared CRS states none."""
+    declared = [
         field for field in vector["fields"]
-        if is_geometry(field) and "plenora.geometry.crs_definition" in field["metadata"]
+        if is_geometry(field) and field["metadata"]["plenora.geometry.crs_resolution"] != "missing"
+    ]
+    with_definition = [
+        field for field in declared if "plenora.geometry.crs_definition" in field["metadata"]
     ]
     stated = vector.get("computation")
-    if not with_definition:
-        return [] if stated is None else ["states a computation verdict without a CRS definition"]
-    if stated is None and all(
-        "plenora.geometry.crs_id" in field["metadata"] for field in with_definition
-    ):
-        return ["carries a CRS definition and states no computation verdict"]
+    if not declared:
+        return [] if stated is None else ["states a computation verdict without a declared CRS"]
+    undecided = [
+        field for field in with_definition if "plenora.geometry.crs_id" not in field["metadata"]
+    ]
     if stated is None:
+        if len(undecided) < len(with_definition):
+            return ["carries a CRS definition and states no computation verdict"]
         return []
     try:
-        found = next(filter(None, map(computation_verdict, with_definition)), None)
+        found = next(filter(None, map(computation_verdict, declared)), None)
     except Undecidable:
-        return [] if stated is None else ["states a computation verdict the validator cannot decide (GEO-006)"]
+        return ["states a computation verdict the validator cannot decide (GEO-006)"]
     if found is None:
         if stated != "accepted":
             return ["states a computation rejection, the rules accept it"]

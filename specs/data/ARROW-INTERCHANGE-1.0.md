@@ -112,3 +112,11 @@ between Plenora components.
 
 Reusable valid and invalid fixtures are defined by
 [Arrow Metadata Vocabulary 1.0](ARROW-VOCABULARY-1.0.md).
+
+## 9. Informative: rejection categories
+
+The category with which a component reports each class of invalid Arrow
+input, and the order in which several defects are reported, are fixed by
+[Arrow Geometry Semantics 1.0](ARROW-GEOMETRY-SEMANTICS-1.0.md) (REJ-001 to
+REJ-004) for the components that claim that contract. This document keeps
+the meaning it was published with.
