@@ -1900,6 +1900,33 @@ def storage_vector_errors(
     return errors
 
 
+# ERR-016: the cause of an unknown commit outcome decides the category. The
+# vectors name the cause by code (Runtime Vectors 1.0 section 5).
+UNKNOWN_COMMIT_CAUSES = {
+    "COMMIT_CONFIRMATION_LOST": "io",
+    "COMMIT_DEADLINE_ELAPSED": "timeout",
+    "COMMIT_OUTCOME_UNKNOWN": "internal",
+}
+ERR_006_RETRIES = {"never", "quarantine", "requires_recovery"}
+
+
+def unknown_commit_errors(label: str, payload: dict[str, Any]) -> list[str]:
+    """ERR-016 on one error payload: an unknown outcome of a commit has the
+    category of its cause and a retry that ERR-006 admits."""
+    if payload.get("phase") != "commit" or payload.get("remote_effect") != "unknown":
+        return []
+    failures = []
+    expected = UNKNOWN_COMMIT_CAUSES.get(payload.get("code"))
+    # Only a code of the map names a cause; ERR-016 does not make its three
+    # examples exhaustive (a cancellation is `cancelled`), so any other code
+    # is checked only for the retry ERR-006 requires.
+    if expected is not None and payload.get("category") != expected:
+        failures.append(f"{label} reports the cause {payload.get('code')} as {payload.get('category')}, not {expected} (ERR-016)")
+    if (payload.get("retry") or {}).get("kind") not in ERR_006_RETRIES:
+        failures.append(f"{label} allows a retry ERR-006 forbids after an unknown outcome")
+    return failures
+
+
 def validate_runtime_vectors(
     catalogs: dict[str, dict[str, Any]],
     schemas: dict[str, dict[str, Any]],
@@ -1930,6 +1957,8 @@ def validate_runtime_vectors(
             )
             continue
         component, operation = resolved
+        if vector.get("kind") == "error" and isinstance(vector.get("payload"), dict):
+            failures.extend(unknown_commit_errors(path.relative_to(ROOT).as_posix(), vector["payload"]))
         if "runtime" not in operation["surfaces"]:
             failures.append(
                 f"{path.relative_to(ROOT)} exercises {operation_id} on runtime, "
