@@ -680,9 +680,14 @@ def stated_reason(profile: str, rule: str) -> str:
     start = profile.find(marker)
     if start < 0:
         return ""
-    rest = profile[start + len(marker):]
-    end = rest.find("\n\n")
-    return rest if end < 0 else rest[:end]
+    lines = profile[start + len(marker):].replace("\r\n", "\n").split("\n")
+    reason = []
+    for line in lines:
+        # CAT-003: a blank line is empty once ASCII spaces and tabs go.
+        if not line.strip(" \t"):
+            break
+        reason.append(line)
+    return "\n".join(reason)
 
 
 def reason_is_stated(profile: str, rule: str) -> bool:

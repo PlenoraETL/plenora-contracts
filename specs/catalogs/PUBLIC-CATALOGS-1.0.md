@@ -103,7 +103,9 @@ the absences the profiles declare (DB-ABS-001, DB-ABS-002, DT-ABS-001,
 DT-ABS-002), and that each profile states the rule with its reason. The
 reason has this exact shape: the bold identifier (`**DB-ABS-001**`), one
 space, an em dash (U+2014), one space, then the reason text, which runs to
-the first blank line or to the end of the file. The text contains at least
+the first blank line or to the end of the file. Lines end with LF or CR LF;
+a blank line is a line that is empty once its ASCII spaces (U+0020) and
+tabs (U+0009) are removed. The text contains at least
 one ASCII letter and ends with a period whose preceding character is
 neither a period nor white space. It
 checks the coherence of the documents, not what any artifact exposes:

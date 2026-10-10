@@ -81,6 +81,11 @@ class IntentionalAbsenceTests(unittest.TestCase):
             "**DB-ABS-002** - a reason.": False,
             "**DB-ABS-002**— a reason.": False,
             "nothing": False,
+            "**DB-ABS-002** — a reason.\n   \nnext without period": True,
+            "**DB-ABS-002** — no period\n \t \na reason.": False,
+            "**DB-ABS-002** — a reason.\r\n\r\nnext without period": True,
+            "**DB-ABS-002** — a reason\r\nends here.": True,
+            "**DB-ABS-002** — a reason.\n\t\n": True,
         }
         for text, expected in cases.items():
             with self.subTest(text):
