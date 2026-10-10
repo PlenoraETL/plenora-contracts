@@ -20,6 +20,13 @@ full commit SHA; a release tag names one of those commits.
   whose outcomes a reference adapter in the validator derives. Composition
   1.0 points to it; the edges stay `adapter_required`. See
   [decision 0017](decisions/0017-rest-arrow-adapter.md).
+- ERR-016 (Typed Errors 1.0, a clarification): an unknown outcome does not
+  decide the category; a lost commit confirmation is `io`, an elapsed
+  deadline `timeout`, `internal` only a defect of the component, always with
+  `remote_effect: unknown` and normally `requires_recovery`. New runtime
+  vector `database-write-commit-io-error.json`; Runtime Vectors 1.0 states
+  the scope of the published `database-write-error.json`, unchanged. See
+  [decision 0019](decisions/0019-category-of-an-unknown-commit-outcome.md).
 
 ### Changed
 
