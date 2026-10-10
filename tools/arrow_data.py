@@ -697,8 +697,11 @@ def _projjson_parts(root: dict[str, Any]) -> Parts:
         _json_value(ellipsoid.get("semi_major_axis"), "length"),
         _json_value(ellipsoid.get("inverse_flattening"), "scale"),
     )
-    meridian = geographic.get("prime_meridian")
-    if meridian is not None:
+    # PROJJSON places the prime meridian in the datum or datum ensemble; an
+    # older writer may put it on the CRS. Every one present is checked.
+    for meridian in (datum.get("prime_meridian"), geographic.get("prime_meridian")):
+        if meridian is None:
+            continue
         if not isinstance(meridian, dict) or _json_value(meridian.get("longitude", 0), "angle") != 0:
             raise Undecidable("prime meridian other than Greenwich")
     return Parts(kind, bases, projjson_identifiers(datum), axes, False, conversion)
@@ -741,7 +744,9 @@ def computation_verdict(field: dict[str, Any]) -> Verdict | None:
         return Verdict("crs", "GEO-015")
     if parts.bases and not any(_same(pair, reference.base or "") for pair in parts.bases):
         return Verdict("crs", "GEO-015")
-    if parts.datums and not any(_same(pair, reference.datum) for pair in parts.datums):
+    # GEO-015: the datum is identified only by its identifier; an identity
+    # that the definition does not state is not inferred from the ellipsoid.
+    if not any(_same(pair, reference.datum) for pair in parts.datums):
         return Verdict("crs", "GEO-015")
     return None
 
@@ -900,12 +905,13 @@ def _value(field: dict[str, Any], data: bytes) -> Verdict | None:
     return None
 
 
-def _cell(field: dict[str, Any], value: Any) -> bytes | None:
-    """Check that a value fits its Arrow type; return the bytes of a binary."""
+def _cell(position: int, field: dict[str, Any], value: Any) -> bytes | None:
+    """Check that a value fits its Arrow type; return the bytes of a binary.
+    Messages name the field by position, never by name."""
     kind = field["type"]
     if value is None:
         if not field["nullable"]:
-            raise FixtureError(f"null in non-nullable field {field['name']}")
+            raise FixtureError(f"null in non-nullable field {position}")
         return None
     if kind == "bool":
         ok = isinstance(value, bool)
@@ -921,7 +927,7 @@ def _cell(field: dict[str, Any], value: Any) -> bytes | None:
         if ok:
             return bytes.fromhex(value)
     if not ok:
-        raise FixtureError(f"value does not fit the type of field {field['name']}")
+        raise FixtureError(f"value does not fit the type of field {position}")
     return None
 
 
@@ -934,7 +940,10 @@ def verdict(vector: dict[str, Any]) -> Verdict | None:
     for row in vector["rows"]:
         if set(row) != set(names):
             raise FixtureError("a row does not name exactly the fields")
-    cells = [[_cell(field, row[field["name"]]) for field in fields] for row in vector["rows"]]
+    cells = [
+        [_cell(position, field, row[field["name"]]) for position, field in enumerate(fields)]
+        for row in vector["rows"]
+    ]
 
     version = vector["schema_metadata"].get("plenora.contract.version")
     if version is None or not VERSION.fullmatch(version):

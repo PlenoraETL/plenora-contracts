@@ -100,6 +100,16 @@ geometry keys; vectors combined two defects where one was meant (now a
 vector with only the nested base identifier altered and one with only a
 member SRID); `valid` meant two things (GEO-000).
 
+A further reading found two more ways a modified definition passed: the
+PROJJSON prime meridian was read on the CRS while the format places it in
+the datum, and a datum without identifier was accepted when its ellipsoid
+matched. The meridian is read wherever it is placed, and an identity the
+definition does not state is undecidable, never inferred. The validator's
+messages name fields by position, never by name, and the vector of a
+definition without root identifier is now isolated (the same complete UTM
+definition with the identifier is accepted). The vectors illustrate the
+rules; their number does not attest full coverage.
+
 ### Not ratified
 
 - **Rejecting `unknown` axis order for computation.** Options: (a) a rule in
@@ -119,7 +129,7 @@ member SRID); `valid` meant two things (GEO-000).
 - **Compatible:** yes: a new contract next to the existing ones; nothing
   published changes meaning.
 - **Schemas, examples and profiles:** new specification, new schema
-  `arrow-data-vector-v1`, two invalid examples, 39 vectors in
+  `arrow-data-vector-v1`, two invalid examples, 42 vectors in
   `vectors/arrow-data-v1`. No existing schema, catalog, binding, vector or
   profile changes.
 - **Adoption impact**, for a component that claims the contract:

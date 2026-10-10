@@ -214,10 +214,12 @@ there is one:
 2. the parts of the definition agree with the CRS that `crs_id` names:
    - the CRS kind (geographic or projected) and the identifier of the base
      CRS when the definition names one;
-   - the identifier of the datum or datum ensemble when the definition names
-     one;
+   - the identifier of the datum or datum ensemble, which the definition
+     must state: a datum without identifier is undecidable, never inferred
+     from its ellipsoid or its name;
    - the semi-major axis and inverse flattening of the ellipsoid;
-   - the prime meridian;
+   - the prime meridian, wherever the format places it (in PROJJSON, in the
+     datum or datum ensemble);
    - every unit, each for the quantity it measures (GEO-017);
    - for a projected CRS, the conversion method and every parameter value;
    - the absence of a datum shift (`TOWGS84`, `BOUNDCRS`) that the CRS of
@@ -318,4 +320,6 @@ geometry field declares a CRS may state, in `computation`, the applicability
 verdict for an operation that computes (GEO-015), derived from the reference
 parts of the identifiers the vectors use, which the validator lists. The
 validator decodes every geometry value and derives every verdict from the
-rules, so a vector cannot state one the rules do not give.
+rules, so a vector cannot state one the rules do not give. The vectors
+illustrate the rules; their number does not attest that every rule, phase or
+remote effect is covered.
