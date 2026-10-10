@@ -109,11 +109,21 @@ output contract and correlation identity.
 
 **RT-024** — A result that a bound cannot carry whole, a payload limit of the
 transport or a materialization limit of the component, fails with a typed
-error of category `resource_limit`, phase `read` for a result being read or
-built, the remote effect of ERR-004 and `retry.kind: never`. A component or
-transport MUST NOT truncate a result and report success (SURF-014): a
-success result is complete. The component declares its limits where its
-profile says; the transport declares its own in its adoption manifest.
+error of category `resource_limit`. A component or transport MUST NOT
+truncate a result and report success (SURF-014): a success result is
+complete. The other axes follow ERR-003 and ERR-004:
+
+- when nothing has been published or committed, the phase is the one in
+  which the result was read or built (`read`), `remote_effect` is `none` and
+  `retry.kind` is `never`;
+- when the operation had already published or committed, as `data.run`
+  version 3 does before it returns its manifest, the phase is the last one
+  started (`write`, `commit` or `cleanup`) and the remote effect is the one
+  proven: `committed` or `partial`, or `unknown` when it is not proven
+  (ERR-014, ERR-015, DT-RUN-006), with a retry ERR-006 admits.
+
+The component declares its limits where its profile says; the transport
+declares its own in its adoption manifest.
 
 ## 7. Failure result
 

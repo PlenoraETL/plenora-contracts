@@ -668,7 +668,8 @@ INTENTIONAL_ABSENCES = {
 }
 
 
-MIN_REASON_CHARACTERS = 80
+# CAT-003: a non-empty sentence that ends with a period.
+REASON = re.compile(r"\S.*\.", re.S)
 
 
 def stated_reason(profile: str, rule: str) -> str:
@@ -712,7 +713,7 @@ def intentional_absence_errors(
                         f"{component} profile v{version} does not state {rule} "
                         f"for {key[1]}@{key[2]}"
                     )
-                elif len(stated_reason(profile, rule)) < MIN_REASON_CHARACTERS:
+                elif not REASON.fullmatch(stated_reason(profile, rule)):
                     failures.append(
                         f"{component} profile v{version} states {rule} without a reason"
                     )

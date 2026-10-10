@@ -146,7 +146,9 @@ capability document, under its component-owned
 `plenora-database-capability-attributes-v1`, and in its adoption manifest
 while that contract has no member for it; the bound of the transport is the
 transport's (RT-024). The vectors `database-query-result-limit-error.json`
-and `database-query-transport-limit-error.json` show both.
+and `database-query-transport-limit-error.json` are illustrative error
+results (Runtime Vectors 1.0 section 5): they carry neither the request, nor
+the bound, nor the size, and the validator does not derive RT-024 from them.
 
 **DB-RT-002** — On the runtime, the payload of `database.write` is
 `application/json` (`plenora-database-write-input-v1`), and the rows travel

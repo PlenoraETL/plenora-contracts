@@ -100,7 +100,9 @@ operation, with its reason, is never added to that operation identity: a
 binding on it needs a new operation version whose contract removes the
 reason. The validator checks every catalog version and binding map against
 the absences the profiles declare (DB-ABS-001, DB-ABS-002, DT-ABS-001,
-DT-ABS-002), and that each profile states the rule with its reason. It
+DT-ABS-002), and that each profile states the rule with its reason: the
+bold rule identifier followed, in the same paragraph, by a non-empty
+sentence that ends with a period. It
 checks the coherence of the documents, not what any artifact exposes:
 availability is reported only by capability discovery (CAP-004, CAP-008).
 

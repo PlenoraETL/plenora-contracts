@@ -67,9 +67,8 @@ class IntentionalAbsenceTests(unittest.TestCase):
         self.assertTrue(all("does not state" in error for error in errors))
 
     def test_the_rule_needs_a_reason(self):
-        self.assertGreaterEqual(
-            len(validator.stated_reason("x **DB-ABS-002** — " + "a reason. " * 10, "DB-ABS-002")), 80
-        )
+        self.assertTrue(validator.REASON.fullmatch(validator.stated_reason("x **DB-ABS-002** — a reason.", "DB-ABS-002")))
+        self.assertIsNone(validator.REASON.fullmatch(validator.stated_reason("**DB-ABS-002** — no period", "DB-ABS-002")))
         self.assertEqual(validator.stated_reason("**DB-ABS-002** —\n\nnext", "DB-ABS-002"), "")
         self.assertEqual(validator.stated_reason("nothing", "DB-ABS-002"), "")
         original = validator.profile_path
@@ -80,7 +79,7 @@ class IntentionalAbsenceTests(unittest.TestCase):
                 return path
             target = Path(tempfile.mkdtemp()) / "database-tools.md"
             target.write_text(
-                f"Profile identifier: `{profile}`\n\n**DB-ABS-001** — short.\n\n**DB-ABS-002** —\n",
+                f"Profile identifier: `{profile}`\n\n**DB-ABS-001** — no period\n\n**DB-ABS-002** —\n",
                 encoding="utf-8",
             )
             return target
