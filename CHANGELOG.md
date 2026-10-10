@@ -8,6 +8,22 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- Arrow Geometry Semantics 1.0 (`plenora-arrow-geometry-semantics-v1`), an
+  opt-in contract next to Arrow Vocabulary 1.0 that changes neither keys,
+  values nor `plenora.contract.version` (GEO-000 to GEO-018): input
+  conformance, component support and operation applicability are distinct
+  verdicts; `axis_order` is the stored order, declared by the producer;
+  `crs_id` is normative, a contradictory top-level identifier is `crs`, and a
+  component verifies a definition before computing with one conservative
+  subset (exact decimals, two spellings of the degree, closed aliases, units
+  by quantity, datum and conversion) over a closed grammar of the three
+  formats, outside which a definition is undecidable (GEO-019); both `wkb` and `ewkb` are accepted;
+  several types and geometry fields are valid; identity and precision of
+  produced fields. Arrow Vocabulary 1.0 keeps its published text, with an
+  informative pointer. New schema `arrow-data-vector-v1` and 42 vectors in
+  `vectors/arrow-data-v1`. No existing schema, catalog, binding or vector
+  changes. See
+  [decision 0013](decisions/0013-geometry-vocabulary-semantics.md).
 - Runtime vector `database-write-commit-timeout-error.json` (an elapsed
   deadline after the commit was sent: `timeout`, `unknown`,
   `requires_recovery`), and a validator check that every runtime error
@@ -25,6 +41,13 @@ full commit SHA; a release tag names one of those commits.
 
 ### Changed
 
+- The gate's messages carry no data: only fixed text, rule identifiers,
+  repository paths, positions and names the contracts define; schema errors
+  name the keyword and anonymous paths instead of quoting the instance. A
+  sentinel test injects a marker into every value, number and key of every
+  vector and example and requires that the gate never prints it. No
+  contract document changes. See
+  [decision 0021](decisions/0021-messages-without-data.md).
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
   universal from Python 3.10: `rpds-py` keeps 0.30.0, its last release for
   Python 3.10, under `python_full_version < '3.11'` and 2026.9.1 above; the
