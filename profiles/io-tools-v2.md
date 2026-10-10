@@ -19,6 +19,7 @@ implements exactly one of the two catalog versions (Surface Bindings 1.0 §1).
 - [Arrow Vocabulary 1.0](../specs/data/ARROW-VOCABULARY-1.0.md)
 - [Row Diagnostics 1.0](../specs/diagnostics/ROW-DIAGNOSTICS-1.0.md)
 - [CLI 2.0](../specs/cli/CLI-2.0.md)
+- [Python SDK 1.0](../specs/sdk/PYTHON-SDK-1.0.md), when exposed
 - [Runtime Binding 1.0](../specs/runtime/RUNTIME-BINDING-1.0.md), when exposed
 - [Surface Bindings 1.0](../specs/surfaces/SURFACE-BINDINGS-1.0.md)
 - [Composition 1.0](../specs/composition/COMPOSITION-1.0.md)
@@ -107,8 +108,23 @@ a typed failure (Typed Errors 1.0), not through `null`.
 
 - Rust API: required.
 - CLI: required and governed by CLI 2.0.
-- Python SDK: not required by this profile.
+- Python SDK: optional (`conditional` in the catalog); when published it is
+  governed by Python SDK 1.0 and the binding map, binds all six operations
+  and exposes `plenora_io.version()` and `Client.capabilities()`.
 - Runtime: required for every I/O operation selected for orchestration.
+
+**IO-PY-001** — The Python SDK wraps the process-level CLI: it may expose
+only the synchronous API mode, which its adoption manifest records in
+`api_modes` (Python SDK 1.0 section 4). Its methods keep the semantics of the
+operation on the CLI: the same validation, results, error axes and side
+effects. `Client.read` writes the dataset where the caller names, and the
+capability document declares that effect for `python_sdk` as it does for
+`cli` (SB-001). `Client.validate` reads without delivering a dataset, and
+`Client.read_table` returns it as a PyArrow table through a temporary file
+it removes before returning; both bind `io.read` version 2 and carry its
+result. A tabular argument or result is a path or, with the optional PyArrow
+support, an Arrow object (Python SDK 1.0 section 3); without that support an
+Arrow object is refused with a typed error, never converted silently.
 
 ## Interchange
 
