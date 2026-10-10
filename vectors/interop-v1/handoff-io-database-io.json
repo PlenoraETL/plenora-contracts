@@ -3,7 +3,7 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "handoff",
-  "description": "IO to database and back: database accepts wkb with a declared SRID (VOC-008) and reads EWKB with it; IO writes EWKB.",
+  "description": "IO to database and back: database accepts wkb with a declared SRID (GEO-008) and reads EWKB with it; IO writes EWKB.",
   "input": "../arrow-data-v1/wkb-with-declared-srid.json",
   "chain": [
     {
@@ -88,6 +88,9 @@
         "id": 1,
         "geometry": "0101000020e61000000000000000205ec00000000000a04640"
       }
+    ],
+    "delegated_metadata": [
+      "plenora.postgres."
     ]
   }
 }

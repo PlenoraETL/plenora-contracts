@@ -3,7 +3,7 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "rejection",
-  "description": "database.write rejects crs-definition-contradicts-id with the category of its class (ARROW-013).",
+  "description": "database.write rejects crs-definition-contradicts-id with the category of its class (REJ-001).",
   "input": "../arrow-data-v1/invalid-crs-definition-contradicts-id.json",
   "chain": [
     {
@@ -29,8 +29,8 @@
     "retry": "never",
     "exit_code": 3,
     "rules": [
-      "VOC-005",
-      "ARROW-013"
+      "GEO-005",
+      "REJ-001"
     ]
   }
 }

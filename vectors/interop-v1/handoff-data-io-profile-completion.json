@@ -3,18 +3,9 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "handoff",
-  "description": "IO reads IPC, data runs the identity plan, IO writes IPC: only data's declared normalizations change the table.",
-  "input": "../arrow-data-v1/axis-lon-lat-epsg4326.json",
+  "description": "data.run accepts a field without precision (DT-ARROW-003) and completes it; IO receives a complete field.",
+  "input": "../arrow-data-v1/invalid-precision-missing.json",
   "chain": [
-    {
-      "component": "plenora-io-tools",
-      "operation": "io.read",
-      "version": 2,
-      "params": {
-        "source": "input.arrow"
-      },
-      "transformations": []
-    },
     {
       "component": "plenora-data-tools",
       "operation": "data.run",
@@ -62,12 +53,12 @@
           "plenora.geometry.encoding": "wkb",
           "plenora.geometry.dimensions": "xy",
           "plenora.geometry.spatial_semantics": "geometry",
-          "plenora.geometry.precision": "float64",
           "plenora.geometry.types_declaration": "exact",
           "plenora.geometry.types": "point",
           "plenora.geometry.crs_resolution": "resolved",
           "plenora.geometry.crs_id": "EPSG:4326",
           "plenora.geometry.axis_order": "lon_lat",
+          "plenora.geometry.precision": "float64",
           "plenora.geometry.srid": "4326"
         }
       }
@@ -76,10 +67,6 @@
       {
         "id": 1,
         "geometry": "01010000000000000000205ec00000000000a04640"
-      },
-      {
-        "id": 2,
-        "geometry": null
       }
     ]
   }

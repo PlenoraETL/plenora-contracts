@@ -3,7 +3,7 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "source",
-  "description": "GeoJSON stores longitude first (RFC 7946): IO declares lon_lat and delivers the stored ordinates (VOC-002, VOC-003).",
+  "description": "GeoJSON stores longitude first (RFC 7946): IO declares lon_lat and delivers the stored ordinates (GEO-002, GEO-003).",
   "source": {
     "format": "geojson",
     "text": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"properties\":{\"id\":1},\"geometry\":{\"type\":\"Point\",\"coordinates\":[-120.5,45.25]}},{\"type\":\"Feature\",\"properties\":{\"id\":2},\"geometry\":{\"type\":\"Point\",\"coordinates\":[12.4964,41.9028]}}]}"

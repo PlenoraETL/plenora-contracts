@@ -3,7 +3,7 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "rejection",
-  "description": "data.run rejects wkb-truncated with the category of its class (ARROW-013).",
+  "description": "data.run rejects wkb-truncated with the category of its class (REJ-001).",
   "input": "../arrow-data-v1/invalid-wkb-truncated.json",
   "chain": [
     {
@@ -28,8 +28,8 @@
     "retry": "never",
     "exit_code": 3,
     "rules": [
-      "VOC-011",
-      "ARROW-013"
+      "GEO-011",
+      "REJ-001"
     ]
   }
 }

@@ -39,6 +39,7 @@
         "plan": "identity"
       },
       "transformations": [
+        "complete_missing_geometry_keys",
         "large_to_standard",
         "assign_field_ids",
         "srid_from_epsg_identifier"
@@ -92,6 +93,9 @@
         "id": 1,
         "geometry": "0101000020e61000000000000000205ec00000000000a04640"
       }
+    ],
+    "delegated_metadata": [
+      "plenora.postgres."
     ]
   }
 }

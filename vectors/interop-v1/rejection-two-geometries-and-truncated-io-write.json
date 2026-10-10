@@ -3,34 +3,36 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "rejection",
-  "description": "io.write rejects ewkb-srid-differs with the category of its class (REJ-001).",
-  "input": "../arrow-data-v1/invalid-ewkb-srid-differs.json",
+  "description": "Two geometry fields and a truncated value: the support limit comes before the values (REJ-002).",
+  "input": "../arrow-data-v1/invalid-two-geometries-and-truncated.json",
   "chain": [
     {
       "component": "plenora-io-tools",
       "operation": "io.write",
       "version": 2,
       "params": {
-        "format": "gpkg"
+        "format": "gpkg",
+        "limits": [
+          "one_geometry_field"
+        ]
       },
       "transformations": []
     }
   ],
   "expected_error": {
-    "class": "input",
-    "category": "crs",
+    "class": "support",
+    "category": "unsupported",
     "phases": [
-      "write"
+      "validate"
     ],
     "remote_effects": [
-      "none",
-      "rolled_back"
+      "none"
     ],
     "retry": "never",
     "exit_code": 3,
     "rules": [
-      "GEO-009",
-      "REJ-001"
+      "GEO-012",
+      "REJ-002"
     ]
   }
 }

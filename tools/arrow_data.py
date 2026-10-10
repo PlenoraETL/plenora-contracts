@@ -930,8 +930,7 @@ def _cell(field: dict[str, Any], value: Any) -> bytes | None:
     return None
 
 
-def verdict(vector: dict[str, Any]) -> Verdict | None:
-    """The first rejection a consumer reports, or `None` when it accepts."""
+def _cells(vector: dict[str, Any]) -> list[list[bytes | None]]:
     fields = vector["fields"]
     names = [field["name"] for field in fields]
     if len(names) != len(set(names)):
@@ -939,23 +938,35 @@ def verdict(vector: dict[str, Any]) -> Verdict | None:
     for row in vector["rows"]:
         if set(row) != set(names):
             raise FixtureError("a row does not name exactly the fields")
-    cells = [[_cell(field, row[field["name"]]) for field in fields] for row in vector["rows"]]
+    return [[_cell(field, row[field["name"]]) for field in fields] for row in vector["rows"]]
 
+
+def schema_verdict(vector: dict[str, Any]) -> Verdict | None:
+    """REJ-002 up to the CRS class: what the schema alone decides."""
+    _cells(vector)
     version = vector["schema_metadata"].get("plenora.contract.version")
     if version is None or not VERSION.fullmatch(version):
         return Verdict("schema", "ARROW-001")
     if version != "1":
         return Verdict("unsupported", "ARROW-002")
-    found = _vocabulary(fields) or _crs(fields)
-    if found is not None:
-        return found
-    for row in cells:
+    return _vocabulary(vector["fields"]) or _crs(vector["fields"])
+
+
+def value_verdict(vector: dict[str, Any]) -> Verdict | None:
+    """REJ-002, the value classes: row order, then field order."""
+    fields = vector["fields"]
+    for row in _cells(vector):
         for field, data in zip(fields, row):
             if data is not None and is_geometry(field):
                 found = _value(field, data)
                 if found is not None:
                     return found
     return None
+
+
+def verdict(vector: dict[str, Any]) -> Verdict | None:
+    """The first rejection a component reports, or `None` when it accepts."""
+    return schema_verdict(vector) or value_verdict(vector)
 
 
 def computation_errors(vector: dict[str, Any]) -> list[str]:

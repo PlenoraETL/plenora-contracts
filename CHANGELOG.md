@@ -35,15 +35,17 @@ full commit SHA; a release tag names one of those commits.
   with informative pointers. Nine vectors in `vectors/arrow-data-v1`, four
   with two defects. See
   [decision 0014](decisions/0014-arrow-input-rejection-categories.md).
-- Interoperability vectors (Composition 1.0 section 6, COMP-001 to COMP-005):
-  new schema `interop-vector-v1` and 31 vectors in `vectors/interop-v1` for
-  the cross-library suite: 7 handoff chains among IO-tools, data-tools and
-  database-tools whose expected table the validator recomputes from the
-  input and a closed list of declared transformations; 23 rejections with
-  the category of their class; one GeoJSON source whose axis order and
-  coordinates the validator reads. Chains are checked against the
-  composition matrix. No catalog, binding, profile or published vector
-  changes. See [decision 0018](decisions/0018-interoperability-vectors.md).
+- Interoperability vectors (Composition 1.0 section 6, COMP-001 to COMP-005)
+  for components that claim Arrow Geometry Semantics 1.0: new schema
+  `interop-vector-v1` and 37 vectors in `vectors/interop-v1`: 9 handoff
+  chains among IO-tools, data-tools and database-tools whose expected table
+  the validator recomputes from the input and a closed list of declared
+  transformations, provider keys listed as delegated; 26 rejections, each
+  the first of one ordered evaluation that includes the operation; a GeoJSON
+  and a CSV source whose axis order and coordinates the validator reads.
+  Chains are checked against the composition matrix. No catalog, binding,
+  profile or published vector changes. See
+  [decision 0018](decisions/0018-interoperability-vectors.md).
 
 ### Changed
 

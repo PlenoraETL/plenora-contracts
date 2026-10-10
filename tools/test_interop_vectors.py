@@ -1,5 +1,6 @@
-"""Interoperability vectors (Composition 1.0 section 6, decision 0018): every
-expectation is recomputed, every chain checked against the matrix."""
+"""Interoperability vectors (Composition 1.0 section 6, decision 0018): one
+ordered evaluation per step, expectations recomputed, chains checked against
+the matrix, messages without values."""
 
 import copy
 import json
@@ -9,19 +10,20 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import arrow_data
 import interop_vectors as interop
 import validate_specs as validator
 
 ROOT = validator.ROOT
 VECTORS = ROOT / "vectors/interop-v1"
+KERNELS = {kernel["id"] for kernel in validator.load_json(ROOT / "catalogs/data-kernels-v2.json")["operations"]}
 
 
 def vector(name):
     return validator.load_json(VECTORS / name)
 
 
-def errors_of(name, document=None):
-    path = VECTORS / name
+def errors_of(name, document=None, load=validator.load_json):
     catalogs = validator.load_catalogs()
     operations = validator.operation_index(catalogs)
     edges = validator.load_json(ROOT / "composition/pipelines-v1.json")["edges"]
@@ -32,17 +34,33 @@ def errors_of(name, document=None):
         )
         for edge in edges if edge["mode"] == "direct"
     }
-    kernels = {kernel["id"] for kernel in validator.load_json(ROOT / "catalogs/data-kernels-v2.json")["operations"]}
-    return interop.vector_errors(path, document or vector(name), operations, direct, validator.load_json, kernels)
+    return interop.vector_errors(VECTORS / name, document or vector(name), operations, direct, load, KERNELS)
+
+
+def step(operation, component, version=2, **params):
+    return {"component": component, "operation": operation, "version": version,
+            "params": params, "transformations": []}
+
+
+GEO_STEP = step("data.run", "plenora-data-tools", plan="geo.centroid")
+IDENTITY = step("data.run", "plenora-data-tools", plan="identity")
+IO_READ = step("io.read", "plenora-io-tools")
+IO_WRITE_IPC = step("io.write", "plenora-io-tools", format="arrow_ipc_file")
+IO_WRITE_GPKG = step("io.write", "plenora-io-tools", format="gpkg")
+DB_WRITE = step("database.write", "plenora-database-tools", version=1)
+
+
+def table(name):
+    return validator.load_json(ROOT / "vectors/arrow-data-v1" / name)
 
 
 class GateTests(unittest.TestCase):
     def test_every_published_vector_passes(self):
         self.assertEqual(validator.validate_interop_vectors(validator.load_catalogs()), [])
         kinds = [vector(path.name)["kind"] for path in VECTORS.glob("*.json")]
-        self.assertGreaterEqual(kinds.count("handoff"), 7)
-        self.assertGreaterEqual(kinds.count("rejection"), 23)
-        self.assertGreaterEqual(kinds.count("source"), 1)
+        self.assertGreaterEqual(kinds.count("handoff"), 9)
+        self.assertGreaterEqual(kinds.count("rejection"), 26)
+        self.assertGreaterEqual(kinds.count("source"), 2)
 
     def test_the_gate_reports_an_empty_directory(self):
         catalogs = validator.load_catalogs()
@@ -59,197 +77,204 @@ class GateTests(unittest.TestCase):
         self.assertEqual(errors, ["vectors/interop-v1 has no vectors"])
 
 
+class OrderTests(unittest.TestCase):
+    """REJ-002 with the operation: one evaluation, one answer."""
+
+    def test_unknown_crs_before_values_for_a_computing_step(self):
+        found = interop.step_rejection(table("invalid-unknown-crs-and-truncated.json"), GEO_STEP, KERNELS)
+        self.assertEqual(found, interop.Rejection("crs", "crs", "GEO-015"))
+        self.assertEqual(interop.step_rejection(table("invalid-unknown-crs-and-truncated.json"), DB_WRITE, KERNELS),
+                         interop.Rejection("input", "data_mapping", "GEO-011"))
+        self.assertIsNone(interop.step_rejection(table("invalid-unknown-crs-and-truncated.json"), IO_READ, KERNELS))
+
+    def test_support_before_values(self):
+        limited = step("io.write", "plenora-io-tools", format="gpkg", limits=["one_geometry_field"])
+        self.assertEqual(interop.step_rejection(table("invalid-two-geometries-and-truncated.json"), limited, KERNELS),
+                         interop.Rejection("support", "unsupported", "GEO-012"))
+        types = step("io.write", "plenora-io-tools", format="gpkg", limits=["one_geometry_type"])
+        self.assertEqual(interop.step_rejection(table("types-point-polygon.json"), types, KERNELS),
+                         interop.Rejection("support", "unsupported", "GEO-010"))
+
+    def test_steps_that_carry_do_not_decode(self):
+        for carrier in (IO_READ, IDENTITY, IO_WRITE_IPC):
+            with self.subTest(carrier["operation"]):
+                self.assertIsNone(interop.step_rejection(table("invalid-ewkb-srid-differs.json"), carrier, KERNELS))
+        self.assertIsNotNone(interop.step_rejection(table("invalid-ewkb-srid-differs.json"), IO_WRITE_GPKG, KERNELS))
+
+    def test_a_computing_step_needs_a_registered_geo_kernel(self):
+        for plan in ("identity", "geo.unknown_kernel"):
+            with self.subTest(plan):
+                self.assertIsNone(interop.step_rejection(
+                    table("crs-unknown-identifier.json"), step("data.run", "plenora-data-tools", plan=plan), KERNELS))
+        self.assertEqual(interop.step_rejection(table("axis-lat-lon-stored.json"), GEO_STEP, KERNELS).rule,
+                         "DT-ARROW-004")
+        field = copy.deepcopy(table("crs-id-with-consistent-definition.json"))
+        del field["fields"][1]["metadata"]["plenora.geometry.crs_id"]
+        self.assertEqual(interop.step_rejection(field, GEO_STEP, KERNELS).rule, "GEO-006")
+
+    def test_the_profile_acceptance_of_data_run(self):
+        incomplete = table("invalid-precision-missing.json")
+        self.assertIsNone(interop.step_rejection(incomplete, IDENTITY, KERNELS))
+        self.assertEqual(interop.step_rejection(incomplete, IO_READ, KERNELS).category, "schema")
+        bare = copy.deepcopy(table("axis-lon-lat-epsg4326.json"))
+        for key in ("crs_resolution", "axis_order", "encoding"):
+            del bare["fields"][1]["metadata"][f"plenora.geometry.{key}"]
+        interop.complete_missing_geometry_keys(bare)
+        self.assertEqual(bare["fields"][1]["metadata"]["plenora.geometry.crs_resolution"], "declared_unresolved")
+
+
 class HandoffTests(unittest.TestCase):
-    def test_an_undeclared_change_is_reported(self):
+    def test_an_undeclared_change_names_only_the_path(self):
         document = vector("handoff-io-data-io-points.json")
         document["expected_output"]["fields"][1]["metadata"]["plenora.geometry.axis_order"] = "lat_lon"
-        self.assertIn("expected_output differs", errors_of("handoff-io-data-io-points.json", document)[0])
+        errors = errors_of("handoff-io-data-io-points.json", document)
+        self.assertEqual(errors, ["expected_output differs from the recomputed table at "
+                                  "/fields/1/metadata/plenora.geometry.axis_order"])
 
     def test_a_missing_transformation_is_reported(self):
         document = vector("handoff-io-database-io.json")
         document["chain"][2]["transformations"].remove("axis_order_unknown")
         self.assertTrue(any("differs" in error for error in errors_of("handoff-io-database-io.json", document)))
 
-    def test_a_chain_outside_the_matrix_is_reported(self):
+    def test_a_step_that_rejects_its_input(self):
+        document = vector("handoff-data-io-profile-completion.json")
+        document["chain"][0]["transformations"].remove("complete_missing_geometry_keys")
+        self.assertIn("step 2 rejects its input", errors_of("handoff-data-io-profile-completion.json", document)[0])
+
+    def test_delegated_metadata_is_explicit(self):
+        document = vector("handoff-io-database-io.json")
+        self.assertEqual(document["expected_output"]["delegated_metadata"], ["plenora.postgres."])
+        del document["expected_output"]["delegated_metadata"]
+        self.assertTrue(any("delegated_metadata" in error for error in errors_of("handoff-io-database-io.json", document)))
+
+    def test_iso_codes_become_extended_before_the_srid(self):
+        value = struct.pack("<BI", 1, 1001) + struct.pack("<ddd", 1, 2, 3)
+        converted = interop.with_srid(value, 4326)
+        self.assertEqual(struct.unpack("<I", converted[1:5])[0], 1 | arrow_data.FLAG_Z | arrow_data.FLAG_SRID)
+        self.assertEqual(arrow_data.decode_wkb(converted), arrow_data.Geometry("point", "xyz", 4326))
+        zm = struct.pack(">BI", 0, 3001) + struct.pack(">dddd", 1, 2, 3, 4)
+        self.assertEqual(arrow_data.decode_wkb(interop.with_srid(zm, 1)).dimensions, "xyzm")
+        present = struct.pack("<BIi", 1, 1 | arrow_data.FLAG_SRID, 3003) + bytes(16)
+        self.assertEqual(interop.with_srid(present, 3003), present)
+        with self.assertRaises(ValueError):
+            interop.with_srid(present, 4326)
+
+    def test_chain_rules(self):
         document = vector("handoff-io-data-io-points.json")
         document["chain"].reverse()
-        errors = errors_of("handoff-io-data-io-points.json", document)
-        self.assertTrue(any("not a direct edge" in error for error in errors))
-
-    def test_a_target_round_trip_needs_write_then_read(self):
+        self.assertTrue(any("not a direct edge" in error for error in errors_of("handoff-io-data-io-points.json", document)))
         document = vector("handoff-io-database-io.json")
         document["chain"][1]["operation"] = "database.query"
-        errors = errors_of("handoff-io-database-io.json", document)
-        self.assertTrue(any("not a write then a read" in error for error in errors))
+        self.assertTrue(any("write then a read" in error for error in errors_of("handoff-io-database-io.json", document)))
         first = vector("handoff-database-data-io.json")
         first["chain"][0]["via"] = "target"
         self.assertTrue(any("first step" in error for error in errors_of("handoff-database-data-io.json", first)))
+        odd = vector("handoff-io-database-io.json")
+        odd["chain"][2]["provider_prefix"] = "plenora.geometry."
+        odd["chain"][0]["version"] = 9
+        odd["chain"][0]["params"]["limits"] = ["nothing"]
+        odd["chain"][0]["transformations"] = ["srid_from_epsg_identifier"]
+        errors = errors_of("handoff-io-database-io.json", odd)
+        for text in ("reserved", "unknown operation", "unknown limit", "cannot declare"):
+            self.assertTrue(any(text in error for error in errors), text)
 
-    def test_transformations_belong_to_their_operation(self):
-        document = vector("handoff-io-data-io-points.json")
-        document["chain"][0]["transformations"] = ["srid_from_epsg_identifier", "axis_order_unknown"]
-        errors = errors_of("handoff-io-data-io-points.json", document)
-        self.assertEqual(sum("cannot declare" in error for error in errors), 2)
-
-    def test_transformations_apply_in_the_order_of_the_table(self):
-        table = validator.load_json(ROOT / "vectors/arrow-data-v1/axis-lon-lat-epsg4326.json")
+    def test_order_of_transformations_and_types(self):
         forward = [{"transformations": ["srid_from_epsg_identifier", "ewkb_with_field_srid"]}]
         backward = [{"transformations": ["ewkb_with_field_srid", "srid_from_epsg_identifier"]}]
-        self.assertEqual(interop.expected_output(table, forward), interop.expected_output(table, backward))
-
-    def test_comparison_tells_types_apart(self):
-        document = vector("handoff-io-data-io-points.json")
-        document["expected_output"]["rows"][0]["id"] = True
-        self.assertTrue(any("differs" in error for error in errors_of("handoff-io-data-io-points.json", document)))
+        start = table("axis-lon-lat-epsg4326.json")
+        self.assertEqual(interop.expected_output(start, forward), interop.expected_output(start, backward))
         self.assertFalse(interop.same(1, 1.0))
-        self.assertTrue(interop.same({"a": [1]}, {"a": [1]}))
+        self.assertEqual(interop.difference({"a": [1, 2]}, {"a": [1]}), "/a (length)")
+        self.assertEqual(interop.difference({"a": 1}, {"b": 1}), "/a")
+        self.assertEqual(interop.difference(1, True), "/")
+        self.assertIsNone(interop.difference({"a": [1]}, {"a": [1]}))
+        wide = {"schema_metadata": {}, "rows": [{"a": "x"}],
+                "fields": [{"name": "a", "type": "large_utf8", "nullable": True, "metadata": {}}]}
+        interop.large_to_standard(wide)
+        interop.assign_field_ids(wide)
+        self.assertEqual((wide["fields"][0]["type"], wide["fields"][0]["metadata"]["plenora.field_id"]), ("utf8", "0"))
 
-    def test_unknown_operation_and_reserved_prefix(self):
-        document = vector("handoff-io-database-io.json")
-        document["chain"][2]["provider_prefix"] = "plenora.geometry."
-        document["chain"][0]["version"] = 9
-        errors = errors_of("handoff-io-database-io.json", document)
-        self.assertTrue(any("reserved" in error for error in errors))
-        self.assertTrue(any("unknown operation" in error for error in errors))
-
-    def test_input_must_exist_and_be_valid(self):
+    def test_inputs_that_do_not_exist_or_are_not_tables(self):
         document = vector("handoff-io-data-io-points.json")
         document["input"] = "../arrow-data-v1/absent.json"
         self.assertIn("does not exist", errors_of("handoff-io-data-io-points.json", document)[0])
-        document["input"] = "../arrow-data-v1/invalid-wkb-truncated.json"
-        self.assertIn("valid input", errors_of("handoff-io-data-io-points.json", document)[0])
-
-    def test_transformations(self):
-        table = {
-            "schema_metadata": {"plenora.contract.version": "1"},
-            "fields": [
-                {"name": "a", "type": "large_utf8", "nullable": True, "metadata": {}},
-                {"name": "b", "type": "int64", "nullable": True, "metadata": {"plenora.field_id": "0"}},
-            ],
-            "rows": [{"a": "x", "b": 1}],
-        }
-        interop.large_to_standard(table)
-        interop.assign_field_ids(table)
-        self.assertEqual(table["fields"][0]["type"], "utf8")
-        self.assertEqual(table["fields"][0]["metadata"]["plenora.field_id"], "1")
-        value = struct.pack("<BIi", 1, 1 | 0x20000000, 3003) + bytes(16)
-        with self.assertRaises(ValueError):
-            interop._with_srid(value, 4326)
-        self.assertEqual(interop._with_srid(value, 3003), value)
-        big = struct.pack(">BI", 0, 1) + bytes(16)
-        self.assertEqual(interop._with_srid(big, 4326)[1:5], struct.pack(">I", 1 | 0x20000000))
-
-    def test_an_input_that_is_not_a_table(self):
         for name in ("handoff-io-data-io-points.json", "rejection-wkb-truncated-database-write.json"):
-            document = vector(name)
-            path = (VECTORS / document["input"]).resolve()
-            broken = validator.load_json(path)
+            source = vector(name)
+            broken = validator.load_json((VECTORS / source["input"]).resolve())
             broken["rows"][0]["id"] = None
-            catalogs = validator.load_catalogs()
-            errors = interop.vector_errors(
-                VECTORS / name, document, validator.operation_index(catalogs), set(),
-                lambda _path, broken=broken: broken,
-            )
             with self.subTest(name):
-                self.assertTrue(any("not a buildable table" in error for error in errors))
-
-    def test_a_transformation_that_cannot_apply(self):
-        document = vector("handoff-io-data-io-ewkb.json")
-        document["input"] = "../arrow-data-v1/invalid-ewkb-srid-differs.json"
-        self.assertTrue(errors_of("handoff-io-data-io-ewkb.json", document))
+                self.assertIn("not a buildable table", errors_of(name, source, lambda _path, b=broken: b)[0])
+        bad = vector("handoff-io-data-io-ewkb.json")
+        bad["input"] = "../arrow-data-v1/invalid-ewkb-srid-differs.json"
+        self.assertTrue(errors_of("handoff-io-data-io-ewkb.json", bad))
 
 
 class RejectionTests(unittest.TestCase):
-    def test_input_class_must_match_the_input_vector(self):
+    def test_class_category_rule_and_axes(self):
         name = "rejection-ewkb-srid-differs-database-write.json"
         document = vector(name)
-        document["expected_error"]["category"] = "resource_limit"
-        document["expected_error"]["rules"] = ["ARROW-013"]
+        document["expected_error"].update(category="resource_limit", rules=["REJ-001"], phases=["validate"],
+                                          remote_effects=["none"])
         document["expected_error"]["class"] = "support"
-        document["expected_error"]["phases"] = ["validate"]
-        self.assertEqual(len(errors_of(name, document)), 4)
+        self.assertEqual(len(errors_of(name, document)), 5)
+        reader = vector("rejection-wkb-truncated-data-run-geo.json")
+        self.assertEqual((reader["expected_error"]["phases"], reader["expected_error"]["remote_effects"]),
+                         (["read"], ["none"]))
 
-    def test_a_valid_input_needs_a_class_and_its_rule(self):
-        name = "rejection-two-geometries-io-write.json"
-        document = vector(name)
-        document["expected_error"]["class"] = "input"
-        self.assertEqual(errors_of(name, document), ["a valid input cannot be rejected as class input"])
-        document = vector(name)
-        document["expected_error"]["rules"] = ["ARROW-013"]
-        document["expected_error"]["category"] = "schema"
-        self.assertEqual(len(errors_of(name, document)), 2)
-
-    def test_crs_rejections_need_their_reason(self):
-        name = "rejection-lat-lon-geo-operation.json"
-        document = vector(name)
-        document["input"] = "../arrow-data-v1/axis-lon-lat-epsg4326.json"
-        self.assertEqual(len(errors_of(name, document)), 1)
-        document = vector("rejection-unknown-crs-geo-operation.json")
-        document["expected_error"]["rules"] = ["ARROW-013"]
-        self.assertEqual(len(errors_of("rejection-unknown-crs-geo-operation.json", document)), 1)
-
-    def test_value_classes_follow_the_role_of_the_step(self):
-        writer = vector("rejection-wkb-truncated-database-write.json")["expected_error"]
-        self.assertEqual((writer["phases"], writer["remote_effects"]), (["write"], ["none", "rolled_back"]))
-        reader = vector("rejection-wkb-truncated-data-run-geo.json")["expected_error"]
-        self.assertEqual((reader["phases"], reader["remote_effects"]), (["read"], ["none"]))
-        document = vector("rejection-wkb-truncated-data-run-geo.json")
-        document["expected_error"]["remote_effects"] = ["none", "rolled_back"]
-        self.assertEqual(len(errors_of("rejection-wkb-truncated-data-run-geo.json", document)), 1)
-
-    def test_a_value_class_needs_a_step_that_decodes(self):
-        """Second reader: carrying the bytes leaves the check to the next consumer."""
-        for step in (
-            {"component": "plenora-io-tools", "operation": "io.read", "version": 2, "transformations": []},
-            {"component": "plenora-data-tools", "operation": "data.run", "version": 2,
-             "params": {"plan": "identity"}, "transformations": []},
-            {"component": "plenora-io-tools", "operation": "io.write", "version": 2,
-             "params": {"format": "arrow_ipc_file"}, "transformations": []},
-        ):
-            document = vector("rejection-ewkb-srid-differs-data-run-geo.json")
-            document["chain"] = [step]
-            with self.subTest(step["operation"]):
-                self.assertTrue(any("without decoding" in error
-                                    for error in errors_of("rejection-ewkb-srid-differs-data-run-geo.json", document)))
-
-    def test_a_crs_rejection_needs_a_step_that_computes(self):
-        """Second reader: VOC-004 forbids the refusal to a step that carries."""
+    def test_an_accepted_input_is_not_a_rejection(self):
         name = "rejection-unknown-crs-geo-operation.json"
-        for params in ({"plan": "identity"}, {"plan": "geo.unknown_kernel"}):
-            document = vector(name)
-            document["chain"][0]["params"] = params
-            with self.subTest(params):
-                self.assertTrue(any("computes" in error for error in errors_of(name, document)))
+        document = vector(name)
+        document["chain"][0]["params"]["plan"] = "identity"
+        self.assertEqual(errors_of(name, document), ["the step accepts the input under REJ-002"])
+
+    def test_published_order_vectors(self):
+        self.assertEqual(vector("rejection-unknown-crs-and-truncated-geo.json")["expected_error"]["category"], "crs")
+        self.assertEqual(
+            vector("rejection-two-geometries-and-truncated-io-write.json")["expected_error"]["category"],
+            "unsupported",
+        )
 
 
 class SourceTests(unittest.TestCase):
-    def test_coordinates_are_read_from_the_document(self):
+    def test_geojson(self):
         name = "source-geojson-points.json"
         document = vector(name)
         document["expected_geometry"]["coordinates"][0].reverse()
         document["expected_geometry"]["axis_order"] = "lat_lon"
         document["expected_geometry"]["crs_id"] = "EPSG:4326"
         self.assertEqual(len(errors_of(name, document)), 3)
-
-    def test_a_source_must_be_able_to_show_an_exchange(self):
-        name = "source-geojson-points.json"
-        document = vector(name)
-        text = json.loads(document["source"]["text"])
+        narrow = vector(name)
+        text = json.loads(narrow["source"]["text"])
         text["features"] = text["features"][1:]
-        document["source"]["text"] = json.dumps(text)
-        document["expected_geometry"]["coordinates"] = [[12.4964, 41.9028]]
-        self.assertTrue(any("VOC-003" in error for error in errors_of(name, document)))
+        narrow["source"]["text"] = json.dumps(text)
+        narrow["expected_geometry"]["coordinates"] = [[12.4964, 41.9028]]
+        self.assertTrue(any("GEO-003" in error for error in errors_of(name, narrow)))
+        for broken in ('{"type":"Feature"}',
+                       '{"type":"FeatureCollection","features":[{"geometry":{"type":"LineString","coordinates":[]}}]}'):
+            unreadable = vector(name)
+            unreadable["source"]["text"] = broken
+            self.assertEqual(errors_of(name, unreadable)[-1], "source is not readable")
+        transformed = vector(name)
+        transformed["chain"][0]["transformations"] = ["assign_field_ids"]
+        self.assertEqual(len(errors_of(name, transformed)), 1)
 
-    def test_unreadable_sources_and_wrong_steps(self):
-        name = "source-geojson-points.json"
-        for text in ('{"type":"Feature"}', '{"type":"FeatureCollection","features":[{"geometry":{"type":"LineString","coordinates":[]}}]}'):
-            document = vector(name)
-            document["source"]["text"] = text
-            with self.subTest(text):
-                self.assertTrue(any("not readable" in error for error in errors_of(name, document)))
-        document = vector(name)
-        document["chain"][0]["transformations"] = ["assign_field_ids"]
-        self.assertEqual(len(errors_of(name, copy.deepcopy(document))), 1)
+    def test_wkt_csv(self):
+        name = "source-wkt-csv-utm.json"
+        self.assertEqual(errors_of(name), [])
+        request = vector(name)
+        request["chain"][0]["params"]["axis_order"] = "northing_easting"
+        self.assertTrue(any("read request" in error for error in errors_of(name, request)))
+        geographic = vector(name)
+        geographic["expected_geometry"]["crs_id"] = "EPSG:4326"
+        geographic["chain"][0]["params"]["crs_id"] = "EPSG:4326"
+        self.assertTrue(any("UTM" in error for error in errors_of(name, geographic)))
+        low = vector(name)
+        low["source"]["text"] = "id,wkt\n1,POINT (500000 400000)\n"
+        low["expected_geometry"]["coordinates"] = [[500000, 400000]]
+        self.assertTrue(any("GEO-003" in error for error in errors_of(name, low)))
+        bad = vector(name)
+        bad["source"]["text"] = "id,wkt\n1,LINESTRING (0 0, 1 1)\n"
+        self.assertEqual(errors_of(name, bad), ["source is not readable"])
 
 
 if __name__ == "__main__":

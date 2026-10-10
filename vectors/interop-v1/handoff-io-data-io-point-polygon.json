@@ -3,7 +3,7 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "handoff",
-  "description": "Several declared geometry types cross IO and data unchanged (VOC-010).",
+  "description": "Several declared geometry types cross IO and data unchanged (GEO-010).",
   "input": "../arrow-data-v1/types-point-polygon.json",
   "chain": [
     {
@@ -23,6 +23,7 @@
         "plan": "identity"
       },
       "transformations": [
+        "complete_missing_geometry_keys",
         "large_to_standard",
         "assign_field_ids",
         "srid_from_epsg_identifier"

@@ -5,13 +5,34 @@
   "description": "A chain of public operations and its exact expectation (Composition 1.0, section 6).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "contract", "kind", "description"],
+  "required": [
+    "schema_version",
+    "contract",
+    "kind",
+    "description"
+  ],
   "properties": {
-    "$schema": {"type": "string"},
-    "schema_version": {"const": 1},
-    "contract": {"const": "plenora-interop-vector-v1"},
-    "kind": {"enum": ["handoff", "rejection", "source"]},
-    "description": {"type": "string", "minLength": 1, "maxLength": 300},
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "contract": {
+      "const": "plenora-interop-vector-v1"
+    },
+    "kind": {
+      "enum": [
+        "handoff",
+        "rejection",
+        "source"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
     "input": {
       "description": "Path of an arrow-data-v1 vector, relative to this file.",
       "type": "string",
@@ -20,93 +41,291 @@
     "chain": {
       "type": "array",
       "minItems": 1,
-      "items": {"$ref": "#/$defs/step"}
+      "items": {
+        "$ref": "#/$defs/step"
+      }
     },
     "expected_output": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema_metadata", "fields", "rows"],
+      "required": [
+        "schema_metadata",
+        "fields",
+        "rows"
+      ],
       "properties": {
-        "schema_metadata": {"type": "object", "additionalProperties": {"type": "string"}},
-        "fields": {"type": "array", "minItems": 1, "items": {"type": "object"}},
-        "rows": {"type": "array", "items": {"type": "object"}}
+        "schema_metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "delegated_metadata": {
+          "description": "Prefixes of provider keys that steps add and that the provider's own vectors verify; the harness removes keys under them before the exact comparison (COMP-003).",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^plenora\\.[a-z][a-z0-9_]*\\.$"
+          }
+        }
       }
     },
     "expected_error": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["class", "category", "phases", "remote_effects", "retry", "exit_code", "rules"],
+      "required": [
+        "class",
+        "category",
+        "phases",
+        "remote_effects",
+        "retry",
+        "exit_code",
+        "rules"
+      ],
       "properties": {
-        "class": {"enum": ["input", "support", "crs"]},
-        "category": {"enum": ["schema", "data_mapping", "crs", "unsupported"]},
+        "class": {
+          "enum": [
+            "input",
+            "support",
+            "crs"
+          ]
+        },
+        "category": {
+          "enum": [
+            "schema",
+            "data_mapping",
+            "crs",
+            "unsupported"
+          ]
+        },
         "phases": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": {"enum": ["validate", "read", "write"]}
+          "items": {
+            "enum": [
+              "validate",
+              "read",
+              "write"
+            ]
+          }
         },
         "remote_effects": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": {"enum": ["none", "rolled_back"]}
+          "items": {
+            "enum": [
+              "none",
+              "rolled_back"
+            ]
+          }
         },
-        "retry": {"const": "never"},
-        "exit_code": {"const": 3},
+        "retry": {
+          "const": "never"
+        },
+        "exit_code": {
+          "const": 3
+        },
         "rules": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": {"type": "string", "pattern": "^[A-Z]+(-[A-Z]+)*-[0-9]{3}$|^VOCABULARY-[1-9][0-9]?$"}
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]+(-[A-Z]+)*-[0-9]{3}$|^VOCABULARY-[1-9][0-9]?$"
+          }
         }
       }
     },
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["format", "text"],
+      "required": [
+        "format",
+        "text"
+      ],
       "properties": {
-        "format": {"const": "geojson"},
-        "text": {"type": "string", "minLength": 1, "maxLength": 65536}
+        "format": {
+          "enum": [
+            "geojson",
+            "wkt_csv"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        }
       }
     },
     "expected_geometry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["crs_id", "axis_order", "coordinates"],
+      "required": [
+        "crs_id",
+        "axis_order",
+        "coordinates"
+      ],
       "properties": {
-        "crs_id": {"type": "string", "minLength": 1},
-        "axis_order": {"enum": ["lon_lat", "lat_lon", "easting_northing", "northing_easting", "other", "unknown"]},
+        "crs_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "axis_order": {
+          "enum": [
+            "lon_lat",
+            "lat_lon",
+            "easting_northing",
+            "northing_easting",
+            "other",
+            "unknown"
+          ]
+        },
         "coordinates": {
           "type": "array",
           "minItems": 1,
-          "items": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}}
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number"
+            }
+          }
         }
       }
     }
   },
   "allOf": [
     {
-      "if": {"properties": {"kind": {"const": "handoff"}}},
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "handoff"
+          }
+        }
+      },
       "then": {
-        "required": ["input", "chain", "expected_output"],
-        "not": {"anyOf": [{"required": ["expected_error"]}, {"required": ["source"]}, {"required": ["expected_geometry"]}]}
+        "required": [
+          "input",
+          "chain",
+          "expected_output"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "expected_error"
+              ]
+            },
+            {
+              "required": [
+                "source"
+              ]
+            },
+            {
+              "required": [
+                "expected_geometry"
+              ]
+            }
+          ]
+        }
       }
     },
     {
-      "if": {"properties": {"kind": {"const": "rejection"}}},
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "rejection"
+          }
+        }
+      },
       "then": {
-        "required": ["input", "chain", "expected_error"],
-        "properties": {"chain": {"maxItems": 1}},
-        "not": {"anyOf": [{"required": ["expected_output"]}, {"required": ["source"]}, {"required": ["expected_geometry"]}]}
+        "required": [
+          "input",
+          "chain",
+          "expected_error"
+        ],
+        "properties": {
+          "chain": {
+            "maxItems": 1
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "expected_output"
+              ]
+            },
+            {
+              "required": [
+                "source"
+              ]
+            },
+            {
+              "required": [
+                "expected_geometry"
+              ]
+            }
+          ]
+        }
       }
     },
     {
-      "if": {"properties": {"kind": {"const": "source"}}},
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "source"
+          }
+        }
+      },
       "then": {
-        "required": ["source", "chain", "expected_geometry"],
-        "properties": {"chain": {"maxItems": 1}},
-        "not": {"anyOf": [{"required": ["input"]}, {"required": ["expected_output"]}, {"required": ["expected_error"]}]}
+        "required": [
+          "source",
+          "chain",
+          "expected_geometry"
+        ],
+        "properties": {
+          "chain": {
+            "maxItems": 1
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "input"
+              ]
+            },
+            {
+              "required": [
+                "expected_output"
+              ]
+            },
+            {
+              "required": [
+                "expected_error"
+              ]
+            }
+          ]
+        }
       }
     }
   ],
@@ -114,18 +333,37 @@
     "step": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["component", "operation", "version", "transformations"],
+      "required": [
+        "component",
+        "operation",
+        "version",
+        "transformations"
+      ],
       "properties": {
-        "component": {"type": "string", "pattern": "^plenora-[a-z][a-z0-9-]+-tools$"},
-        "operation": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"},
-        "version": {"type": "integer", "minimum": 1},
-        "via": {"const": "target"},
-        "params": {"type": "object"},
+        "component": {
+          "type": "string",
+          "pattern": "^plenora-[a-z][a-z0-9-]+-tools$"
+        },
+        "operation": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "via": {
+          "const": "target"
+        },
+        "params": {
+          "type": "object"
+        },
         "transformations": {
           "type": "array",
           "uniqueItems": true,
           "items": {
             "enum": [
+              "complete_missing_geometry_keys",
               "assign_field_ids",
               "large_to_standard",
               "srid_from_epsg_identifier",
@@ -136,13 +374,34 @@
             ]
           }
         },
-        "provider_prefix": {"type": "string", "pattern": "^plenora\\.[a-z][a-z0-9_]*\\.$"}
+        "provider_prefix": {
+          "type": "string",
+          "pattern": "^plenora\\.[a-z][a-z0-9_]*\\.$"
+        }
       },
       "allOf": [
         {
-          "if": {"properties": {"transformations": {"contains": {"const": "provider_metadata"}}}},
-          "then": {"required": ["provider_prefix"]},
-          "else": {"not": {"required": ["provider_prefix"]}}
+          "if": {
+            "properties": {
+              "transformations": {
+                "contains": {
+                  "const": "provider_metadata"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "provider_prefix"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "provider_prefix"
+              ]
+            }
+          }
         }
       ]
     }

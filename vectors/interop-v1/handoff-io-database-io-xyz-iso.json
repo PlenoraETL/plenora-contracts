@@ -3,8 +3,8 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "handoff",
-  "description": "The full chain: data adds the SRID of EPSG:4326, database keeps point and polygon in one unconstrained column and reads EWKB, IO writes it.",
-  "input": "../arrow-data-v1/types-point-polygon.json",
+  "description": "A POINT Z with an ISO type code becomes EWKB with the extended Z flag and the SRID (GEO-009).",
+  "input": "../arrow-data-v1/xyz-iso-with-srid.json",
   "chain": [
     {
       "component": "plenora-io-tools",
@@ -14,20 +14,6 @@
         "source": "input.arrow"
       },
       "transformations": []
-    },
-    {
-      "component": "plenora-data-tools",
-      "operation": "data.run",
-      "version": 2,
-      "params": {
-        "plan": "identity"
-      },
-      "transformations": [
-        "complete_missing_geometry_keys",
-        "large_to_standard",
-        "assign_field_ids",
-        "srid_from_epsg_identifier"
-      ]
     },
     {
       "component": "plenora-database-tools",
@@ -50,7 +36,6 @@
       "transformations": [
         "ewkb_with_field_srid",
         "axis_order_unknown",
-        "several_types_to_mixed",
         "provider_metadata"
       ],
       "provider_prefix": "plenora.postgres."
@@ -86,25 +71,22 @@
           "plenora.field_id": "1",
           "ARROW:extension:name": "geoarrow.wkb",
           "plenora.geometry.encoding": "ewkb",
-          "plenora.geometry.dimensions": "xy",
+          "plenora.geometry.dimensions": "xyz",
           "plenora.geometry.spatial_semantics": "geometry",
           "plenora.geometry.precision": "float64",
-          "plenora.geometry.types_declaration": "mixed",
+          "plenora.geometry.types_declaration": "exact",
+          "plenora.geometry.types": "point",
+          "plenora.geometry.srid": "4326",
           "plenora.geometry.crs_resolution": "resolved",
           "plenora.geometry.crs_id": "EPSG:4326",
-          "plenora.geometry.axis_order": "unknown",
-          "plenora.geometry.srid": "4326"
+          "plenora.geometry.axis_order": "unknown"
         }
       }
     ],
     "rows": [
       {
         "id": 1,
-        "geometry": "0101000020e61000000000000000205ec00000000000a04640"
-      },
-      {
-        "id": 2,
-        "geometry": "0103000020e610000001000000050000000000000000205ec00000000000a046409a99999999195ec00000000000a046409a99999999195ec0cdccccccccac46400000000000205ec0cdccccccccac46400000000000205ec00000000000a04640"
+        "geometry": "01010000a0e61000000000000000205ec00000000000a046400000000000002840"
       }
     ],
     "delegated_metadata": [

@@ -3,7 +3,7 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "handoff",
-  "description": "EWKB with matching SRIDs crosses IO and data unchanged, IO writing included (VOC-007).",
+  "description": "EWKB with matching SRIDs crosses IO and data unchanged, IO writing included (GEO-007).",
   "input": "../arrow-data-v1/ewkb-srid-matches-field.json",
   "chain": [
     {
@@ -23,6 +23,7 @@
         "plan": "identity"
       },
       "transformations": [
+        "complete_missing_geometry_keys",
         "large_to_standard",
         "assign_field_ids",
         "srid_from_epsg_identifier"

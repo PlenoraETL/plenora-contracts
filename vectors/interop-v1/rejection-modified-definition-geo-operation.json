@@ -3,7 +3,7 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "rejection",
-  "description": "A PROJCS 3003 built on WGS 84 under the identifier EPSG:3003 is not verified: no computation (VOC-015).",
+  "description": "A PROJCS 3003 built on WGS 84 under the identifier EPSG:3003 is not verified: no computation (GEO-015).",
   "input": "../arrow-data-v1/crs-projcs-3003-nested-geogcs-4326.json",
   "chain": [
     {
@@ -28,8 +28,8 @@
     "retry": "never",
     "exit_code": 3,
     "rules": [
-      "VOC-015",
-      "ARROW-013"
+      "GEO-015",
+      "REJ-001"
     ]
   }
 }

@@ -92,7 +92,7 @@
     "retry": "never",
     "exit_code": 3,
     "rules": [
-      "ARROW-013"
+      "REJ-001"
     ]
   }
 }

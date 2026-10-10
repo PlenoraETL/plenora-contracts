@@ -3,7 +3,7 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "rejection",
-  "description": "data-tools accepts one geometry field per table: two are unsupported, never dropped (VOC-012).",
+  "description": "data-tools accepts one geometry field per table: two are unsupported, never dropped (GEO-012).",
   "input": "../arrow-data-v1/two-geometry-fields.json",
   "chain": [
     {
@@ -11,7 +11,10 @@
       "operation": "data.run",
       "version": 2,
       "params": {
-        "plan": "identity"
+        "plan": "identity",
+        "limits": [
+          "one_geometry_field"
+        ]
       },
       "transformations": []
     }
@@ -28,8 +31,8 @@
     "retry": "never",
     "exit_code": 3,
     "rules": [
-      "VOC-012",
-      "ARROW-013"
+      "GEO-012",
+      "REJ-001"
     ]
   }
 }

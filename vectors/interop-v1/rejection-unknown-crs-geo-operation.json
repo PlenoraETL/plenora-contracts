@@ -3,7 +3,7 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "rejection",
-  "description": "A geometry operation refuses a CRS it does not know (VOC-015).",
+  "description": "A geometry operation refuses a CRS it does not know (GEO-015).",
   "input": "../arrow-data-v1/crs-unknown-identifier.json",
   "chain": [
     {
@@ -28,8 +28,8 @@
     "retry": "never",
     "exit_code": 3,
     "rules": [
-      "VOC-015",
-      "ARROW-013"
+      "GEO-015",
+      "REJ-001"
     ]
   }
 }

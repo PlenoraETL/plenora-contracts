@@ -3,7 +3,7 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "handoff",
-  "description": "A definition next to a known identifier passes through without a CRS library (VOC-004).",
+  "description": "A definition next to a known identifier passes through without a CRS library (GEO-004).",
   "input": "../arrow-data-v1/crs-id-with-consistent-definition.json",
   "chain": [
     {
@@ -23,6 +23,7 @@
         "plan": "identity"
       },
       "transformations": [
+        "complete_missing_geometry_keys",
         "large_to_standard",
         "assign_field_ids",
         "srid_from_epsg_identifier"

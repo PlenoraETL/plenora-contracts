@@ -29,7 +29,7 @@
     "exit_code": 3,
     "rules": [
       "DT-ARROW-004",
-      "ARROW-013"
+      "REJ-001"
     ]
   }
 }

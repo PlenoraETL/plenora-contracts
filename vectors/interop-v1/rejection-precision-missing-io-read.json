@@ -3,15 +3,15 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "rejection",
-  "description": "data.run rejects contract-version-absent with the category of its class (REJ-001).",
-  "input": "../arrow-data-v1/invalid-contract-version-absent.json",
+  "description": "A geometry field without precision: IO-tools has no profile acceptance for it (schema).",
+  "input": "../arrow-data-v1/invalid-precision-missing.json",
   "chain": [
     {
-      "component": "plenora-data-tools",
-      "operation": "data.run",
+      "component": "plenora-io-tools",
+      "operation": "io.read",
       "version": 2,
       "params": {
-        "plan": "identity"
+        "source": "input.arrow"
       },
       "transformations": []
     }
@@ -28,7 +28,7 @@
     "retry": "never",
     "exit_code": 3,
     "rules": [
-      "ARROW-001",
+      "VOCABULARY-4",
       "REJ-001"
     ]
   }

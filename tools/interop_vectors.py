@@ -1,51 +1,86 @@
 """Interoperability vectors (Composition 1.0, section 6, COMP-001 to COMP-005).
 
-Each vector is checked against the rules, never trusted: the expected table
-of a handoff is recomputed from its input and the declared transformations,
-every chain is checked against the composition matrix, every rejection
-against its input vector and Arrow Interchange 1.0 ARROW-013, and every
-source document is read here.
+Each vector is checked against the rules, never trusted: every step of a
+chain is evaluated in the single order of Arrow Geometry Semantics 1.0
+(REJ-002), the operation included; the expected table of a handoff is
+recomputed from its input and the declared transformations; every chain is
+checked against the composition matrix; every source document is read here.
+Error messages name rules and paths, never a value of a vector.
 """
 
 from __future__ import annotations
 
 import copy
+import csv
+import io
 import json
 import re
 import struct
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, NamedTuple
 
 import arrow_data
 
 GEOMETRY = "plenora.geometry."
+# REJ-002: the value classes; everything else is decided from the schema.
+VALUE_RULES = {"GEO-008", "GEO-009", "GEO-011"}
 CLASS_CATEGORY = {"support": "unsupported", "crs": "crs"}
-# ARROW-014: the value classes; everything else is decided from the schema.
-VALUE_RULES = {"VOC-008", "VOC-009", "VOC-011"}
+DATA_RUN = ("plenora-data-tools", "data.run")
+DATABASE_READ = ("plenora-database-tools", "database.read")
 # COMP-003: who may declare each transformation; `None` is any step.
 TRANSFORMATION_OWNERS: dict[str, set[tuple[str, str]] | None] = {
+    "complete_missing_geometry_keys": {DATA_RUN},
     "assign_field_ids": None,
-    "large_to_standard": {("plenora-data-tools", "data.run")},
-    "srid_from_epsg_identifier": {("plenora-data-tools", "data.run")},
-    "ewkb_with_field_srid": {("plenora-database-tools", "database.read")},
-    "axis_order_unknown": {("plenora-database-tools", "database.read")},
-    "several_types_to_mixed": {("plenora-database-tools", "database.read")},
-    "provider_metadata": {("plenora-database-tools", "database.read")},
+    "large_to_standard": {DATA_RUN},
+    "srid_from_epsg_identifier": {DATA_RUN},
+    "ewkb_with_field_srid": {DATABASE_READ},
+    "axis_order_unknown": {DATABASE_READ},
+    "several_types_to_mixed": {DATABASE_READ},
+    "provider_metadata": {DATABASE_READ},
 }
+# Declared component limits a step may name (GEO-010, GEO-012).
+LIMITS = {"one_geometry_field": "GEO-012", "one_geometry_type": "GEO-010"}
 IPC_FORMATS = {"arrow_ipc_file", "arrow_ipc_stream"}
 NORTH_FIRST = {"lat_lon", "northing_easting"}
 RESERVED_PREFIXES = ("plenora.geometry.", "plenora.contract.", "plenora.field_id")
-EPSG = re.compile(r"^EPSG:([1-9][0-9]*)$")
+EPSG = re.compile(r"EPSG:([1-9][0-9]*)")
+UTM = re.compile(r"EPSG:32[67][0-9]{2}")
 
-
-# --- transformations (COMP-003) -------------------------------------------------
 
 def _metadata(field: dict[str, Any]) -> dict[str, str]:
     return field["metadata"]
 
 
+def _geometry(table: dict[str, Any]) -> list[dict[str, Any]]:
+    return list(filter(arrow_data.is_geometry, table["fields"]))
+
+
+# --- transformations (COMP-003) ------------------------------------------------
+
+# DT-ARROW-003: what data-tools reads for a key the field omits.
+PROFILE_DEFAULTS = {
+    GEOMETRY + "encoding": "wkb",
+    GEOMETRY + "dimensions": "unknown",
+    GEOMETRY + "types_declaration": "unresolved",
+    GEOMETRY + "spatial_semantics": "geometry",
+    GEOMETRY + "precision": "float64",
+}
+
+
+def complete_missing_geometry_keys(table: dict[str, Any]) -> None:
+    """DT-ARROW-003: the keys a geometry field omits, read without asserting
+    more than the field carries."""
+    for field in _geometry(table):
+        metadata = _metadata(field)
+        for key, value in PROFILE_DEFAULTS.items():
+            metadata.setdefault(key, value)
+        if GEOMETRY + "crs_resolution" not in metadata:
+            declared = GEOMETRY + "crs_id" in metadata or GEOMETRY + "crs_definition" in metadata
+            metadata[GEOMETRY + "crs_resolution"] = "declared_unresolved" if declared else "missing"
+
+
 def assign_field_ids(table: dict[str, Any]) -> None:
-    """VOC-013: the smallest free identifier, in field order."""
+    """GEO-013: the smallest free identifier, in field order."""
     used = {
         int(_metadata(field)["plenora.field_id"])
         for field in table["fields"]
@@ -67,9 +102,9 @@ def large_to_standard(table: dict[str, Any]) -> None:
 
 
 def srid_from_epsg_identifier(table: dict[str, Any]) -> None:
-    for field in filter(arrow_data.is_geometry, table["fields"]):
+    for field in _geometry(table):
         metadata = _metadata(field)
-        match = EPSG.match(metadata.get(GEOMETRY + "crs_id", ""))
+        match = EPSG.fullmatch(metadata.get(GEOMETRY + "crs_id", ""))
         if (
             match
             and metadata[GEOMETRY + "crs_resolution"] == "resolved"
@@ -79,21 +114,28 @@ def srid_from_epsg_identifier(table: dict[str, Any]) -> None:
             metadata[GEOMETRY + "srid"] = match.group(1)
 
 
-def _with_srid(value: bytes, srid: int) -> bytes:
-    order = value[0]
-    prefix = "<" if order == 1 else ">"
+def with_srid(value: bytes, srid: int) -> bytes:
+    """GEO-009: the extended type code, SRID flag and SRID on the outermost
+    geometry; an ISO dimension code becomes the extended flags first."""
+    prefix = "<" if value[0] == 1 else ">"
     (code,) = struct.unpack(prefix + "I", value[1:5])
     if code & arrow_data.FLAG_SRID:
         (present,) = struct.unpack(prefix + "i", value[5:9])
         if present != srid:
             raise ValueError("EWKB SRID differs from the field")
         return value
-    return value[:1] + struct.pack(prefix + "I", code | arrow_data.FLAG_SRID) + struct.pack(prefix + "i", srid) + value[5:]
+    thousands, kind = divmod(code & 0x1FFFFFFF, 1000)
+    flags = code & (arrow_data.FLAG_Z | arrow_data.FLAG_M)
+    if thousands:
+        has_z, has_m = arrow_data.ISO_DIMENSIONS[thousands]
+        flags = (arrow_data.FLAG_Z if has_z else 0) | (arrow_data.FLAG_M if has_m else 0)
+    extended = kind | flags | arrow_data.FLAG_SRID
+    return value[:1] + struct.pack(prefix + "I", extended) + struct.pack(prefix + "i", srid) + value[5:]
 
 
 def ewkb_with_field_srid(table: dict[str, Any]) -> None:
-    """VOC-009: EWKB carrying the field's SRID on the outermost geometry."""
-    for field in filter(arrow_data.is_geometry, table["fields"]):
+    """GEO-009: EWKB carrying the field's SRID on the outermost geometry."""
+    for field in _geometry(table):
         metadata = _metadata(field)
         metadata[GEOMETRY + "encoding"] = "ewkb"
         srid = metadata.get(GEOMETRY + "srid")
@@ -101,20 +143,20 @@ def ewkb_with_field_srid(table: dict[str, Any]) -> None:
             continue
         for row in table["rows"]:
             if row[field["name"]] is not None:
-                row[field["name"]] = _with_srid(bytes.fromhex(row[field["name"]]), int(srid)).hex()
+                row[field["name"]] = with_srid(bytes.fromhex(row[field["name"]]), int(srid)).hex()
 
 
 def axis_order_unknown(table: dict[str, Any]) -> None:
-    for field in filter(arrow_data.is_geometry, table["fields"]):
+    for field in _geometry(table):
         metadata = _metadata(field)
         if metadata[GEOMETRY + "crs_resolution"] != "missing":
             metadata[GEOMETRY + "axis_order"] = "unknown"
 
 
 def several_types_to_mixed(table: dict[str, Any]) -> None:
-    """VOC-010: a target that keeps several types in an unconstrained column
+    """GEO-010: a target that keeps several types in an unconstrained column
     reads them back as `mixed`, without the list."""
-    for field in filter(arrow_data.is_geometry, table["fields"]):
+    for field in _geometry(table):
         metadata = _metadata(field)
         types = arrow_data._type_list(metadata.get(GEOMETRY + "types"))
         if metadata[GEOMETRY + "types_declaration"] == "exact" and types and len(types) > 1:
@@ -123,10 +165,11 @@ def several_types_to_mixed(table: dict[str, Any]) -> None:
 
 
 def provider_metadata(table: dict[str, Any]) -> None:
-    """ARROW-009: provider keys are verified by the provider's own vectors."""
+    """ARROW-009: provider keys are delegated (`delegated_metadata`)."""
 
 
 TRANSFORMATIONS: dict[str, Callable[[dict[str, Any]], None]] = {
+    "complete_missing_geometry_keys": complete_missing_geometry_keys,
     "assign_field_ids": assign_field_ids,
     "large_to_standard": large_to_standard,
     "srid_from_epsg_identifier": srid_from_epsg_identifier,
@@ -137,17 +180,28 @@ TRANSFORMATIONS: dict[str, Callable[[dict[str, Any]], None]] = {
 }
 
 
-def expected_output(table: dict[str, Any], chain: list[dict[str, Any]]) -> dict[str, Any]:
+def apply(table: dict[str, Any], step: dict[str, Any]) -> None:
     """COMP-003: a step applies its transformations in the order of the table."""
-    result = {
+    for name in TRANSFORMATIONS:
+        if name in step["transformations"]:
+            TRANSFORMATIONS[name](table)
+
+
+def _copy(table: dict[str, Any]) -> dict[str, Any]:
+    return {
         "schema_metadata": dict(table["schema_metadata"]),
         "fields": copy.deepcopy(table["fields"]),
         "rows": copy.deepcopy(table["rows"]),
     }
+
+
+def expected_output(table: dict[str, Any], chain: list[dict[str, Any]]) -> dict[str, Any]:
+    result = _copy(table)
     for step in chain:
-        for name in TRANSFORMATIONS:
-            if name in step["transformations"]:
-                TRANSFORMATIONS[name](result)
+        apply(result, step)
+    prefixes = sorted({step["provider_prefix"] for step in chain if "provider_prefix" in step})
+    if prefixes:
+        result["delegated_metadata"] = prefixes
     return result
 
 
@@ -162,6 +216,31 @@ def same(left: Any, right: Any) -> bool:
     return left == right
 
 
+def difference(left: Any, right: Any, path: str = "") -> str | None:
+    """The path of the first difference, never the values."""
+    if type(left) is not type(right):
+        return path or "/"
+    if isinstance(left, dict):
+        for key in sorted(set(left) | set(right)):
+            if key not in left or key not in right:
+                return f"{path}/{key}"
+            found = difference(left[key], right[key], f"{path}/{key}")
+            if found:
+                return found
+        return None
+    if isinstance(left, list):
+        if len(left) != len(right):
+            return f"{path} (length)"
+        for index, (one, other) in enumerate(zip(left, right)):
+            found = difference(one, other, f"{path}/{index}")
+            if found:
+                return found
+        return None
+    return None if left == right else (path or "/")
+
+
+# --- the operation in the order (REJ-002) ----------------------------------------
+
 def computes(step: dict[str, Any], kernels: set[str]) -> bool:
     """A step that computes with coordinates: `data.run` whose plan is a
     registered `geo.` kernel."""
@@ -175,13 +254,59 @@ def computes(step: dict[str, Any], kernels: set[str]) -> bool:
 
 
 def decodes(step: dict[str, Any], kernels: set[str]) -> bool:
-    """A step that decodes geometry values (VOC-009, VOC-011): one that
+    """A step that decodes geometry values (GEO-009, GEO-011): one that
     computes, or one that writes them to a target that interprets them."""
     if computes(step, kernels):
         return True
     if step["operation"] == "database.write":
         return True
     return step["operation"] == "io.write" and (step.get("params") or {}).get("format") not in IPC_FORMATS
+
+
+class Rejection(NamedTuple):
+    cls: str
+    category: str
+    rule: str
+
+
+def step_rejection(table: dict[str, Any], step: dict[str, Any], kernels: set[str]) -> Rejection | None:
+    """The single ordered evaluation of REJ-002 for one step: version,
+    vocabulary and CRS of the input (after the acceptances of the step's
+    profile), the CRS the operation must use, the step's declared limits,
+    then the values it decodes."""
+    seen = table
+    if (step["component"], step["operation"]) == DATA_RUN:
+        # GEO-000: the profile's acceptance (DT-ARROW-003) is never revoked.
+        seen = _copy(table)
+        complete_missing_geometry_keys(seen)
+        assign_field_ids(seen)
+    found = arrow_data.schema_verdict(seen)
+    if found is not None:
+        return Rejection("input", found.category, found.rule)
+    geometry = _geometry(seen)
+    if computes(step, kernels):
+        declared = [field for field in geometry if _metadata(field)[GEOMETRY + "crs_resolution"] != "missing"]
+        for field in declared:
+            if _metadata(field).get(GEOMETRY + "axis_order") in NORTH_FIRST:
+                return Rejection("crs", "crs", "DT-ARROW-004")
+            try:
+                computed = arrow_data.computation_verdict(field)
+            except arrow_data.Undecidable:
+                computed = arrow_data.Verdict("crs", "GEO-006")
+            if computed is not None:
+                return Rejection("crs", computed.category, computed.rule)
+    limits = (step.get("params") or {}).get("limits") or []
+    if "one_geometry_field" in limits and len(geometry) > 1:
+        return Rejection("support", "unsupported", "GEO-012")
+    if "one_geometry_type" in limits and any(
+        len(arrow_data._type_list(_metadata(field).get(GEOMETRY + "types")) or []) > 1 for field in geometry
+    ):
+        return Rejection("support", "unsupported", "GEO-010")
+    if decodes(step, kernels):
+        found = arrow_data.value_verdict(seen)
+        if found is not None:
+            return Rejection("input", found.category, found.rule)
+    return None
 
 
 # --- chains (COMP-002) ---------------------------------------------------------
@@ -208,7 +333,10 @@ def chain_errors(
                 errors.append(f"{step['operation']} cannot declare {name} (COMP-003)")
         prefix = step.get("provider_prefix")
         if prefix is not None and prefix.startswith(RESERVED_PREFIXES):
-            errors.append(f"provider prefix {prefix} is reserved for the shared vocabulary")
+            errors.append("a provider prefix is reserved for the shared vocabulary")
+        for limit in (step.get("params") or {}).get("limits") or []:
+            if limit not in LIMITS:
+                errors.append("a step names an unknown limit")
     if chain and chain[0].get("via") == "target":
         errors.append("the first step cannot read a target no step wrote")
     for before, after in zip(chain, chain[1:]):
@@ -231,52 +359,19 @@ def chain_errors(
 def rejection_errors(vector: dict[str, Any], table: dict[str, Any], kernels: set[str]) -> list[str]:
     expected = vector["expected_error"]
     step = vector["chain"][0]
-    found = arrow_data.verdict(table)
+    found = step_rejection(table, step, kernels)
+    if found is None:
+        return ["the step accepts the input under REJ-002"]
     errors = []
-    value_class = False
-    if found is not None:
-        value_class = found.rule in VALUE_RULES
-        if expected["class"] != "input":
-            errors.append(f"an invalid input is class input, not {expected['class']}")
-        if expected["category"] != found.category:
-            errors.append(f"expects {expected['category']}, the input vector gives {found.category}")
-        if found.rule not in expected["rules"]:
-            errors.append(f"does not cite {found.rule}, the rule that rejects the input")
-        if value_class and not decodes(step, kernels):
-            errors.append(f"{step['operation']} carries values without decoding them (VOC-009, VOC-011)")
-    else:
-        if expected["class"] == "input":
-            errors.append("a valid input cannot be rejected as class input")
-            return errors
-        if expected["category"] != CLASS_CATEGORY[expected["class"]]:
-            errors.append(f"class {expected['class']} is {CLASS_CATEGORY[expected['class']]} (ARROW-013)")
-        geometry = list(filter(arrow_data.is_geometry, table["fields"]))
-        rules = set(expected["rules"])
-        if expected["class"] == "support":
-            several_fields = len(geometry) > 1
-            several_types = any(
-                len((arrow_data._type_list(arrow_data_metadata(field).get(GEOMETRY + "types")) or [])) > 1
-                for field in geometry
-            )
-            if not ("VOC-012" in rules and several_fields) and not ("VOC-010" in rules and several_types):
-                errors.append("a support rejection cites VOC-012 or VOC-010 for an input that shows it")
-        if expected["class"] == "crs":
-            if not computes(step, kernels):
-                errors.append("a crs rejection of a valid input needs a step that computes (VOC-004)")
-            declared = [
-                field for field in geometry
-                if arrow_data_metadata(field)[GEOMETRY + "crs_resolution"] != "missing"
-            ]
-            try:
-                computed = next(filter(None, map(arrow_data.computation_verdict, declared)), None)
-            except arrow_data.Undecidable:
-                computed = None
-            north_first = any(arrow_data_metadata(field).get(GEOMETRY + "axis_order") in NORTH_FIRST for field in geometry)
-            by_vocabulary = computed is not None and computed.rule in rules
-            by_profile = "DT-ARROW-004" in rules and north_first
-            if not (by_vocabulary or by_profile):
-                errors.append("a crs rejection of a valid input cites the rule that refuses the computation")
-    if value_class:
+    if expected["class"] != found.cls:
+        errors.append(f"expects class {expected['class']}, REJ-002 gives {found.cls}")
+    if expected["category"] != found.category:
+        errors.append(f"expects {expected['category']}, REJ-002 gives {found.category}")
+    if found.rule not in expected["rules"]:
+        errors.append(f"does not cite {found.rule}, the rule that decides")
+    if found.cls != "input" and expected["category"] != CLASS_CATEGORY[found.cls]:
+        errors.append(f"class {found.cls} is {CLASS_CATEGORY[found.cls]} (REJ-001)")
+    if found.rule in VALUE_RULES:
         writes = step["operation"].endswith(".write")
         phases = {"write"} if writes else {"read"}
         effects = {"none", "rolled_back"} if writes else {"none"}
@@ -289,11 +384,7 @@ def rejection_errors(vector: dict[str, Any], table: dict[str, Any], kernels: set
     return errors
 
 
-def arrow_data_metadata(field: dict[str, Any]) -> dict[str, str]:
-    return field["metadata"]
-
-
-# --- sources (VOC-002, VOC-003) ----------------------------------------------------
+# --- sources (GEO-002, GEO-003) --------------------------------------------------
 
 def geojson_coordinates(text: str) -> list[list[float]]:
     """The point coordinates of a GeoJSON FeatureCollection, as stored."""
@@ -309,23 +400,51 @@ def geojson_coordinates(text: str) -> list[list[float]]:
     return coordinates
 
 
+POINT_WKT = re.compile(r"POINT \(([-+0-9.eE]+) ([-+0-9.eE]+)\)")
+
+
+def wkt_csv_coordinates(text: str) -> list[list[float]]:
+    """The points of the `wkt` column of a CSV document, as stored."""
+    coordinates = []
+    for row in csv.DictReader(io.StringIO(text)):
+        match = POINT_WKT.fullmatch(row.get("wkt") or "")
+        if match is None:
+            raise ValueError("only two-dimensional WKT points are read here")
+        coordinates.append([float(match.group(1)), float(match.group(2))])
+    return coordinates
+
+
 def source_errors(vector: dict[str, Any]) -> list[str]:
     expected = vector["expected_geometry"]
+    source = vector["source"]
+    step = vector["chain"][0]
+    params = step.get("params") or {}
     errors = []
-    # RFC 7946: WGS 84, longitude then latitude, whatever any crs member says.
-    if expected["crs_id"] != "OGC:CRS84":
-        errors.append("a GeoJSON source declares OGC:CRS84 (RFC 7946)")
-    if expected["axis_order"] != "lon_lat":
-        errors.append("a GeoJSON source stores longitude first (VOC-002)")
     try:
-        found = geojson_coordinates(vector["source"]["text"])
-    except (ValueError, KeyError, TypeError) as problem:
-        return errors + [f"source is not readable: {problem}"]
+        if source["format"] == "geojson":
+            found = geojson_coordinates(source["text"])
+        else:
+            found = wkt_csv_coordinates(source["text"])
+    except (ValueError, KeyError, TypeError):
+        return ["source is not readable"]
+    if source["format"] == "geojson":
+        # RFC 7946: WGS 84, longitude then latitude, whatever any crs member says.
+        if expected["crs_id"] != "OGC:CRS84":
+            errors.append("a GeoJSON source declares OGC:CRS84 (RFC 7946)")
+        if expected["axis_order"] != "lon_lat":
+            errors.append("a GeoJSON source stores longitude first (GEO-002)")
+        if not any(abs(x) > 90 for x, _ in found):
+            errors.append("no longitude beyond 90 degrees: an exchanged order would pass unnoticed (GEO-003)")
+    else:
+        # GEO-002: a CSV fixes no order; the read request states it.
+        if params.get("crs_id") != expected["crs_id"] or params.get("axis_order") != expected["axis_order"]:
+            errors.append("a CSV source declares the CRS and order its read request states (GEO-002)")
+        if not UTM.fullmatch(expected["crs_id"]) or expected["axis_order"] != "easting_northing":
+            errors.append("the CSV vectors use a UTM CRS stored easting first")
+        elif not any(y > 1_000_000 for _, y in found):
+            errors.append("no northing beyond the range of eastings: an exchange would pass unnoticed (GEO-003)")
     if found != [[float(x), float(y)] for x, y in expected["coordinates"]]:
         errors.append("expected coordinates differ from the stored ones")
-    if not any(abs(x) > 90 for x, _ in found):
-        errors.append("no longitude beyond 90 degrees: an exchanged order would pass unnoticed (VOC-003)")
-    step = vector["chain"][0]
     if (step["component"], step["operation"]) != ("plenora-io-tools", "io.read") or step["transformations"]:
         errors.append("a source is read by io.read, without transformations")
     return errors
@@ -351,18 +470,21 @@ def vector_errors(
     try:
         if vector["kind"] == "rejection":
             return errors + rejection_errors(vector, table, kernels)
-        if table["expect"] != "valid" or arrow_data.verdict(table) is not None:
-            return errors + ["a handoff starts from a valid input"]
-    except arrow_data.FixtureError as problem:
+        current = _copy(table)
+        for position, step in enumerate(vector["chain"]):
+            found = step_rejection(current, step, kernels)
+            if found is not None:
+                return errors + [f"step {position + 1} rejects its input with {found.rule}"]
+            apply(current, step)
+    except arrow_data.FixtureError:
         # Its own gate reports the input; here it cannot be an input.
-        return errors + [f"input {vector['input']} is not a buildable table: {problem}"]
-    try:
-        expected = expected_output(table, vector["chain"])
-    except ValueError as problem:
-        return errors + [f"transformations cannot apply: {problem}"]
-    if not same(vector["expected_output"], expected):
-        errors.append("expected_output differs from the input with the declared transformations")
-    produced = dict(expected, expect="valid")
-    if arrow_data.verdict(produced) is not None:
+        return errors + [f"input {vector['input']} is not a buildable table"]
+    except ValueError:
+        return errors + ["transformations cannot apply"]
+    expected = expected_output(table, vector["chain"])
+    where = difference(vector["expected_output"], expected)
+    if where is not None:
+        errors.append(f"expected_output differs from the recomputed table at {where}")
+    if arrow_data.verdict(dict(expected, expect="valid")) is not None:
         errors.append("the expected output is not a valid table of the vocabulary")
     return errors
