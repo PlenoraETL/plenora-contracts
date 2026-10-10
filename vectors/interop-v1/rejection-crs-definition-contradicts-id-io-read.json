@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "rejection",
+  "description": "io.read rejects crs-definition-contradicts-id with the category of its class (REJ-001).",
+  "input": "../arrow-data-v1/invalid-crs-definition-contradicts-id.json",
+  "chain": [
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.read",
+      "version": 2,
+      "params": {
+        "source": "input.arrow"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "input",
+    "category": "crs",
+    "phases": [
+      "validate"
+    ],
+    "remote_effects": [
+      "none"
+    ],
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "GEO-005",
+      "REJ-001"
+    ]
+  }
+}

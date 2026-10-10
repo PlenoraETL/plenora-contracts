@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "rejection",
+  "description": "A geometry field without precision: IO-tools has no profile acceptance for it (schema).",
+  "input": "../arrow-data-v1/invalid-precision-missing.json",
+  "chain": [
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.read",
+      "version": 2,
+      "params": {
+        "source": "input.arrow"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "input",
+    "category": "schema",
+    "phases": [
+      "validate"
+    ],
+    "remote_effects": [
+      "none"
+    ],
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "VOCABULARY-4",
+      "REJ-001"
+    ]
+  }
+}

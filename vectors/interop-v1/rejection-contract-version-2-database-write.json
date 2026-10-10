@@ -1,0 +1,36 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "rejection",
+  "description": "database.write rejects contract-version-2 with the category of its class (REJ-001).",
+  "input": "../arrow-data-v1/invalid-contract-version-2.json",
+  "chain": [
+    {
+      "component": "plenora-database-tools",
+      "operation": "database.write",
+      "version": 1,
+      "params": {
+        "mode": "create",
+        "provider": "postgresql"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "input",
+    "category": "unsupported",
+    "phases": [
+      "validate"
+    ],
+    "remote_effects": [
+      "none"
+    ],
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "ARROW-002",
+      "REJ-001"
+    ]
+  }
+}

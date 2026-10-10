@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "rejection",
+  "description": "An unknown CRS and a truncated value: a geometry operation reports the CRS first (REJ-002).",
+  "input": "../arrow-data-v1/invalid-unknown-crs-and-truncated.json",
+  "chain": [
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "geo.centroid"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "crs",
+    "category": "crs",
+    "phases": [
+      "validate"
+    ],
+    "remote_effects": [
+      "none"
+    ],
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "GEO-015",
+      "REJ-002"
+    ]
+  }
+}

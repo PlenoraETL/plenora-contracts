@@ -36,6 +36,17 @@ full commit SHA; a release tag names one of those commits.
   with informative pointers. Nine vectors in `vectors/arrow-data-v1`, four
   with two defects. See
   [decision 0014](decisions/0014-arrow-input-rejection-categories.md).
+- Interoperability vectors (Composition 1.0 section 6, COMP-001 to COMP-005)
+  for components that claim Arrow Geometry Semantics 1.0: new schema
+  `interop-vector-v1` and 40 vectors in `vectors/interop-v1`: 10 handoff
+  chains among IO-tools, data-tools and database-tools whose expected table
+  the validator recomputes from the input and a closed list of declared
+  transformations, provider keys listed as delegated; 28 rejections, each
+  the first of one ordered evaluation that includes the operation; a GeoJSON
+  and a CSV source whose axis order and coordinates the validator reads.
+  Chains are checked against the composition matrix. No catalog, binding,
+  profile or published vector changes. See
+  [decision 0018](decisions/0018-interoperability-vectors.md).
 - Runtime vector `database-write-commit-timeout-error.json` (an elapsed
   deadline after the commit was sent: `timeout`, `unknown`,
   `requires_recovery`), and a validator check that every runtime error

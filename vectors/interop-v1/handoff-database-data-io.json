@@ -1,0 +1,101 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "handoff",
+  "description": "Data born in the database: written, read back, passed through data, written by IO.",
+  "input": "../arrow-data-v1/wkb-with-declared-srid.json",
+  "chain": [
+    {
+      "component": "plenora-database-tools",
+      "operation": "database.write",
+      "version": 1,
+      "params": {
+        "mode": "create",
+        "provider": "postgresql"
+      },
+      "transformations": []
+    },
+    {
+      "component": "plenora-database-tools",
+      "operation": "database.read",
+      "version": 1,
+      "via": "target",
+      "params": {
+        "order_by": "id"
+      },
+      "transformations": [
+        "ewkb_with_field_srid",
+        "axis_order_unknown",
+        "provider_metadata"
+      ],
+      "provider_prefix": "plenora.postgres."
+    },
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "identity"
+      },
+      "transformations": [
+        "complete_missing_geometry_keys",
+        "large_to_standard",
+        "assign_field_ids",
+        "srid_from_epsg_identifier"
+      ]
+    },
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.write",
+      "version": 2,
+      "params": {
+        "format": "arrow_ipc_file"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_output": {
+    "schema_metadata": {
+      "plenora.contract.version": "1"
+    },
+    "fields": [
+      {
+        "name": "id",
+        "type": "int64",
+        "nullable": false,
+        "metadata": {
+          "plenora.field_id": "0"
+        }
+      },
+      {
+        "name": "geometry",
+        "type": "binary",
+        "nullable": true,
+        "metadata": {
+          "plenora.field_id": "1",
+          "ARROW:extension:name": "geoarrow.wkb",
+          "plenora.geometry.encoding": "ewkb",
+          "plenora.geometry.dimensions": "xy",
+          "plenora.geometry.spatial_semantics": "geometry",
+          "plenora.geometry.precision": "float64",
+          "plenora.geometry.types_declaration": "exact",
+          "plenora.geometry.types": "point",
+          "plenora.geometry.srid": "4326",
+          "plenora.geometry.crs_resolution": "resolved",
+          "plenora.geometry.crs_id": "EPSG:4326",
+          "plenora.geometry.axis_order": "unknown"
+        }
+      }
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "geometry": "0101000020e61000000000000000205ec00000000000a04640"
+      }
+    ],
+    "delegated_metadata": [
+      "plenora.postgres."
+    ]
+  }
+}

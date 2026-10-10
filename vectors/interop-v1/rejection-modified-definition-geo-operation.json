@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "rejection",
+  "description": "A PROJCS 3003 built on WGS 84 under the identifier EPSG:3003 is not verified: no computation (GEO-015).",
+  "input": "../arrow-data-v1/crs-projcs-3003-nested-geogcs-4326.json",
+  "chain": [
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "geo.centroid"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "crs",
+    "category": "crs",
+    "phases": [
+      "validate"
+    ],
+    "remote_effects": [
+      "none"
+    ],
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "GEO-015",
+      "REJ-001"
+    ]
+  }
+}

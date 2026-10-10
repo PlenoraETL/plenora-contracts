@@ -18,6 +18,7 @@ These schemas are normative and use JSON Schema draft 2020-12.
 | `surface-bindings-v1.schema.json` | Exact CLI, Python SDK and runtime entrypoint mappings |
 | `composition-v1.schema.json` | Cross-component direct and adapter-required handoffs |
 | `arrow-metadata-vector-v1.schema.json` | Arrow metadata conformance fixtures |
+| `interop-vector-v1.schema.json` | Interoperability vectors: chains of public operations and their exact expectations |
 | `arrow-data-vector-v1.schema.json` | Arrow schema fixtures with row values and the verdict the vocabulary gives |
 | `runtime-vector-v1.schema.json` | Runtime request, success and error fixtures |
 | `runtime-probe-v1.schema.json` | Runtime rejection probes: one request mutation and its expected rejection |

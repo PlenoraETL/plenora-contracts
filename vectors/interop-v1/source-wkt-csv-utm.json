@@ -1,0 +1,39 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "source",
+  "description": "A CSV fixes no order: the read request states UTM 32N easting first, and IO declares it (GEO-002).",
+  "source": {
+    "format": "wkt_csv",
+    "text": "id,wkt\n1,POINT (500000 4649776)\n2,POINT (683472.5 4642100.25)\n"
+  },
+  "chain": [
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.read",
+      "version": 2,
+      "params": {
+        "source": "points.csv",
+        "geometry_column": "wkt",
+        "crs_id": "EPSG:32632",
+        "axis_order": "easting_northing"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_geometry": {
+    "crs_id": "EPSG:32632",
+    "axis_order": "easting_northing",
+    "coordinates": [
+      [
+        500000,
+        4649776
+      ],
+      [
+        683472.5,
+        4642100.25
+      ]
+    ]
+  }
+}

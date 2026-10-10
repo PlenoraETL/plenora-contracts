@@ -1,0 +1,86 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "handoff",
+  "description": "EWKB with matching SRIDs crosses IO and data unchanged, IO writing included (GEO-007).",
+  "input": "../arrow-data-v1/ewkb-srid-matches-field.json",
+  "chain": [
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.read",
+      "version": 2,
+      "params": {
+        "source": "input.arrow"
+      },
+      "transformations": []
+    },
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "identity"
+      },
+      "transformations": [
+        "complete_missing_geometry_keys",
+        "large_to_standard",
+        "assign_field_ids",
+        "srid_from_epsg_identifier"
+      ]
+    },
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.write",
+      "version": 2,
+      "params": {
+        "format": "arrow_ipc_file"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_output": {
+    "schema_metadata": {
+      "plenora.contract.version": "1"
+    },
+    "fields": [
+      {
+        "name": "id",
+        "type": "int64",
+        "nullable": false,
+        "metadata": {
+          "plenora.field_id": "0"
+        }
+      },
+      {
+        "name": "geometry",
+        "type": "binary",
+        "nullable": true,
+        "metadata": {
+          "plenora.field_id": "1",
+          "ARROW:extension:name": "geoarrow.wkb",
+          "plenora.geometry.encoding": "ewkb",
+          "plenora.geometry.dimensions": "xy",
+          "plenora.geometry.spatial_semantics": "geometry",
+          "plenora.geometry.precision": "float64",
+          "plenora.geometry.types_declaration": "exact",
+          "plenora.geometry.types": "point",
+          "plenora.geometry.srid": "4326",
+          "plenora.geometry.crs_resolution": "resolved",
+          "plenora.geometry.crs_id": "EPSG:4326",
+          "plenora.geometry.axis_order": "lon_lat"
+        }
+      }
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "geometry": "0101000020e61000000000000000205ec00000000000a04640"
+      },
+      {
+        "id": 2,
+        "geometry": "01010000000000000000205ec00000000000a04640"
+      }
+    ]
+  }
+}
