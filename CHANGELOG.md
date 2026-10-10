@@ -16,7 +16,8 @@ full commit SHA; a release tag names one of those commits.
   `crs_id` is normative, a contradictory top-level identifier is `crs`, and a
   component verifies a definition before computing with one conservative
   subset (exact decimals, two spellings of the degree, closed aliases, units
-  by quantity, datum and conversion); both `wkb` and `ewkb` are accepted;
+  by quantity, datum and conversion) over a closed grammar of the three
+  formats, outside which a definition is undecidable (GEO-019); both `wkb` and `ewkb` are accepted;
   several types and geometry fields are valid; identity and precision of
   produced fields. Arrow Vocabulary 1.0 keeps its published text, with an
   informative pointer. New schema `arrow-data-vector-v1` and 42 vectors in
@@ -35,6 +36,13 @@ full commit SHA; a release tag names one of those commits.
   with informative pointers. Nine vectors in `vectors/arrow-data-v1`, four
   with two defects. See
   [decision 0014](decisions/0014-arrow-input-rejection-categories.md).
+- Runtime vector `database-write-commit-timeout-error.json` (an elapsed
+  deadline after the commit was sent: `timeout`, `unknown`,
+  `requires_recovery`), and a validator check that every runtime error
+  vector with an unknown commit outcome names its cause and has the category
+  ERR-016 gives it. See
+  [decision 0020](decisions/0020-cause-of-an-unknown-commit-in-the-vectors.md).
+
 - ERR-016 (Typed Errors 1.0, a clarification): an unknown outcome does not
   decide the category; a lost commit confirmation is `io`, an elapsed
   deadline `timeout`, `internal` only a defect of the component, always with
@@ -45,6 +53,13 @@ full commit SHA; a release tag names one of those commits.
 
 ### Changed
 
+- The gate's messages carry no data: only fixed text, rule identifiers,
+  repository paths, positions and names the contracts define; schema errors
+  name the keyword and anonymous paths instead of quoting the instance. A
+  sentinel test injects a marker into every value, number and key of every
+  vector and example and requires that the gate never prints it. No
+  contract document changes. See
+  [decision 0021](decisions/0021-messages-without-data.md).
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
   universal from Python 3.10: `rpds-py` keeps 0.30.0, its last release for
   Python 3.10, under `python_full_version < '3.11'` and 2026.9.1 above; the

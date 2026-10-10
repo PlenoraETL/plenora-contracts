@@ -110,6 +110,15 @@ definition without root identifier is now isolated (the same complete UTM
 definition with the identifier is accepted). The vectors illustrate the
 rules; their number does not attest full coverage.
 
+Chasing modified definitions case by case did not converge (a dynamic frame
+and its epoch, a datum ensemble with other members, a unit on a WKT 2 axis
+followed the earlier cases). **GEO-019** closes the class: a definition is
+verifiable only when it is made entirely of the nodes and members of an
+explicit grammar for WKT 1, WKT 2 and PROJJSON; anything else, a future
+extension of a format included, makes it undecidable. A generative test
+inserts an unknown node or member at every position of every accepted
+definition and requires the refusal.
+
 ### Not ratified
 
 - **Rejecting `unknown` axis order for computation.** Options: (a) a rule in
