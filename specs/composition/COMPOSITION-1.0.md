@@ -112,13 +112,16 @@ declares, from this closed list, applied in the order of the table; only the
 operation the table names may declare one. Everything else, data and
 metadata, is compared exactly and by type (`1`, `1.0` and `true` differ),
 byte for byte for WKB, except the keys under the prefixes that
-`expected_output` lists in `delegated_metadata`: the harness removes them
-from the observed table before the comparison, and the provider's own
-vectors verify them.
+`expected_output` lists in `delegated_metadata`. Their values are the
+provider's and its own vectors verify them; the harness records the keys
+under those prefixes that the step declaring `provider_metadata` delivers,
+and requires every later step to deliver them unchanged, so the comparison
+removes from the final table only those recorded keys, after checking that
+each is present with its recorded value.
 
 | transformation | effect | owner | basis |
 |---|---|---|---|
-| `complete_missing_geometry_keys` | a geometry field receives the keys it omits, read without asserting more than it carries | `data.run` | DT-ARROW-003 |
+| `complete_missing_geometry_keys` | a geometry field receives the keys it omits, read without asserting more than it carries; `axis_order` becomes `unknown` when a CRS is declared without it | `data.run` | DT-ARROW-003, GEO-002 |
 | `assign_field_ids` | a field without `plenora.field_id` receives the smallest free identifier, in field order | any step | GEO-013 |
 | `large_to_standard` | `large_utf8` becomes `utf8` and `large_binary` becomes `binary` | `data.run` | the data-tools output contract (ARROW-010) |
 | `srid_from_epsg_identifier` | a geometry field with a resolved `EPSG:<n>` and no `srid`, `n` within 32 bits, receives `srid=<n>` | `data.run` | the data-tools output contract (ARROW-010) |
@@ -134,8 +137,9 @@ difference.
 operation included: the input's contract version, vocabulary and CRS, after
 the acceptances of the step's profile (DT-ARROW-003 for `data.run`); then,
 for a step that computes (a `data.run` whose plan is a registered `geo.`
-kernel), the CRS it must use (GEO-015, GEO-006, DT-ARROW-004); then the
-limits the step names; then, for a step that decodes values (one that
+kernel), the CRS it must use (GEO-015, GEO-006, DT-ARROW-004 for a
+north-first order) and then its support (DT-ARROW-004: `geography` semantics
+or non-planar edges are `unsupported`); then the limits the step names; then, for a step that decodes values (one that
 computes, `database.write`, or `io.write` to a format other than Arrow IPC),
 the values. A step that only carries or records the CRS is never expected to
 refuse it (GEO-004), nor to check values it does not decode (GEO-009). A
@@ -151,4 +155,8 @@ not describe; the components' own vectors exercise it.
 **COMP-005** — The validator evaluates every step with that order,
 recomputes every expected table from the input and the declared
 transformations, checks every chain against the matrix and reads every
-source document itself. Its messages name rules and paths, never a value.
+source document itself. Its messages name rules and structural paths, never
+a value or a data key. The vectors illustrate the rules and do not cover them
+all: the phases `connect` and `probe`, an `unknown` remote effect with its
+recovery (REJ-003) and the operation-schema class are not represented, and
+their number does not attest full coverage.

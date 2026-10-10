@@ -214,10 +214,12 @@ there is one:
 2. the parts of the definition agree with the CRS that `crs_id` names:
    - the CRS kind (geographic or projected) and the identifier of the base
      CRS when the definition names one;
-   - the identifier of the datum or datum ensemble when the definition names
-     one;
+   - the identifier of the datum or datum ensemble, which the definition
+     must state: a datum without identifier is undecidable, never inferred
+     from its ellipsoid or its name;
    - the semi-major axis and inverse flattening of the ellipsoid;
-   - the prime meridian;
+   - the prime meridian, wherever the format places it (in PROJJSON, in the
+     datum or datum ensemble);
    - every unit, each for the quantity it measures (GEO-017);
    - for a projected CRS, the conversion method and every parameter value;
    - the absence of a datum shift (`TOWGS84`, `BOUNDCRS`) that the CRS of
@@ -318,7 +320,9 @@ geometry field declares a CRS may state, in `computation`, the applicability
 verdict for an operation that computes (GEO-015), derived from the reference
 parts of the identifiers the vectors use, which the validator lists. The
 validator decodes every geometry value and derives every verdict from the
-rules, so a vector cannot state one the rules do not give.
+rules, so a vector cannot state one the rules do not give. The vectors
+illustrate the rules; their number does not attest that every rule, phase or
+remote effect is covered.
 
 ## 10. Rejection categories
 
@@ -336,8 +340,8 @@ are disjoint: each defect belongs to exactly one.
 |---|---|---|
 | contract version | `plenora.contract.version` absent or not a decimal integer (`01`, `1.0`) | `schema` |
 | contract version | a well-formed version the component does not support, such as `2` (ARROW-002, ERR-002) | `unsupported` |
-| vocabulary | a value outside its closed set or grammar; a required key absent, except the CRS keys; geometry keys on a field without `geoarrow.wkb`; `geoarrow.wkb` on a storage other than binary; types out of canonical order; a repeated field identifier; GEO-016 | `schema` |
-| CRS | every dependency of Arrow Vocabulary 1.0 section 4 that involves the CRS keys (`crs_resolution`, `crs_id`, `crs_definition`, `crs_definition_format`, `axis_order`), including a CRS key that is absent where those dependencies require it, such as a resolved CRS without `axis_order`; a contradictory or malformed definition (GEO-005); a CRS the operation must compute with and cannot verify or does not know (GEO-006, GEO-015) | `crs` |
+| vocabulary | every defect of a key that is not a CRS key: a value outside its closed set or grammar (GEO-016 included); a required key absent; geometry keys on a field without `geoarrow.wkb`; `geoarrow.wkb` on a storage other than binary; types out of canonical order; a repeated field identifier; an unknown `plenora.geometry.` key | `schema` |
+| CRS | every defect of a CRS key (`crs_resolution`, `crs_id`, `crs_definition`, `crs_definition_format`, `axis_order`), whatever its kind: absent where required, such as a resolved CRS without `axis_order`; a value outside its closed set or grammar, such as an empty definition or a `crs_id` without authority (GEO-016); a dependency of Arrow Vocabulary 1.0 section 4; a contradictory or malformed definition (GEO-005); and a CRS the operation must compute with and cannot verify or does not know (GEO-006, GEO-015) | `crs` |
 | support | an Arrow type the component cannot represent; several geometry fields (GEO-012); a set of geometry types its target cannot store (GEO-010); `geography` semantics for a planar operation | `unsupported` |
 | operation schema | a field the operation requires is absent; a field type differs from the target's and the operation's declared mapping does not convert it; a nullable field into a non-nullable target, when the schema decides it | `schema` |
 | invalid value | malformed WKB or EWKB, a value outside the declared types or dimensions (GEO-011); the SRID flag under `wkb` or on a member (GEO-008, GEO-009); a value the target type cannot hold, such as an overflow or a null into a non-nullable target | `data_mapping` |

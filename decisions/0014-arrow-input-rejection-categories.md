@@ -62,7 +62,9 @@ provisional writes: it is a value class with category `crs`. The vocabulary
 and CRS classes overlapped on an absent CRS key (a resolved CRS without
 `axis_order`): the CRS class now owns every CRS key. "Before any effect"
 meant two things in two rules: it now means before a publication or a
-commit (GEO-018).
+commit (GEO-018). A further reading found the classes still overlapping on other defects
+of the CRS keys (an empty definition was both a vocabulary and a CRS defect):
+every defect of a CRS key, of whatever kind, now belongs to the CRS class.
 
 ### Why `schema` for an absent version and `unsupported` for version 2
 

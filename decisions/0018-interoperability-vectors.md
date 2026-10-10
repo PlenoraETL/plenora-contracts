@@ -19,7 +19,7 @@ errors, into this repository.
 ## Decision
 
 Composition 1.0 gains section 6 (COMP-001 to COMP-005), schema
-`interop-vector-v1` and 37 vectors in `vectors/interop-v1`:
+`interop-vector-v1` and 40 vectors in `vectors/interop-v1`:
 
 - **7 handoff vectors**: io→data→io on points, on several geometry types, on a
   CRS with a definition and on EWKB; io→database→io; io→data→database→io;
@@ -94,6 +94,18 @@ found, and this decision corrects:
   UTM 32N easting first, with a northing beyond the range of eastings;
 - the validator's messages name rules and paths, never values.
 
+### Fourth reading (Codex)
+
+Corrected: the contract version is judged before the profile's acceptance,
+so nothing of an unsupported version is interpreted; a computing step
+refuses `geography` semantics and non-planar edges as `unsupported` after the
+CRS class and before the values (DT-ARROW-004), with vectors; the profile's
+completion states `axis_order` `unknown` when a CRS is declared without it,
+with a chain; delegated provider keys are recorded where the provider
+delivers them and must survive every later step unchanged; the paths of the
+validator's messages name data keys by position. The vectors illustrate the
+rules and do not attest full coverage (COMP-005 lists what they leave out).
+
 ### What the vectors fix that the suite observed differently
 
 - database-tools reads geometry fields without `field_id` and `precision`:
@@ -130,9 +142,9 @@ own vectors own them.
 - **Consumers affected:** the interoperability suite; each library, which can
   run the vectors through its public boundary.
 - **Before:** expectations owned by the suite.
-- **After:** COMP-001 to COMP-005, schema `interop-vector-v1`, 37 vectors.
+- **After:** COMP-001 to COMP-005, schema `interop-vector-v1`, 40 vectors.
 - **Compatible:** yes; nothing existing changes meaning.
-- **Schemas, examples and profiles:** one schema, one invalid example, 37
+- **Schemas, examples and profiles:** one schema, one invalid example, 40
   vectors; Composition 1.0 section 6. No catalog, binding or profile
   changes.
 - **Adoption impact:** the suite loads `vectors/interop-v1` at a pinned

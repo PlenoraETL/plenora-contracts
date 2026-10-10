@@ -19,7 +19,7 @@ full commit SHA; a release tag names one of those commits.
   by quantity, datum and conversion); both `wkb` and `ewkb` are accepted;
   several types and geometry fields are valid; identity and precision of
   produced fields. Arrow Vocabulary 1.0 keeps its published text, with an
-  informative pointer. New schema `arrow-data-vector-v1` and 39 vectors in
+  informative pointer. New schema `arrow-data-vector-v1` and 42 vectors in
   `vectors/arrow-data-v1`. No existing schema, catalog, binding or vector
   changes. See
   [decision 0013](decisions/0013-geometry-vocabulary-semantics.md).
@@ -37,10 +37,10 @@ full commit SHA; a release tag names one of those commits.
   [decision 0014](decisions/0014-arrow-input-rejection-categories.md).
 - Interoperability vectors (Composition 1.0 section 6, COMP-001 to COMP-005)
   for components that claim Arrow Geometry Semantics 1.0: new schema
-  `interop-vector-v1` and 37 vectors in `vectors/interop-v1`: 9 handoff
+  `interop-vector-v1` and 40 vectors in `vectors/interop-v1`: 10 handoff
   chains among IO-tools, data-tools and database-tools whose expected table
   the validator recomputes from the input and a closed list of declared
-  transformations, provider keys listed as delegated; 26 rejections, each
+  transformations, provider keys listed as delegated; 28 rejections, each
   the first of one ordered evaluation that includes the operation; a GeoJSON
   and a CSV source whose axis order and coordinates the validator reads.
   Chains are checked against the composition matrix. No catalog, binding,

@@ -74,9 +74,12 @@ def complete_missing_geometry_keys(table: dict[str, Any]) -> None:
         metadata = _metadata(field)
         for key, value in PROFILE_DEFAULTS.items():
             metadata.setdefault(key, value)
+        declared = GEOMETRY + "crs_id" in metadata or GEOMETRY + "crs_definition" in metadata
         if GEOMETRY + "crs_resolution" not in metadata:
-            declared = GEOMETRY + "crs_id" in metadata or GEOMETRY + "crs_definition" in metadata
             metadata[GEOMETRY + "crs_resolution"] = "declared_unresolved" if declared else "missing"
+        if declared and GEOMETRY + "axis_order" not in metadata:
+            # An order the field does not state is not asserted (GEO-002).
+            metadata[GEOMETRY + "axis_order"] = "unknown"
 
 
 def assign_field_ids(table: dict[str, Any]) -> None:
@@ -84,7 +87,7 @@ def assign_field_ids(table: dict[str, Any]) -> None:
     used = {
         int(_metadata(field)["plenora.field_id"])
         for field in table["fields"]
-        if "plenora.field_id" in _metadata(field)
+        if arrow_data.DECIMAL.fullmatch(_metadata(field).get("plenora.field_id", ""))
     }
     candidate = 0
     for field in table["fields"]:
@@ -216,15 +219,22 @@ def same(left: Any, right: Any) -> bool:
     return left == right
 
 
+# Keys of the vector's own structure; a field name, a row key or a metadata
+# key may be data and is named by its position among the sorted keys.
+STRUCTURAL_KEYS = {"schema_metadata", "fields", "rows", "delegated_metadata", "name", "type", "nullable", "metadata"}
+
+
 def difference(left: Any, right: Any, path: str = "") -> str | None:
-    """The path of the first difference, never the values."""
+    """The path of the first difference, never a value or a data key."""
     if type(left) is not type(right):
         return path or "/"
     if isinstance(left, dict):
-        for key in sorted(set(left) | set(right)):
+        data_map = path.endswith(("/metadata", "/schema_metadata")) or "/rows/" in path + "/"
+        for position, key in enumerate(sorted(set(left) | set(right))):
+            segment = key if key in STRUCTURAL_KEYS and not data_map else f"#{position}"
             if key not in left or key not in right:
-                return f"{path}/{key}"
-            found = difference(left[key], right[key], f"{path}/{key}")
+                return f"{path}/{segment}"
+            found = difference(left[key], right[key], f"{path}/{segment}")
             if found:
                 return found
         return None
@@ -263,6 +273,18 @@ def decodes(step: dict[str, Any], kernels: set[str]) -> bool:
     return step["operation"] == "io.write" and (step.get("params") or {}).get("format") not in IPC_FORMATS
 
 
+def _edges(field: dict[str, Any]) -> str | None:
+    """The `edges` of the GeoArrow extension metadata, or `None`."""
+    text = _metadata(field).get("ARROW:extension:metadata")
+    if text is None:
+        return None
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return "unreadable"
+    return value.get("edges") if isinstance(value, dict) else "unreadable"
+
+
 class Rejection(NamedTuple):
     cls: str
     category: str
@@ -275,6 +297,10 @@ def step_rejection(table: dict[str, Any], step: dict[str, Any], kernels: set[str
     profile), the CRS the operation must use, the step's declared limits,
     then the values it decodes."""
     seen = table
+    version = arrow_data.version_verdict(table)
+    if version is not None:
+        # REJ-002: nothing of an unsupported version is interpreted.
+        return Rejection("input", version.category, version.rule)
     if (step["component"], step["operation"]) == DATA_RUN:
         # GEO-000: the profile's acceptance (DT-ARROW-003) is never revoked.
         seen = _copy(table)
@@ -295,6 +321,11 @@ def step_rejection(table: dict[str, Any], step: dict[str, Any], kernels: set[str
                 computed = arrow_data.Verdict("crs", "GEO-006")
             if computed is not None:
                 return Rejection("crs", computed.category, computed.rule)
+        # DT-ARROW-004: planar kernels refuse geography and non-planar edges
+        # (support, after the CRS class: REJ-002).
+        for field in geometry:
+            if _metadata(field)[GEOMETRY + "spatial_semantics"] == "geography" or _edges(field) not in (None, "planar"):
+                return Rejection("support", "unsupported", "DT-ARROW-004")
     limits = (step.get("params") or {}).get("limits") or []
     if "one_geometry_field" in limits and len(geometry) > 1:
         return Rejection("support", "unsupported", "GEO-012")

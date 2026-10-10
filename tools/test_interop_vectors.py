@@ -112,7 +112,27 @@ class OrderTests(unittest.TestCase):
         del field["fields"][1]["metadata"]["plenora.geometry.crs_id"]
         self.assertEqual(interop.step_rejection(field, GEO_STEP, KERNELS).rule, "GEO-006")
 
+    def test_version_before_the_profile_acceptance(self):
+        broken = copy.deepcopy(table("axis-lon-lat-epsg4326.json"))
+        broken["schema_metadata"]["plenora.contract.version"] = "2"
+        broken["fields"][0]["metadata"]["plenora.field_id"] = "x"
+        self.assertEqual(interop.step_rejection(broken, IDENTITY, KERNELS),
+                         interop.Rejection("input", "unsupported", "ARROW-002"))
+
+    def test_geography_and_edges_for_a_computing_step(self):
+        self.assertEqual(interop.step_rejection(table("geography-point.json"), GEO_STEP, KERNELS),
+                         interop.Rejection("support", "unsupported", "DT-ARROW-004"))
+        self.assertEqual(interop.step_rejection(table("invalid-geography-and-truncated.json"), GEO_STEP, KERNELS),
+                         interop.Rejection("support", "unsupported", "DT-ARROW-004"))
+        self.assertIsNone(interop.step_rejection(table("geography-point.json"), IDENTITY, KERNELS))
+        spherical = copy.deepcopy(table("axis-lon-lat-epsg4326.json"))
+        spherical["fields"][1]["metadata"]["ARROW:extension:metadata"] = '{"edges":"spherical"}'
+        self.assertEqual(interop.step_rejection(spherical, GEO_STEP, KERNELS).rule, "DT-ARROW-004")
+        spherical["fields"][1]["metadata"]["ARROW:extension:metadata"] = "{"
+        self.assertEqual(interop._edges(spherical["fields"][1]), "unreadable")
+
     def test_the_profile_acceptance_of_data_run(self):
+        self.assertIsNone(interop.step_rejection(table("invalid-axis-order-missing.json"), IDENTITY, KERNELS))
         incomplete = table("invalid-precision-missing.json")
         self.assertIsNone(interop.step_rejection(incomplete, IDENTITY, KERNELS))
         self.assertEqual(interop.step_rejection(incomplete, IO_READ, KERNELS).category, "schema")
@@ -128,8 +148,7 @@ class HandoffTests(unittest.TestCase):
         document = vector("handoff-io-data-io-points.json")
         document["expected_output"]["fields"][1]["metadata"]["plenora.geometry.axis_order"] = "lat_lon"
         errors = errors_of("handoff-io-data-io-points.json", document)
-        self.assertEqual(errors, ["expected_output differs from the recomputed table at "
-                                  "/fields/1/metadata/plenora.geometry.axis_order"])
+        self.assertEqual(errors, ["expected_output differs from the recomputed table at /fields/1/metadata/#2"])
 
     def test_a_missing_transformation_is_reported(self):
         document = vector("handoff-io-database-io.json")
@@ -152,6 +171,9 @@ class HandoffTests(unittest.TestCase):
         converted = interop.with_srid(value, 4326)
         self.assertEqual(struct.unpack("<I", converted[1:5])[0], 1 | arrow_data.FLAG_Z | arrow_data.FLAG_SRID)
         self.assertEqual(arrow_data.decode_wkb(converted), arrow_data.Geometry("point", "xyz", 4326))
+        xym = struct.pack("<BI", 1, 2001) + struct.pack("<ddd", 1, 2, 3)
+        self.assertEqual(struct.unpack("<I", interop.with_srid(xym, 7)[1:5])[0], 0x60000001)
+        self.assertEqual(arrow_data.decode_wkb(interop.with_srid(xym, 7)).dimensions, "xym")
         zm = struct.pack(">BI", 0, 3001) + struct.pack(">dddd", 1, 2, 3, 4)
         self.assertEqual(arrow_data.decode_wkb(interop.with_srid(zm, 1)).dimensions, "xyzm")
         present = struct.pack("<BIi", 1, 1 | arrow_data.FLAG_SRID, 3003) + bytes(16)
@@ -184,8 +206,9 @@ class HandoffTests(unittest.TestCase):
         start = table("axis-lon-lat-epsg4326.json")
         self.assertEqual(interop.expected_output(start, forward), interop.expected_output(start, backward))
         self.assertFalse(interop.same(1, 1.0))
-        self.assertEqual(interop.difference({"a": [1, 2]}, {"a": [1]}), "/a (length)")
-        self.assertEqual(interop.difference({"a": 1}, {"b": 1}), "/a")
+        self.assertEqual(interop.difference({"a": [1, 2]}, {"a": [1]}), "/#0 (length)")
+        self.assertEqual(interop.difference({"a": 1}, {"b": 1}), "/#0")
+        self.assertEqual(interop.difference({"rows": [{"segreto": 1}]}, {"rows": [{"segreto": 2}]}), "/rows/0/#0")
         self.assertEqual(interop.difference(1, True), "/")
         self.assertIsNone(interop.difference({"a": [1]}, {"a": [1]}))
         wide = {"schema_metadata": {}, "rows": [{"a": "x"}],

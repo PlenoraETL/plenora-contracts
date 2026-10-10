@@ -3,18 +3,9 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "handoff",
-  "description": "A definition next to a known identifier passes through without a CRS library (GEO-004).",
-  "input": "../arrow-data-v1/crs-id-with-consistent-definition.json",
+  "description": "data.run accepts a resolved CRS without axis_order and states it unknown (DT-ARROW-003, GEO-002).",
+  "input": "../arrow-data-v1/invalid-axis-order-missing.json",
   "chain": [
-    {
-      "component": "plenora-io-tools",
-      "operation": "io.read",
-      "version": 2,
-      "params": {
-        "source": "input.arrow"
-      },
-      "transformations": []
-    },
     {
       "component": "plenora-data-tools",
       "operation": "data.run",
@@ -67,9 +58,7 @@
           "plenora.geometry.types": "point",
           "plenora.geometry.crs_resolution": "resolved",
           "plenora.geometry.crs_id": "EPSG:4326",
-          "plenora.geometry.crs_definition": "GEOGCRS[\"WGS 84\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563],ID[\"EPSG\",6326]],CS[ellipsoidal,2],AXIS[\"geodetic latitude (Lat)\",north],AXIS[\"geodetic longitude (Lon)\",east],ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",4326]]",
-          "plenora.geometry.crs_definition_format": "wkt2",
-          "plenora.geometry.axis_order": "lon_lat",
+          "plenora.geometry.axis_order": "unknown",
           "plenora.geometry.srid": "4326"
         }
       }
