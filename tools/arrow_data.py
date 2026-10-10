@@ -699,8 +699,11 @@ def _projjson_parts(root: dict[str, Any]) -> Parts:
         _json_value(ellipsoid.get("semi_major_axis"), "length"),
         _json_value(ellipsoid.get("inverse_flattening"), "scale"),
     )
-    meridian = geographic.get("prime_meridian")
-    if meridian is not None:
+    # PROJJSON places the prime meridian in the datum or datum ensemble; an
+    # older writer may put it on the CRS. Every one present is checked.
+    for meridian in (datum.get("prime_meridian"), geographic.get("prime_meridian")):
+        if meridian is None:
+            continue
         if not isinstance(meridian, dict) or _json_value(meridian.get("longitude", 0), "angle") != 0:
             raise Undecidable("prime meridian other than Greenwich")
     return Parts(kind, bases, projjson_identifiers(datum), axes, False, conversion)
@@ -743,7 +746,9 @@ def computation_verdict(field: dict[str, Any]) -> Verdict | None:
         return Verdict("crs", "GEO-015")
     if parts.bases and not any(_same(pair, reference.base or "") for pair in parts.bases):
         return Verdict("crs", "GEO-015")
-    if parts.datums and not any(_same(pair, reference.datum) for pair in parts.datums):
+    # GEO-015: the datum is identified only by its identifier; an identity
+    # that the definition does not state is not inferred from the ellipsoid.
+    if not any(_same(pair, reference.datum) for pair in parts.datums):
         return Verdict("crs", "GEO-015")
     return None
 
@@ -781,6 +786,11 @@ GEOMETRY_KEYS = set(REQUIRED_GEOMETRY) | set(CLOSED_VALUES) | {
     "plenora.geometry.crs_definition",
 }
 NATIVE_PREFIX = "plenora.geometry.native."
+# REJ-001: the keys whose every defect is of the CRS class.
+CRS_KEYS = {
+    "plenora.geometry.crs_resolution", "plenora.geometry.crs_id", "plenora.geometry.crs_definition",
+    "plenora.geometry.crs_definition_format", "plenora.geometry.axis_order",
+}
 INTEGER_RANGES = {"int32": 2**31, "int64": 2**63}
 VOCABULARY = "VOCABULARY-4"
 
@@ -810,8 +820,8 @@ def _vocabulary(fields: list[dict[str, Any]]) -> Verdict | None:
             continue
         if field["type"] not in ("binary", "large_binary"):
             return Verdict("schema", VOCABULARY)
-        # REJ-001: an absent CRS key belongs to the CRS class.
-        if any(key not in metadata for key in REQUIRED_GEOMETRY if key != "plenora.geometry.crs_resolution"):
+        # REJ-001: every defect of a CRS key belongs to the CRS class.
+        if any(key not in metadata for key in REQUIRED_GEOMETRY if key not in CRS_KEYS):
             return Verdict("schema", VOCABULARY)
         if any(
             key.startswith("plenora.geometry.") and key not in GEOMETRY_KEYS
@@ -820,7 +830,7 @@ def _vocabulary(fields: list[dict[str, Any]]) -> Verdict | None:
         ):
             return Verdict("schema", "GEO-016")
         for key, values in CLOSED_VALUES.items():
-            if key in metadata and metadata[key] not in values:
+            if key not in CRS_KEYS and key in metadata and metadata[key] not in values:
                 return Verdict("schema", VOCABULARY)
         if "plenora.geometry.srid" in metadata:
             srid = metadata["plenora.geometry.srid"]
@@ -840,10 +850,6 @@ def _vocabulary(fields: list[dict[str, Any]]) -> Verdict | None:
             positions = [CANONICAL_TYPES.index(item) for item in types]
             if positions != sorted(set(positions)):
                 return Verdict("schema", VOCABULARY)
-        if "plenora.geometry.crs_definition" in metadata and metadata["plenora.geometry.crs_definition"] == "":
-            return Verdict("schema", VOCABULARY)
-        if "plenora.geometry.crs_id" in metadata and not CRS_ID.fullmatch(metadata["plenora.geometry.crs_id"]):
-            return Verdict("schema", "GEO-016")
     if len(identities) != len(set(identities)):
         return Verdict("schema", VOCABULARY)
     return None
@@ -856,6 +862,13 @@ def _crs(fields: list[dict[str, Any]]) -> Verdict | None:
         resolution = metadata.get("plenora.geometry.crs_resolution")
         if resolution is None:
             return Verdict("crs", VOCABULARY)
+        for key, values in CLOSED_VALUES.items():
+            if key in CRS_KEYS and key in metadata and metadata[key] not in values:
+                return Verdict("crs", VOCABULARY)
+        if metadata.get("plenora.geometry.crs_definition") == "":
+            return Verdict("crs", VOCABULARY)
+        if "plenora.geometry.crs_id" in metadata and not CRS_ID.fullmatch(metadata["plenora.geometry.crs_id"]):
+            return Verdict("crs", "GEO-016")
         crs_id = metadata.get("plenora.geometry.crs_id")
         definition = metadata.get("plenora.geometry.crs_definition")
         definition_format = metadata.get("plenora.geometry.crs_definition_format")
@@ -905,12 +918,13 @@ def _value(field: dict[str, Any], data: bytes) -> Verdict | None:
     return None
 
 
-def _cell(field: dict[str, Any], value: Any) -> bytes | None:
-    """Check that a value fits its Arrow type; return the bytes of a binary."""
+def _cell(position: int, field: dict[str, Any], value: Any) -> bytes | None:
+    """Check that a value fits its Arrow type; return the bytes of a binary.
+    Messages name the field by position, never by name."""
     kind = field["type"]
     if value is None:
         if not field["nullable"]:
-            raise FixtureError(f"null in non-nullable field {field['name']}")
+            raise FixtureError(f"null in non-nullable field {position}")
         return None
     if kind == "bool":
         ok = isinstance(value, bool)
@@ -926,7 +940,7 @@ def _cell(field: dict[str, Any], value: Any) -> bytes | None:
         if ok:
             return bytes.fromhex(value)
     if not ok:
-        raise FixtureError(f"value does not fit the type of field {field['name']}")
+        raise FixtureError(f"value does not fit the type of field {position}")
     return None
 
 
@@ -939,7 +953,10 @@ def verdict(vector: dict[str, Any]) -> Verdict | None:
     for row in vector["rows"]:
         if set(row) != set(names):
             raise FixtureError("a row does not name exactly the fields")
-    cells = [[_cell(field, row[field["name"]]) for field in fields] for row in vector["rows"]]
+    cells = [
+        [_cell(position, field, row[field["name"]]) for position, field in enumerate(fields)]
+        for row in vector["rows"]
+    ]
 
     version = vector["schema_metadata"].get("plenora.contract.version")
     if version is None or not VERSION.fullmatch(version):

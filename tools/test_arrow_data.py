@@ -287,9 +287,17 @@ class VerdictTests(unittest.TestCase):
         for metadata in cases:
             with self.subTest(metadata):
                 self.assertVerdict(table(geometry_field(**metadata)), "schema", data.VOCABULARY)
-        for metadata in ({"crs_id": ""}, {"crs_id": "4326"}, {"types": ""}, {"plenora.geometry.sird": "4326"}):
+        for metadata in ({"types": ""}, {"plenora.geometry.sird": "4326"}):
             with self.subTest(metadata):
                 self.assertVerdict(table(geometry_field(**metadata)), "schema", "GEO-016")
+        for metadata in ({"crs_id": ""}, {"crs_id": "4326"}):
+            with self.subTest(metadata):
+                self.assertVerdict(table(geometry_field(**metadata)), "crs", "GEO-016")
+        for metadata in ({"axis_order": "xy"}, {"crs_resolution": "maybe"},
+                         {"crs_definition": "", "crs_definition_format": "wkt2"},
+                         {"crs_definition": "GEOGCRS[\"x\"]", "crs_definition_format": "gml"}):
+            with self.subTest(metadata):
+                self.assertVerdict(table(geometry_field(**metadata)), "crs", data.VOCABULARY)
         plain = {"name": "geometry", "type": "binary", "nullable": True,
                  "metadata": {"plenora.geometry.encoding": "wkb"}}
         self.assertVerdict(table(plain), "schema", data.VOCABULARY)

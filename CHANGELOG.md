@@ -19,7 +19,7 @@ full commit SHA; a release tag names one of those commits.
   by quantity, datum and conversion); both `wkb` and `ewkb` are accepted;
   several types and geometry fields are valid; identity and precision of
   produced fields. Arrow Vocabulary 1.0 keeps its published text, with an
-  informative pointer. New schema `arrow-data-vector-v1` and 39 vectors in
+  informative pointer. New schema `arrow-data-vector-v1` and 42 vectors in
   `vectors/arrow-data-v1`. No existing schema, catalog, binding or vector
   changes. See
   [decision 0013](decisions/0013-geometry-vocabulary-semantics.md).

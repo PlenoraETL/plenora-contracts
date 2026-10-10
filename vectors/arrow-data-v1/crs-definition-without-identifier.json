@@ -36,7 +36,7 @@
         "plenora.geometry.types": "point",
         "plenora.geometry.crs_resolution": "resolved",
         "plenora.geometry.crs_id": "EPSG:32632",
-        "plenora.geometry.crs_definition": "PROJCRS[\"WGS 84 / UTM zone 32N\",BASEGEOGCRS[\"WGS 84\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563]]],CONVERSION[\"UTM zone 32N\",METHOD[\"Transverse Mercator\"]],CS[Cartesian,2],AXIS[\"easting (E)\",east],AXIS[\"northing (N)\",north],LENGTHUNIT[\"metre\",1]]",
+        "plenora.geometry.crs_definition": "PROJCRS[\"WGS 84 / UTM zone 32N\",BASEGEOGCRS[\"WGS 84\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563],ID[\"EPSG\",6326]],ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 32N\",METHOD[\"Transverse Mercator\"],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],PARAMETER[\"Longitude of natural origin\",9,ANGLEUNIT[\"degree\",0.0174532925199433]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1]]],CS[Cartesian,2],AXIS[\"easting (E)\",east],AXIS[\"northing (N)\",north],LENGTHUNIT[\"metre\",1]]",
         "plenora.geometry.crs_definition_format": "wkt2",
         "plenora.geometry.axis_order": "easting_northing"
       }
