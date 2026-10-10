@@ -88,6 +88,10 @@ as `plenora-runtime-vector-v1` documents.
 Fixture payload objects remain illustrative. A component validates them using
 its own immutable payload schema; runtime-tools preserves their serialized
 bytes and does not infer domain semantics from their fields.
+`database-write-error.json` (`internal`, phase `commit`) illustrates an
+unknown commit outcome caused by a defect of the component; it does not make
+every unknown commit outcome `internal`. `database-write-commit-io-error.json`
+shows the outcome of a lost confirmation (ERR-016).
 
 ## 6. Rejection probes
 
