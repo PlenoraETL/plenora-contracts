@@ -100,9 +100,12 @@ operation, with its reason, is never added to that operation identity: a
 binding on it needs a new operation version whose contract removes the
 reason. The validator checks every catalog version and binding map against
 the absences the profiles declare (DB-ABS-001, DB-ABS-002, DT-ABS-001,
-DT-ABS-002), and that each profile states the rule with its reason: the
-bold rule identifier followed, in the same paragraph, by a non-empty
-sentence that ends with a period. It
+DT-ABS-002), and that each profile states the rule with its reason. The
+reason has this exact shape: the bold identifier (`**DB-ABS-001**`), one
+space, an em dash (U+2014), one space, then the reason text, which runs to
+the first blank line or to the end of the file. The text contains at least
+one ASCII letter and ends with a period whose preceding character is
+neither a period nor white space. It
 checks the coherence of the documents, not what any artifact exposes:
 availability is reported only by capability discovery (CAP-004, CAP-008).
 

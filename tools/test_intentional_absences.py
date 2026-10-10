@@ -67,9 +67,25 @@ class IntentionalAbsenceTests(unittest.TestCase):
         self.assertTrue(all("does not state" in error for error in errors))
 
     def test_the_rule_needs_a_reason(self):
-        self.assertTrue(validator.REASON.fullmatch(validator.stated_reason("x **DB-ABS-002** — a reason.", "DB-ABS-002")))
-        self.assertIsNone(validator.REASON.fullmatch(validator.stated_reason("**DB-ABS-002** — no period", "DB-ABS-002")))
-        self.assertEqual(validator.stated_reason("**DB-ABS-002** —\n\nnext", "DB-ABS-002"), "")
+        cases = {
+            "x **DB-ABS-002** — a reason.": True,
+            "**DB-ABS-002** — a reason.\nsecond line.": True,
+            "**DB-ABS-002** — a reason.\n\nnext paragraph without period": True,
+            "**DB-ABS-002** — no period": False,
+            "**DB-ABS-002** — ..": False,
+            "**DB-ABS-002** — a reason..": False,
+            "**DB-ABS-002** — a reason .": False,
+            "**DB-ABS-002** — 12.": False,
+            "**DB-ABS-002** — .": False,
+            "**DB-ABS-002** —": False,
+            "**DB-ABS-002** - a reason.": False,
+            "**DB-ABS-002**— a reason.": False,
+            "nothing": False,
+        }
+        for text, expected in cases.items():
+            with self.subTest(text):
+                self.assertEqual(validator.reason_is_stated(text, "DB-ABS-002"), expected)
+        self.assertEqual(validator.stated_reason("**DB-ABS-002** — \n\nnext", "DB-ABS-002"), "")
         self.assertEqual(validator.stated_reason("nothing", "DB-ABS-002"), "")
         original = validator.profile_path
 

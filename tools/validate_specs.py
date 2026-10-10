@@ -668,19 +668,26 @@ INTENTIONAL_ABSENCES = {
 }
 
 
-# CAT-003: a non-empty sentence that ends with a period.
-REASON = re.compile(r"\S.*\.", re.S)
+# CAT-003: at least one ASCII letter, a final period that follows neither a
+# period nor white space.
+REASON = re.compile(r"(?=[^\n]*[A-Za-z]|.*[A-Za-z]).*[^.\s]\.", re.S)
 
 
 def stated_reason(profile: str, rule: str) -> str:
-    """The paragraph that follows `**RULE** —` in a profile, up to the next
-    blank line: the reason of a declared absence. Empty when absent."""
-    marker = f"**{rule}**"
+    """The text after `**RULE** — ` up to the first blank line or the end of
+    the file (CAT-003); empty when the marker or the dash is missing."""
+    marker = f"**{rule}** \u2014 "
     start = profile.find(marker)
     if start < 0:
         return ""
-    rest = profile[start + len(marker):].lstrip(" \u2014-")
-    return rest.split("\n\n", 1)[0].strip()
+    rest = profile[start + len(marker):]
+    end = rest.find("\n\n")
+    return rest if end < 0 else rest[:end]
+
+
+def reason_is_stated(profile: str, rule: str) -> bool:
+    text = stated_reason(profile, rule)
+    return bool(REASON.fullmatch(text)) and re.search(r"[A-Za-z]", text) is not None
 
 
 def intentional_absence_errors(
@@ -713,7 +720,7 @@ def intentional_absence_errors(
                         f"{component} profile v{version} does not state {rule} "
                         f"for {key[1]}@{key[2]}"
                     )
-                elif not REASON.fullmatch(stated_reason(profile, rule)):
+                elif not reason_is_stated(profile, rule):
                     failures.append(
                         f"{component} profile v{version} states {rule} without a reason"
                     )

@@ -111,16 +111,15 @@ output contract and correlation identity.
 transport or a materialization limit of the component, fails with a typed
 error of category `resource_limit`. A component or transport MUST NOT
 truncate a result and report success (SURF-014): a success result is
-complete. The other axes follow ERR-003 and ERR-004:
-
-- when nothing has been published or committed, the phase is the one in
-  which the result was read or built (`read`), `remote_effect` is `none` and
-  `retry.kind` is `never`;
-- when the operation had already published or committed, as `data.run`
-  version 3 does before it returns its manifest, the phase is the last one
-  started (`write`, `commit` or `cleanup`) and the remote effect is the one
-  proven: `committed` or `partial`, or `unknown` when it is not proven
-  (ERR-014, ERR-015, DT-RUN-006), with a retry ERR-006 admits.
+complete. RT-024 fixes no phase: the phase is the last externally
+meaningful phase started (ERR-003), such as `read` while a result is read,
+`finalize` while it is built, or `write`, `commit` or `cleanup` after a
+publication. The remote effect follows ERR-004: `none` when nothing has been
+published or committed; after a publication or a commit, as `data.run`
+version 3 makes before it returns its manifest, the one proven, `committed`
+or `partial`, or `unknown` when it is not proven (ERR-014, ERR-015,
+DT-RUN-006). The retry is `never` when the effect is `none`, and one that
+ERR-006 admits otherwise.
 
 The component declares its limits where its profile says; the transport
 declares its own in its adoption manifest.

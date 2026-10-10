@@ -102,11 +102,10 @@ component's materialization limit. **RT-024** makes either a typed
 `resource_limit` error and forbids a truncated success (SURF-014);
 **DB-RT-003** applies it to `database.query`, says where database-tools
 declares its bound, and two illustrative runtime vectors show both errors.
-A further reading fixed the axes: `read` and `none` only while nothing is
-published or committed; after a publication, as `data.run` version 3 has
-before it builds its manifest, the phase and remote effect stay those of the
-publication (ERR-003, ERR-014, ERR-015). CAT-003 states the minimal shape of
-a reason (a sentence ending with a period) that the validator checks.
+Further readings fixed the axes: RT-024 fixes the category, the remote
+effect and the ban on a truncated success, and leaves the phase to ERR-003
+(`read`, `finalize`, or the phase of a publication already made). CAT-003
+states the exact syntax of a reason that the validator checks.
 
 ### Content types on the runtime (database-tools)
 
