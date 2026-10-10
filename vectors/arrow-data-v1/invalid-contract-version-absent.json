@@ -7,7 +7,7 @@
   "category": "schema",
   "rules": [
     "ARROW-001",
-    "ARROW-013"
+    "REJ-001"
   ],
   "schema_metadata": {},
   "fields": [

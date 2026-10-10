@@ -3,10 +3,10 @@
   "schema_version": 1,
   "contract": "plenora-arrow-data-vector-v1",
   "expect": "invalid",
-  "reason": "The PROJJSON definition identifies EPSG:32633, the field EPSG:32632.",
-  "category": "crs",
+  "reason": "The outer geometry has no SRID; its member carries the field's SRID, which only the outermost may carry.",
+  "category": "data_mapping",
   "rules": [
-    "GEO-005"
+    "GEO-009"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"
@@ -27,24 +27,23 @@
       "metadata": {
         "plenora.field_id": "1",
         "ARROW:extension:name": "geoarrow.wkb",
-        "plenora.geometry.encoding": "wkb",
+        "plenora.geometry.encoding": "ewkb",
         "plenora.geometry.dimensions": "xy",
         "plenora.geometry.spatial_semantics": "geometry",
         "plenora.geometry.precision": "float64",
         "plenora.geometry.types_declaration": "exact",
-        "plenora.geometry.types": "point",
+        "plenora.geometry.types": "multipoint",
+        "plenora.geometry.srid": "4326",
         "plenora.geometry.crs_resolution": "resolved",
-        "plenora.geometry.crs_id": "EPSG:32632",
-        "plenora.geometry.crs_definition": "{\"type\":\"ProjectedCRS\",\"name\":\"WGS 84 / UTM zone 33N\",\"id\":{\"authority\":\"EPSG\",\"code\":32633}}",
-        "plenora.geometry.crs_definition_format": "projjson",
-        "plenora.geometry.axis_order": "easting_northing"
+        "plenora.geometry.crs_id": "EPSG:4326",
+        "plenora.geometry.axis_order": "lon_lat"
       }
     }
   ],
   "rows": [
     {
       "id": 1,
-      "geometry": "01010000000000000080841e4100000000ccbc5141"
+      "geometry": "0104000000010000000101000020e61000000000000000205ec00000000000a04640"
     }
   ]
 }

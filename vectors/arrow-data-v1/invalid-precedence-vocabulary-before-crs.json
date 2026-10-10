@@ -7,7 +7,7 @@
   "category": "schema",
   "rules": [
     "VOCABULARY-4",
-    "ARROW-014"
+    "REJ-002"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

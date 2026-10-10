@@ -6,7 +6,7 @@
   "reason": "A POINT Z value in a field that declares xy.",
   "category": "data_mapping",
   "rules": [
-    "VOC-011"
+    "GEO-011"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

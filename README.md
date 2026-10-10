@@ -41,6 +41,7 @@ The normative sources are:
 - [typed error contract](specs/errors/ERRORS-1.0.md);
 - [Arrow interchange contract](specs/data/ARROW-INTERCHANGE-1.0.md);
 - [Arrow metadata vocabulary and vectors](specs/data/ARROW-VOCABULARY-1.0.md);
+- [Arrow geometry semantics](specs/data/ARROW-GEOMETRY-SEMANTICS-1.0.md), opt-in for the components that claim it;
 - [plan budget fragment](specs/data/PLAN-BUDGET-1.0.md), for components accepting plan documents;
 - [Data Plan 1.0](specs/data/DATA-PLAN-1.0.md), the plan accepted by `data.validate` and `data.run` version 2;
 - [row diagnostics contract](specs/diagnostics/ROW-DIAGNOSTICS-1.0.md);

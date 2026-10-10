@@ -6,7 +6,7 @@
   "reason": "A point value without its last ordinate is not well-formed WKB.",
   "category": "data_mapping",
   "rules": [
-    "VOC-011"
+    "GEO-011"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

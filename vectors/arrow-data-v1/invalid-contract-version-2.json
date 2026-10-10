@@ -7,7 +7,7 @@
   "category": "unsupported",
   "rules": [
     "ARROW-002",
-    "ARROW-013"
+    "REJ-001"
   ],
   "schema_metadata": {
     "plenora.contract.version": "2"
