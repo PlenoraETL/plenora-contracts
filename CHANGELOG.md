@@ -6,6 +6,17 @@ full commit SHA; a release tag names one of those commits.
 
 ## Unreleased
 
+### Added
+
+- IO-tools Python SDK as a declared surface: `io-tools-v2.json` selects
+  `python_sdk` as `conditional` for its six operations;
+  `bindings/python-sdk-v1.json` names `plenora-io / plenora_io`, its
+  discovery entrypoints and one `Client` method per operation; the profile
+  makes the SDK optional and adds IO-PY-001 (synchronous only, CLI
+  semantics, the effect of `Client.read`, typed refusal of Arrow objects
+  without the PyArrow extra). The validator checks the section. No schema
+  or vector changes. See [decision 0016](decisions/0016-io-tools-python-sdk.md).
+
 ### Changed
 
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays

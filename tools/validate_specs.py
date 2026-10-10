@@ -1276,6 +1276,7 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
         }):
             failures.append(f"{operation_id} must bind both canonical SDK API modes")
     failures.extend(data_python_errors(python_document))
+    failures.extend(io_python_errors(python_document))
     return failures
 
 
@@ -1299,6 +1300,36 @@ def data_python_errors(python_document: dict[str, Any]) -> list[str]:
         action = binding["operation"].removeprefix("data.")
         if set(binding["entrypoints"]) != {f"plenora_data.{action}", f"plenora_data.a{action}"}:
             failures.append(f"{binding['operation']} must bind both canonical SDK API modes")
+    return failures
+
+
+IO_COMPONENT = "plenora-io-tools"
+
+
+def io_python_errors(python_document: dict[str, Any]) -> list[str]:
+    """IO-PY-001: the IO-tools SDK binds every operation as a `Client`
+    method, synchronous only, named after the operation, with version and
+    capability discovery."""
+    section = next(
+        (item for item in python_document["components"]
+         if item["component"] == IO_COMPONENT), None
+    )
+    if section is None or (
+        section["artifact"] is None and not section["discovery"] and not section["bindings"]
+    ):
+        return []
+    failures: list[str] = []
+    if section["artifact"] != "plenora-io / plenora_io":
+        failures.append("IO SDK must declare its distribution and import identity")
+    if set(section["discovery"]) != {"plenora_io.version", "Client.capabilities"}:
+        failures.append("IO SDK must expose version and capability discovery")
+    for binding in section["bindings"]:
+        action = binding["operation"].removeprefix("io.")
+        entrypoints = binding["entrypoints"]
+        if f"Client.{action}" not in entrypoints or not all(
+            entry.startswith("Client.") for entry in entrypoints
+        ):
+            failures.append(f"{binding['operation']} must bind Client.{action} and Client methods only")
     return failures
 
 
