@@ -28,6 +28,11 @@ schema. Provider or dependency exception names are not public categories.
 `unsupported` or a more precise validation category. They MUST NOT be silently
 ignored or emulated with different semantics.
 
+For an invalid Arrow input, Arrow Interchange 1.0 fixes the category of each
+class and the order in which several defects are reported (ARROW-013 to
+ARROW-015), so that every component in a pipeline reports the same input the
+same way.
+
 ## 3. Phase
 
 **ERR-003** — `phase` identifies the last externally meaningful phase known to

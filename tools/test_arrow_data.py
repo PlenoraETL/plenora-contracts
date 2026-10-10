@@ -337,7 +337,22 @@ class VectorErrorTests(unittest.TestCase):
         self.assertEqual(len(data.vector_errors(silent)), 1)
         plain = vector("axis-lon-lat-epsg4326.json")
         plain["computation"] = "accepted"
+        self.assertEqual(data.vector_errors(plain), [])
+        plain["computation"] = {"category": "crs", "rules": ["VOC-015"]}
         self.assertEqual(len(data.vector_errors(plain)), 1)
+        unknown = vector("crs-unknown-identifier.json")
+        unknown["computation"] = "accepted"
+        self.assertEqual(len(data.vector_errors(unknown)), 1)
+        missing = vector("two-geometry-fields.json")
+        for field in missing["fields"][1:]:
+            for key in ("crs_id", "axis_order", "srid"):
+                field["metadata"].pop(f"plenora.geometry.{key}", None)
+            field["metadata"]["plenora.geometry.crs_resolution"] = "missing"
+            field["metadata"]["plenora.geometry.encoding"] = "wkb"
+        missing["rows"][0]["site"] = None
+        self.assertEqual(data.vector_errors(missing), [])
+        missing["computation"] = "accepted"
+        self.assertEqual(len(data.vector_errors(missing)), 1)
 
     def test_a_fixture_defect_is_not_a_verdict(self):
         document = vector("axis-lon-lat-epsg4326.json")
@@ -351,6 +366,38 @@ class VectorErrorTests(unittest.TestCase):
             self.assertEqual(validator.validate_arrow_data_vectors(), ["vectors/arrow-data-v1 has no vectors"])
         finally:
             validator.ROOT = original
+
+
+class PrecedenceTests(unittest.TestCase):
+    """ARROW-014: the first class in the fixed order is the one reported."""
+
+    def test_version_before_every_other_class(self):
+        field = geometry_field(crs_definition='GEOGCRS["x",ID["EPSG",3003]]', crs_definition_format="wkt2")
+        self.assertEqual(data.verdict(table(field, b"\x01", version="2")), data.Verdict("unsupported", "ARROW-002"))
+
+    def test_vocabulary_before_crs_and_crs_before_values(self):
+        field = geometry_field(encoding=None, crs_resolution="missing")
+        self.assertEqual(data.verdict(table(field, b"\x01")), data.Verdict("schema", data.VOCABULARY))
+        field = geometry_field(crs_definition='GEOGCRS["x",ID["EPSG",3003]]', crs_definition_format="wkt2")
+        self.assertEqual(data.verdict(table(field, b"\x01")), data.Verdict("crs", "VOC-005"))
+
+    def test_first_row_wins_among_values(self):
+        field = geometry_field(encoding="ewkb", srid="4326")
+        document = table(field)
+        document["rows"] = [
+            {"geometry": struct.pack("<BII", 1, 2, 0).hex()},
+            {"geometry": point(srid=3003).hex()},
+        ]
+        self.assertEqual(data.verdict(document), data.Verdict("data_mapping", "VOC-011"))
+        document["rows"].reverse()
+        self.assertEqual(data.verdict(document), data.Verdict("crs", "VOC-009"))
+
+    def test_published_precedence_vectors(self):
+        names = sorted(path.name for path in VECTORS.glob("invalid-precedence-*.json"))
+        self.assertEqual(len(names), 4)
+        for name in names:
+            with self.subTest(name):
+                self.assertIn("ARROW-014", vector(name)["rules"])
 
 
 if __name__ == "__main__":

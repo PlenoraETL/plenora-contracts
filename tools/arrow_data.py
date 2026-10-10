@@ -6,11 +6,13 @@ does not, the category and the rule that decide the rejection. The validator
 compares that verdict with the one the vector states, so a vector cannot
 claim a category the rules do not give.
 
-The checks run in a fixed order: the schema contract version (ARROW-001,
-ARROW-002), the well-formedness of the vocabulary (section 4), the CRS state
-(section 4, VOC-005), then each geometry value in row order and, within a
-row, in field order (VOC-008, VOC-009, VOC-011). The first failure is the
-verdict; every vector of this version has a single defect.
+The checks run in the order a component reports (Arrow Interchange 1.0,
+ARROW-014): the schema contract version (ARROW-001, ARROW-002), the
+well-formedness of the vocabulary (section 4), the CRS state (section 4,
+VOC-005), then each geometry value in row order and, within a row, in field
+order (VOC-008, VOC-009, VOC-011). The first failure is the verdict. The
+classes that depend on the operation (support, operation schema) are not
+decided here: the interoperability vectors name the operation.
 
 `FixtureError` is a defect of the vector itself (a value that does not fit
 its Arrow type, a null in a non-nullable field): no consumer could even build
@@ -669,17 +671,23 @@ def verdict(vector: dict[str, Any]) -> Verdict | None:
 
 def computation_errors(vector: dict[str, Any]) -> list[str]:
     """A valid vector with a CRS definition states the verdict of a consumer
-    that computes with the coordinates (VOC-015); one without states none."""
-    with_definition = [
+    that computes with the coordinates (VOC-015); one with a declared CRS and
+    no definition may state it; one without a declared CRS states none."""
+    declared = [
         field for field in vector["fields"]
-        if is_geometry(field) and "plenora.geometry.crs_definition" in field["metadata"]
+        if is_geometry(field) and field["metadata"]["plenora.geometry.crs_resolution"] != "missing"
+    ]
+    with_definition = [
+        field for field in declared if "plenora.geometry.crs_definition" in field["metadata"]
     ]
     stated = vector.get("computation")
-    if not with_definition:
-        return [] if stated is None else ["states a computation verdict without a CRS definition"]
+    if not declared:
+        return [] if stated is None else ["states a computation verdict without a declared CRS"]
     if stated is None:
-        return ["carries a CRS definition and states no computation verdict"]
-    found = next(filter(None, map(computation_verdict, with_definition)), None)
+        if with_definition:
+            return ["carries a CRS definition and states no computation verdict"]
+        return []
+    found = next(filter(None, map(computation_verdict, declared)), None)
     if found is None:
         if stated != "accepted":
             return ["states a computation rejection, the rules accept it"]

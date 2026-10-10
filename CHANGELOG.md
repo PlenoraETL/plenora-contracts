@@ -23,6 +23,16 @@ full commit SHA; a release tag names one of those commits.
   the validator derives by decoding every geometry. No existing schema,
   catalog, binding or vector changes. See
   [decision 0013](decisions/0013-geometry-vocabulary-semantics.md).
+- One category for each class of invalid Arrow input, ratified in Arrow
+  Interchange 1.0 as clarifications (section 9, ARROW-013 to ARROW-016):
+  contract version absent `schema`, not supported `unsupported`, vocabulary
+  `schema`, CRS `crs`, unsupported type or shape `unsupported`, schema
+  incompatible with the operation `schema`, invalid value `data_mapping`;
+  a fixed order when several defects coexist; the other axes of each class.
+  Typed Errors 1.0 points to it. Nine vectors in `vectors/arrow-data-v1`,
+  four of them with two defects. No schema, catalog, binding or published
+  vector changes. See
+  [decision 0014](decisions/0014-arrow-input-rejection-categories.md).
 
 ### Changed
 
