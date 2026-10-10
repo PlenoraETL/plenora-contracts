@@ -106,6 +106,15 @@ delivers them and must survive every later step unchanged; the paths of the
 validator's messages name data keys by position. The vectors illustrate the
 rules and do not attest full coverage (COMP-005 lists what they leave out).
 
+### Fifth reading (Codex)
+
+The validator names the steps of a chain by position, never by the
+operation spelling the vector carries, and the sentinel test of decision
+0021 runs on these vectors too. The observation of delegated provider keys
+along a chain needs the chain to run: COMP-003 assigns it to the
+interoperability suite and to the provider's vectors; this validator checks
+that the prefixes are declared.
+
 ### What the vectors fix that the suite observed differently
 
 - database-tools reads geometry fields without `field_id` and `precision`:

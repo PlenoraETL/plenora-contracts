@@ -168,7 +168,11 @@ def several_types_to_mixed(table: dict[str, Any]) -> None:
 
 
 def provider_metadata(table: dict[str, Any]) -> None:
-    """ARROW-009: provider keys are delegated (`delegated_metadata`)."""
+    """ARROW-009: provider keys are delegated (`delegated_metadata`). Their
+    values and their survival along the chain are observed by the harness
+    that runs the chain and by the provider's own vectors (COMP-003); this
+    validator, which runs no component, only checks that the prefixes are
+    declared."""
 
 
 TRANSFORMATIONS: dict[str, Callable[[dict[str, Any]], None]] = {
@@ -355,13 +359,14 @@ def chain_errors(
     direct_edges: set[tuple[Key, Key]],
 ) -> list[str]:
     errors = []
-    for step in chain:
+    # Steps are named by position: an operation spelling is data of the vector.
+    for position, step in enumerate(chain, start=1):
         if step_key(step) not in operations:
-            errors.append(f"names unknown operation {step_key(step)}")
+            errors.append(f"step {position} names an unknown operation")
         for name in step["transformations"]:
             owners = TRANSFORMATION_OWNERS[name]
             if owners is not None and (step["component"], step["operation"]) not in owners:
-                errors.append(f"{step['operation']} cannot declare {name} (COMP-003)")
+                errors.append(f"step {position} cannot declare {name} (COMP-003)")
         prefix = step.get("provider_prefix")
         if prefix is not None and prefix.startswith(RESERVED_PREFIXES):
             errors.append("a provider prefix is reserved for the shared vocabulary")
@@ -370,18 +375,16 @@ def chain_errors(
                 errors.append("a step names an unknown limit")
     if chain and chain[0].get("via") == "target":
         errors.append("the first step cannot read a target no step wrote")
-    for before, after in zip(chain, chain[1:]):
+    for position, (before, after) in enumerate(zip(chain, chain[1:]), start=1):
         if after.get("via") == "target":
             if (
                 before["component"] != after["component"]
                 or not before["operation"].endswith(".write")
                 or not after["operation"].endswith(".read")
             ):
-                errors.append(
-                    f"{before['operation']} -> {after['operation']} is not a write then a read of one component"
-                )
+                errors.append(f"steps {position} -> {position + 1} are not a write then a read of one component")
         elif (step_key(before), step_key(after)) not in direct_edges:
-            errors.append(f"{before['operation']} -> {after['operation']} is not a direct edge of the matrix")
+            errors.append(f"steps {position} -> {position + 1} are not a direct edge of the matrix")
     return errors
 
 
@@ -496,7 +499,7 @@ def vector_errors(
         return errors + source_errors(vector)
     input_path = (path.parent / vector["input"]).resolve()
     if not input_path.exists():
-        return errors + [f"input {vector['input']} does not exist"]
+        return errors + ["the input does not exist"]
     table = load(input_path)
     try:
         if vector["kind"] == "rejection":
@@ -509,7 +512,7 @@ def vector_errors(
             apply(current, step)
     except arrow_data.FixtureError:
         # Its own gate reports the input; here it cannot be an input.
-        return errors + [f"input {vector['input']} is not a buildable table"]
+        return errors + ["the input is not a buildable table"]
     except ValueError:
         return errors + ["transformations cannot apply"]
     expected = expected_output(table, vector["chain"])

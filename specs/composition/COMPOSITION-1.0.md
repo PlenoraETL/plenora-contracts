@@ -117,7 +117,10 @@ provider's and its own vectors verify them; the harness records the keys
 under those prefixes that the step declaring `provider_metadata` delivers,
 and requires every later step to deliver them unchanged, so the comparison
 removes from the final table only those recorded keys, after checking that
-each is present with its recorded value.
+each is present with its recorded value. That observation needs the chain to
+run: it belongs to the interoperability suite and to the provider's own
+vectors, not to the validator of this repository, which checks that the
+prefixes are declared.
 
 | transformation | effect | owner | basis |
 |---|---|---|---|

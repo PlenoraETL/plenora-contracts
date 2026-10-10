@@ -25,6 +25,8 @@ import json
 import re
 import struct
 from decimal import Decimal
+
+import crs_grammar
 from typing import Any, NamedTuple
 
 
@@ -732,6 +734,14 @@ def computation_verdict(field: dict[str, Any]) -> Verdict | None:
     reference = REFERENCE_CRS.get(crs_id)
     if reference is None:
         return Verdict("crs", "GEO-015")
+    try:
+        if definition_format == "projjson":
+            crs_grammar.check_projjson(load_projjson(definition))
+        else:
+            crs_grammar.check_wkt(parse_definition(definition, definition_format), definition_format)
+    except crs_grammar.Outside:
+        # GEO-019: a node or member outside the closed grammar is undecidable.
+        return Verdict("crs", "GEO-019")
     try:
         parts = definition_parts(definition, definition_format)
     except Malformed:
