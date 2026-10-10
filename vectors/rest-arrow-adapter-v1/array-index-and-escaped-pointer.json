@@ -55,6 +55,29 @@
   },
   "expect": {
     "outcome": "table",
+    "schema": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "first",
+          "type": "utf8",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "0"
+          }
+        },
+        {
+          "name": "ratio",
+          "type": "float64",
+          "nullable": true,
+          "metadata": {
+            "plenora.field_id": "1"
+          }
+        }
+      ]
+    },
     "rows": [
       {
         "first": "x",
@@ -65,7 +88,7 @@
         "ratio": null
       }
     ],
-    "excluded": [],
+    "diagnostics": null,
     "rest_status": "success",
     "rest_errors": 0
   }

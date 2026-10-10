@@ -37,6 +37,9 @@
   },
   "expect": {
     "outcome": "error",
-    "category": "execution"
+    "category": "execution",
+    "phase": "validate",
+    "remote_effect": "none",
+    "retry": "never"
   }
 }

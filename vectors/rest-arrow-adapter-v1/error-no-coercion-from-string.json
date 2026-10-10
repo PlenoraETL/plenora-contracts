@@ -39,6 +39,9 @@
     "category": "data_mapping",
     "record": 0,
     "field": "ok",
-    "cause": "adapter.type_mismatch"
+    "cause": "adapter.type_mismatch",
+    "phase": "read",
+    "remote_effect": "none",
+    "retry": "never"
   }
 }

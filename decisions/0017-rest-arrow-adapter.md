@@ -40,12 +40,12 @@ contract is verifiable.
 - **Record errors** (RA-007): five closed causes; `fail` stops with
   `data_mapping` naming record, field and cause, never the value; `exclude`
   leaves the record out and reports it in `plenora-row-diagnostics-v1`.
-- **Report and output** (RA-008, RA-009): REST status and error count next to
+- **Errors, report and output** (RA-008 to RA-010): axes of every error; REST status and error count next to
   the table, so a partial result is never read as complete; the declared
   schema, with `plenora.contract.version=1` and the declared identities.
 
 Two schemas (`rest-arrow-adapter-v1` for the declaration,
-`rest-arrow-adapter-vector-v1` for the vectors), 22 vectors in
+`rest-arrow-adapter-vector-v1` for the vectors), 28 vectors in
 `vectors/rest-arrow-adapter-v1`, a reference adapter in the validator
 (`tools/rest_adapter.py`) that derives every outcome. Composition 1.0
 section 4 points to the contract; the edges stay `adapter_required`.
@@ -61,6 +61,21 @@ were unstated (RA-005 states them, and the comparison of vectors tells
 `0.0` from `-0.0`); an array index followed by a line feed was read as an
 index; RA-006 did not say which undeclared member to name; a declaration
 listing `failed` was accepted by the reference adapter.
+
+A second reading (Codex) found two blocking defects and a gap, corrected:
+
+- with `undeclared_members: reject` the raw key of the undeclared member
+  reached the error and the diagnostics: it is source data, possibly secret,
+  empty or longer than 256 characters. RA-006 now never reports it and uses
+  the fixed identifier `@undeclared`; diagnostics omit `column`. Vectors
+  with a secret, an empty and a 300-character key;
+- the vectors checked only rows and categories. They now state the whole
+  outcome: the Arrow schema (types, nullability, identities), the row
+  diagnostics, validated against `row-diagnostics-v1`, and every error axis
+  (RA-007, RA-008);
+- RA-005 states that `int64` keeps the exact integer of the literal beyond
+  2^53, that an exponent is never an `int64`, and lists the declared losses
+  of `float64` and of absent members (equal to null), with vectors.
 
 ### Scope left out of version 1
 
@@ -88,7 +103,7 @@ listing `failed` was accepted by the reference adapter.
 - **Before:** an adapter with no stated behavior.
 - **After:** REST-to-Arrow Adapter 1.0, optional to claim.
 - **Compatible:** yes; nothing existing changes meaning.
-- **Schemas, examples and profiles:** two schemas, two invalid examples, 22
+- **Schemas, examples and profiles:** two schemas, two invalid examples, 28
   vectors, a new normative specification listed in the README; Composition
   1.0 section 4 gains a paragraph. No catalog, binding or profile changes.
 - **Adoption impact:** none for the five libraries. The suite replaces its

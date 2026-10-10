@@ -46,12 +46,27 @@
   },
   "expect": {
     "outcome": "table",
+    "schema": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "int64",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "0"
+          }
+        }
+      ]
+    },
     "rows": [
       {
         "id": 1
       }
     ],
-    "excluded": [],
+    "diagnostics": null,
     "rest_status": "partial",
     "rest_errors": 2
   }

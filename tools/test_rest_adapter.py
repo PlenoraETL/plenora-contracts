@@ -84,23 +84,25 @@ class ConversionTests(unittest.TestCase):
 class AdaptTests(unittest.TestCase):
     def test_error_outcomes_name_record_field_and_cause(self):
         outcome = adapter.adapt(declaration(("n", "/n", "int64", False)), result({"n": 1}, {"n": "2"}))
-        self.assertEqual(outcome.as_expect(), {
-            "outcome": "error", "category": "data_mapping", "record": 1, "field": "n",
-            "cause": "adapter.type_mismatch",
+        self.assertEqual(outcome, {
+            "outcome": "error", "category": "data_mapping", "phase": "read", "remote_effect": "none",
+            "retry": "never", "record": 1, "field": "n", "cause": "adapter.type_mismatch",
         })
 
     def test_undeclared_members_are_checked_after_the_fields(self):
         decl = declaration(("n", "/n", "int64", False), undeclared="reject")
         outcome = adapter.adapt(decl, result({"n": "x", "extra": 1}))
-        self.assertEqual(outcome.cause, "adapter.type_mismatch")
-        outcome = adapter.adapt(decl, result({"n": 1, "extra": 1}))
-        self.assertEqual((outcome.field, outcome.cause), ("extra", "adapter.undeclared_member"))
+        self.assertEqual(outcome["cause"], "adapter.type_mismatch")
+        outcome = adapter.adapt(decl, result({"n": 1, "secret-key": 1}))
+        self.assertEqual((outcome["field"], outcome["cause"]), ("@undeclared", "adapter.undeclared_member"))
+        self.assertNotIn("secret-key", repr(outcome))
 
     def test_status_before_output_and_failed_never_accepted(self):
         failed = {"schema_version": 1, "status": "failed", "output": {"type": "none"}, "errors": [{}]}
-        self.assertEqual(adapter.adapt(declaration(("n", "/n", "int64", True)), failed).category, "execution")
+        found = adapter.adapt(declaration(("n", "/n", "int64", True)), failed)
+        self.assertEqual((found["category"], found["phase"]), ("execution", "validate"))
         listed = declaration(("n", "/n", "int64", True), accept=["success", "failed"])
-        self.assertEqual(adapter.adapt(listed, failed).category, "invalid_configuration")
+        self.assertEqual(adapter.adapt(listed, failed)["category"], "invalid_configuration")
 
     def test_trailing_line_feed_in_an_index(self):
         with self.assertRaises(adapter.RecordError):
@@ -114,13 +116,45 @@ class AdaptTests(unittest.TestCase):
 
     def test_output_without_records(self):
         missing = {"schema_version": 1, "status": "success", "output": {"type": "records"}, "errors": []}
-        self.assertEqual(adapter.adapt(declaration(("n", "/n", "int64", True)), missing).category, "schema")
+        self.assertEqual(adapter.adapt(declaration(("n", "/n", "int64", True)), missing)["category"], "schema")
+
+    def test_table_schema_and_diagnostics(self):
+        decl = declaration(("n", "/n", "int64", False), on_error="exclude")
+        found = adapter.adapt(decl, result({"n": 1}, {"n": "x"}))
+        self.assertEqual(found["schema"]["fields"][0],
+                         {"name": "n", "type": "int64", "nullable": False, "metadata": {"plenora.field_id": "0"}})
+        self.assertEqual(found["diagnostics"]["counts"], {"adapter.type_mismatch": 1})
+        self.assertEqual(found["diagnostics"]["examples"], [
+            {"source_index": 1, "cause": "adapter.type_mismatch", "column": "n"}])
+        many = adapter.diagnostics(
+            [{"record": index, "field": "@undeclared", "cause": "adapter.undeclared_member"} for index in range(130)], 130)
+        self.assertTrue(many["examples_truncated"])
+        self.assertEqual(len(many["examples"]), 128)
+        self.assertNotIn("column", many["examples"][0])
+        self.assertIsNone(adapter.adapt(declaration(("n", "/n", "int64", False)), result({"n": 1}))["diagnostics"])
 
 
 class VectorTests(unittest.TestCase):
     def test_every_published_vector_agrees_with_the_reference(self):
         self.assertEqual(validator.validate_rest_adapter_vectors(), [])
-        self.assertGreaterEqual(len(list(VECTORS.glob("*.json"))), 19)
+        self.assertGreaterEqual(len(list(VECTORS.glob("*.json"))), 28)
+
+    def test_undeclared_keys_never_reach_the_expectation(self):
+        for name in ("undeclared-keys-never-reported.json", "error-undeclared-secret-key.json"):
+            document = vector(name)
+            self.assertNotIn("SENTINELLA", json.dumps(document["expect"]))
+            leaked = copy.deepcopy(document)
+            if leaked["expect"]["outcome"] == "error":
+                leaked["expect"]["field"] = "token=SENTINELLA-DATI-7f3a"
+            else:
+                leaked["expect"]["diagnostics"]["examples"][0]["column"] = "password=SENTINELLA-PWD-c91e"
+            with self.subTest(name):
+                self.assertEqual(len(adapter.vector_errors(leaked)), 1)
+
+    def test_int64_keeps_the_exact_integer(self):
+        rows = vector("int64-exact-beyond-2-53.json")["expect"]["rows"]
+        self.assertEqual(rows[0]["n"], 9007199254740993)
+        self.assertNotEqual(rows[0]["n"], int(float(9007199254740993)))
 
     def test_a_wrong_outcome_is_reported(self):
         document = vector("records-in-order.json")

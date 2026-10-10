@@ -39,6 +39,9 @@
     "category": "data_mapping",
     "record": 0,
     "field": "x",
-    "cause": "adapter.path_not_traversable"
+    "cause": "adapter.path_not_traversable",
+    "phase": "read",
+    "remote_effect": "none",
+    "retry": "never"
   }
 }

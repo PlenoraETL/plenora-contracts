@@ -1,22 +1,34 @@
-"""Reference REST-to-Arrow adapter (REST-to-Arrow Adapter 1.0, RA-002 to RA-009).
+"""Reference REST-to-Arrow adapter (REST-to-Arrow Adapter 1.0, RA-002 to RA-010).
 
-It converts a REST execution result with a declaration and returns either
-the table (rows as JSON values, the excluded records and the REST status) or
-the error. The validator compares the outcome with the one each vector
-states, so a vector cannot claim an outcome the rules do not give. It is a
-reference for the vectors, not a component.
+It converts a REST execution result with a declaration and returns the whole
+outcome a vector states: the Arrow schema, the rows, the row diagnostics and
+the REST status of a table, or every axis of an error. The validator
+compares the outcome with the one each vector states, so a vector cannot
+claim an outcome the rules do not give. It is a reference for the vectors,
+not a component.
 """
 
 from __future__ import annotations
 
 import math
 import re
-from typing import Any, NamedTuple
+from typing import Any
 
 INT64 = 2**63
 # Matched with `fullmatch`: `$` would admit a final line feed.
 ARRAY_INDEX = re.compile(r"0|[1-9][0-9]*")
 POINTER = re.compile(r"(/([^~/]|~[01])*)+")
+# RA-006: an undeclared member is never named; its key is source data.
+UNDECLARED = "@undeclared"
+EXAMPLES_LIMIT = 128
+# RA-008: the phase of each error category; every error has remote effect
+# `none` and retry `never`.
+PHASES = {
+    "invalid_configuration": "validate",
+    "execution": "validate",
+    "schema": "validate",
+    "data_mapping": "read",
+}
 
 
 class RecordError(Exception):
@@ -25,35 +37,16 @@ class RecordError(Exception):
         self.cause = cause
 
 
-class Outcome(NamedTuple):
-    outcome: str
-    rows: list[dict[str, Any]] | None = None
-    excluded: list[dict[str, Any]] | None = None
-    rest_status: str | None = None
-    rest_errors: int | None = None
-    category: str | None = None
-    record: int | None = None
-    field: str | None = None
-    cause: str | None = None
-
-    def as_expect(self) -> dict[str, Any]:
-        if self.outcome == "table":
-            return {
-                "outcome": "table",
-                "rows": self.rows,
-                "excluded": self.excluded,
-                "rest_status": self.rest_status,
-                "rest_errors": self.rest_errors,
-            }
-        found = {"outcome": "error", "category": self.category}
-        for key in ("record", "field", "cause"):
-            if getattr(self, key) is not None:
-                found[key] = getattr(self, key)
-        return found
-
-
-def error(category: str, **context: Any) -> Outcome:
-    return Outcome("error", category=category, **context)
+def error(category: str, **context: Any) -> dict[str, Any]:
+    found = {
+        "outcome": "error",
+        "category": category,
+        "phase": PHASES[category],
+        "remote_effect": "none",
+        "retry": "never",
+    }
+    found.update(context)
+    return found
 
 
 def tokens(pointer: str) -> list[str]:
@@ -92,6 +85,7 @@ def convert(value: Any, kind: str, nullable: bool) -> Any:
         if isinstance(value, bool):
             return value
     elif kind == "int64":
+        # The exact integer of the literal, never through binary64.
         if isinstance(value, int) and not isinstance(value, bool):
             if not -INT64 <= value < INT64:
                 raise RecordError("adapter.not_representable")
@@ -127,7 +121,48 @@ def declaration_errors(declaration: dict[str, Any]) -> list[str]:
     return errors
 
 
-def adapt(declaration: dict[str, Any], result: dict[str, Any]) -> Outcome:
+def arrow_schema(declaration: dict[str, Any]) -> dict[str, Any]:
+    """RA-010: the declared schema, whatever the records."""
+    return {
+        "schema_metadata": {"plenora.contract.version": "1"},
+        "fields": [
+            {
+                "name": field["name"],
+                "type": field["type"],
+                "nullable": field["nullable"],
+                "metadata": {"plenora.field_id": str(field["field_id"])},
+            }
+            for field in declaration["fields"]
+        ],
+    }
+
+
+def diagnostics(excluded: list[dict[str, Any]], records: int) -> dict[str, Any]:
+    """RA-007: the row diagnostics of the excluded records."""
+    counts: dict[str, int] = {}
+    for item in excluded:
+        counts[item["cause"]] = counts.get(item["cause"], 0) + 1
+    examples = []
+    for item in excluded[:EXAMPLES_LIMIT]:
+        example = {"source_index": item["record"], "cause": item["cause"]}
+        if item["field"] != UNDECLARED:
+            example["column"] = item["field"]
+        examples.append(example)
+    return {
+        "contract": "plenora-row-diagnostics-v1",
+        "scope": "read",
+        "index_basis": "source_row_zero_based",
+        "completeness": "complete",
+        "observed_total": len(excluded),
+        "input_total": records,
+        "counts": counts,
+        "examples_limit": EXAMPLES_LIMIT,
+        "examples_truncated": len(excluded) > EXAMPLES_LIMIT,
+        "examples": examples,
+    }
+
+
+def adapt(declaration: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
     if declaration_errors(declaration):
         return error("invalid_configuration")
     if result["status"] not in declaration["accept_status"]:
@@ -151,26 +186,27 @@ def adapt(declaration: dict[str, Any], result: dict[str, Any]) -> Outcome:
                 failure = (field["name"], problem.cause)
                 break
         if failure is None and declaration["undeclared_members"] == "reject" and isinstance(record, dict):
-            extra = [name for name in record if name not in declared_heads]
-            if extra:
-                failure = (extra[0], "adapter.undeclared_member")
+            if any(name not in declared_heads for name in record):
+                failure = (UNDECLARED, "adapter.undeclared_member")
         if failure is not None:
             if declaration["on_record_error"] == "fail":
                 return error("data_mapping", record=index, field=failure[0], cause=failure[1])
             excluded.append({"record": index, "field": failure[0], "cause": failure[1]})
             continue
         rows.append(row)
-    return Outcome(
-        "table",
-        rows=rows,
-        excluded=excluded,
-        rest_status=result["status"],
-        rest_errors=len(result["errors"]),
-    )
+    return {
+        "outcome": "table",
+        "schema": arrow_schema(declaration),
+        "rows": rows,
+        "diagnostics": diagnostics(excluded, len(output["records"]))
+        if declaration["on_record_error"] == "exclude" else None,
+        "rest_status": result["status"],
+        "rest_errors": len(result["errors"]),
+    }
 
 
 def _same(left: Any, right: Any) -> bool:
-    """Equality that tells 1 from 1.0 and True from 1."""
+    """Equality that tells 1 from 1.0, True from 1 and 0.0 from -0.0."""
     if type(left) is not type(right):
         return False
     if isinstance(left, dict):
@@ -183,7 +219,7 @@ def _same(left: Any, right: Any) -> bool:
 
 
 def vector_errors(vector: dict[str, Any]) -> list[str]:
-    found = adapt(vector["declaration"], vector["result"]).as_expect()
+    found = adapt(vector["declaration"], vector["result"])
     expected = vector["expect"]
     # A float64 written as an integer literal in the vector is the same value.
     if expected.get("outcome") == "table" and found["outcome"] == "table":

@@ -39,6 +39,21 @@
   },
   "expect": {
     "outcome": "table",
+    "schema": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "v",
+          "type": "float64",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "0"
+          }
+        }
+      ]
+    },
     "rows": [
       {
         "v": 1.7976931348623157e+308
@@ -47,7 +62,7 @@
         "v": -0.0
       }
     ],
-    "excluded": [],
+    "diagnostics": null,
     "rest_status": "success",
     "rest_errors": 0
   }

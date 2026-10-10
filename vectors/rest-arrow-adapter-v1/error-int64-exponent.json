@@ -2,21 +2,20 @@
   "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
   "schema_version": 1,
   "contract": "plenora-rest-arrow-adapter-vector-v1",
-  "description": "A failed REST result is never converted.",
+  "description": "An integer value written with an exponent is not an int64 literal.",
   "declaration": {
     "schema_version": 1,
     "contract": "plenora-rest-arrow-adapter-v1",
     "accept_status": [
-      "success",
-      "partial"
+      "success"
     ],
     "on_record_error": "fail",
     "undeclared_members": "ignore",
     "fields": [
       {
-        "name": "id",
+        "name": "n",
         "field_id": 0,
-        "pointer": "/id",
+        "pointer": "/n",
         "type": "int64",
         "nullable": false
       }
@@ -24,22 +23,24 @@
   },
   "result": {
     "schema_version": 1,
-    "status": "failed",
+    "status": "success",
     "output": {
       "type": "records",
-      "records": []
+      "records": [
+        {
+          "n": 9007199254740993e0
+        }
+      ]
     },
-    "errors": [
-      {
-        "category": "transient",
-        "input_index": 0
-      }
-    ]
+    "errors": []
   },
   "expect": {
     "outcome": "error",
-    "category": "execution",
-    "phase": "validate",
+    "category": "data_mapping",
+    "record": 0,
+    "field": "n",
+    "cause": "adapter.type_mismatch",
+    "phase": "read",
     "remote_effect": "none",
     "retry": "never"
   }

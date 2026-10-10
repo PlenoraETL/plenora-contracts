@@ -39,6 +39,9 @@
     "category": "data_mapping",
     "record": 0,
     "field": "id",
-    "cause": "adapter.null_in_non_nullable"
+    "cause": "adapter.null_in_non_nullable",
+    "phase": "read",
+    "remote_effect": "none",
+    "retry": "never"
   }
 }

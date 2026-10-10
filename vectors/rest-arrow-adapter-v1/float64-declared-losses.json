@@ -2,7 +2,7 @@
   "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
   "schema_version": 1,
   "contract": "plenora-rest-arrow-adapter-vector-v1",
-  "description": "float64 takes the nearest binary64 to the decimal text; an integer literal is a float64 too.",
+  "description": "float64 rounds: 2^53+1, 0.1, an exponent and 20 significant digits; absent and null are both null.",
   "declaration": {
     "schema_version": 1,
     "contract": "plenora-rest-arrow-adapter-v1",
@@ -17,7 +17,7 @@
         "field_id": 0,
         "pointer": "/v",
         "type": "float64",
-        "nullable": false
+        "nullable": true
       }
     ]
   },
@@ -28,13 +28,20 @@
       "type": "records",
       "records": [
         {
-          "v": 0.30000000000000004
-        },
-        {
           "v": 9007199254740993
         },
         {
-          "v": 1e-320
+          "v": 0.1
+        },
+        {
+          "v": 1E3
+        },
+        {
+          "v": 0.33333333333333333333
+        },
+        {},
+        {
+          "v": null
         }
       ]
     },
@@ -50,7 +57,7 @@
         {
           "name": "v",
           "type": "float64",
-          "nullable": false,
+          "nullable": true,
           "metadata": {
             "plenora.field_id": "0"
           }
@@ -59,13 +66,22 @@
     },
     "rows": [
       {
-        "v": 0.30000000000000004
-      },
-      {
         "v": 9007199254740992.0
       },
       {
-        "v": 1e-320
+        "v": 0.1
+      },
+      {
+        "v": 1000.0
+      },
+      {
+        "v": 0.3333333333333333
+      },
+      {
+        "v": null
+      },
+      {
+        "v": null
       }
     ],
     "diagnostics": null,

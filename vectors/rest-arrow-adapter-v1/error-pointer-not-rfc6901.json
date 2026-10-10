@@ -32,6 +32,9 @@
   },
   "expect": {
     "outcome": "error",
-    "category": "invalid_configuration"
+    "category": "invalid_configuration",
+    "phase": "validate",
+    "remote_effect": "none",
+    "retry": "never"
   }
 }

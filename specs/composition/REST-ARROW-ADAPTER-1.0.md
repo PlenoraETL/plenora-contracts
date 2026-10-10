@@ -66,7 +66,10 @@ the pointer is evaluated on the record:
 - `bool` accepts only `true` and `false`;
 - `int64` accepts only a JSON number written as an integer, without fraction
   or exponent, within the signed 64-bit range (`adapter.not_representable`
-  beyond it);
+  beyond it). The value is the exact integer of the literal: the adapter
+  MUST NOT parse it through binary64, so `9007199254740993` stays
+  `9007199254740993`. `1e3`, `1E3` and `9007199254740993e0` are written with
+  an exponent and are `adapter.type_mismatch`, whatever their value;
 - `float64` accepts any JSON number and takes the binary64 value nearest to
   its decimal text, ties to even (IEEE 754 round to nearest); a text whose
   rounding gives an infinity, a magnitude of at least 2^1024 - 2^970, is
@@ -77,32 +80,50 @@ the pointer is evaluated on the record:
   `adapter.type_mismatch`. No value is coerced between types: the string
   `"1"` is not an `int64`, the number `1` is not a `utf8`.
 
+The conversion loses, by declaration and only there: for `float64`, the
+decimal text beyond the nearest binary64 (`0.1`, an integer beyond 2^53, more
+than 17 significant digits, the lexical form of the number, the sign of an
+integer `-0`); for every type, the difference between an absent member and
+JSON `null`, which are both null. A consumer that needs any of them declares
+the field `utf8` and converts it with a versioned kernel.
+
 **RA-006** — With `undeclared_members: reject`, a top-level member of a
 record that is not the first token of any declared pointer is a record error
-(`adapter.undeclared_member`), checked after the declared fields; the error
-names the first such member in the order of the record's JSON text. With
-`ignore` it is not converted: a declared loss, never reported as a failure.
+(`adapter.undeclared_member`), checked after the declared fields. The
+member's key is source data: an error or a diagnostic never reports it, not
+even in part, and names the fixed identifier `@undeclared` in its place
+(ERR-010). With `ignore` it is not converted: a declared loss, never reported
+as a failure.
 
 ## 6. Record errors
 
 **RA-007** — The first record error of a record, in the order of RA-005 and
 RA-006, is its cause. With `on_record_error: fail`, the first record with a
-cause fails the whole adaptation with category `data_mapping`, phase `read`,
-`remote_effect: none` and `retry.kind: never`, naming the record index, the
-field and the cause, never the value (ERR-010); no table is produced. With
-`exclude`, the record is left out and reported in a
-`plenora-row-diagnostics-v1` document with scope `read`,
-`index_basis: source_row_zero_based`, the record index as `source_index`,
-the cause and the field as `column`, and `completeness: complete`.
+cause fails the whole adaptation with category `data_mapping`, naming the
+record index, the declared field name (or `@undeclared`) and the cause,
+never the value (ERR-010); no table is produced. With `exclude`, the record
+is left out and the table carries one `plenora-row-diagnostics-v1` document
+with scope `read`, `index_basis: source_row_zero_based`,
+`completeness: complete`, `observed_total` the number of excluded records,
+`input_total` the number of records, `counts` by cause, `examples_limit`
+128, `examples_truncated` true only beyond 128, and one example per excluded
+record in record order: `source_index` the record index, `cause`, and
+`column` the declared field name, omitted for an undeclared member. With
+`fail` the table carries no diagnostics.
 
-**RA-008** — Next to the table the adapter reports the REST `status`, the
+**RA-008** — Every error of the adapter has `remote_effect: none` and
+`retry.kind: never`: the adapter has no remote effect, and the same input
+fails again. Its phase is `validate` for `invalid_configuration`,
+`execution` and `schema`, and `read` for `data_mapping`.
+
+**RA-009** — Next to the table the adapter reports the REST `status`, the
 number of REST errors and the row diagnostics of RA-007, so that a caller
 distinguishes a complete conversion from one with excluded records or from a
 partial REST result.
 
 ## 7. Output
 
-**RA-009** — The table carries `plenora.contract.version=1` and each field's
+**RA-010** — The table carries `plenora.contract.version=1` and each field's
 declared `plenora.field_id` (Arrow Interchange 1.0, ARROW-001, ARROW-003);
 it has no geometry field. Its schema is the declaration's even when no
 record remains.
@@ -111,7 +132,10 @@ record remains.
 
 The vectors in
 [`vectors/rest-arrow-adapter-v1`](../../vectors/rest-arrow-adapter-v1/) give
-a declaration, the members of a REST result the adapter reads and the
-expected table, exclusions or error. The validator converts every vector with
+a declaration, the members of a REST result the adapter reads and the whole
+expected outcome: the Arrow schema with types, nullability and identities,
+the rows, the row diagnostics (validated against
+`row-diagnostics-v1.schema.json`), the REST status, or every axis of the
+error. The validator converts every vector with
 a reference adapter that implements sections 2 to 7, so a vector cannot state
 an outcome the rules do not give.

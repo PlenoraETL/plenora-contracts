@@ -53,8 +53,47 @@
   },
   "expect": {
     "outcome": "table",
+    "schema": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "int64",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "0"
+          }
+        },
+        {
+          "name": "name",
+          "type": "utf8",
+          "nullable": true,
+          "metadata": {
+            "plenora.field_id": "1"
+          }
+        },
+        {
+          "name": "score",
+          "type": "float64",
+          "nullable": true,
+          "metadata": {
+            "plenora.field_id": "2"
+          }
+        },
+        {
+          "name": "active",
+          "type": "bool",
+          "nullable": true,
+          "metadata": {
+            "plenora.field_id": "3"
+          }
+        }
+      ]
+    },
     "rows": [],
-    "excluded": [],
+    "diagnostics": null,
     "rest_status": "success",
     "rest_errors": 0
   }

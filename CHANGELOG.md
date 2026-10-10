@@ -15,8 +15,8 @@ full commit SHA; a release tag names one of those commits.
   statuses, per-record error policy and undeclared members; converts in
   record order without inference or coercion; fails with `data_mapping`
   naming record, field and cause, or excludes records with row diagnostics;
-  reports the REST status next to the table (RA-001 to RA-009). New schemas
-  `rest-arrow-adapter-v1` and `rest-arrow-adapter-vector-v1`, 22 vectors
+  reports the REST status next to the table (RA-001 to RA-010). New schemas
+  `rest-arrow-adapter-v1` and `rest-arrow-adapter-vector-v1`, 28 vectors
   whose outcomes a reference adapter in the validator derives. Composition
   1.0 points to it; the edges stay `adapter_required`. See
   [decision 0017](decisions/0017-rest-arrow-adapter.md).

@@ -39,6 +39,9 @@
     "category": "data_mapping",
     "record": 0,
     "field": "v",
-    "cause": "adapter.not_representable"
+    "cause": "adapter.not_representable",
+    "phase": "read",
+    "remote_effect": "none",
+    "retry": "never"
   }
 }
