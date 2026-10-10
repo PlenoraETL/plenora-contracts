@@ -98,8 +98,9 @@ effect states its cause through a `code` the validator maps to a category:
 `COMMIT_CONFIRMATION_LOST` to `io`, `COMMIT_DEADLINE_ELAPSED` to `timeout`,
 `COMMIT_OUTCOME_UNKNOWN` (a defect of the component) to `internal`; a vector
 whose code is in the map and whose category is not the one it gives fails
-the gate, and a vector with another code, such as
-`storage-put-unknown-error.json`, has one of those three categories.
+the gate. A vector with another code names no cause the map knows, and only
+its retry is checked (ERR-006): ERR-016 gives examples of causes, not an
+exhaustive list, and a cancelled commit, for example, is `cancelled`.
 
 ## 6. Rejection probes
 

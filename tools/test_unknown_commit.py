@@ -29,7 +29,8 @@ class UnknownCommitTests(unittest.TestCase):
         self.assertEqual(validator.unknown_commit_errors("v", payload(category="io", code="COMMIT_CONFIRMATION_LOST")), [])
         self.assertEqual(len(validator.unknown_commit_errors("v", payload(category="internal"))), 1)
         self.assertEqual(validator.unknown_commit_errors("v", payload(code="SOMETHING")), [])
-        self.assertEqual(len(validator.unknown_commit_errors("v", payload(code="SOMETHING", category="execution"))), 1)
+        self.assertEqual(validator.unknown_commit_errors("v", payload(code="CANCELLED", category="cancelled")), [])
+        self.assertEqual(len(validator.unknown_commit_errors("v", payload(code="SOMETHING", retry={"kind": "safe"}))), 1)
         self.assertEqual(len(validator.unknown_commit_errors("v", payload(retry={"kind": "safe"}))), 1)
 
     def test_other_errors_are_not_checked(self):

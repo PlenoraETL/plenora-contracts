@@ -1917,12 +1917,10 @@ def unknown_commit_errors(label: str, payload: dict[str, Any]) -> list[str]:
         return []
     failures = []
     expected = UNKNOWN_COMMIT_CAUSES.get(payload.get("code"))
-    if expected is None:
-        # A code outside the map names no cause: the category is still one
-        # of the three causes ERR-016 distinguishes.
-        if payload.get("category") not in set(UNKNOWN_COMMIT_CAUSES.values()):
-            failures.append(f"{label} reports an unknown commit outcome as {payload.get('category')} (ERR-016)")
-    elif payload.get("category") != expected:
+    # Only a code of the map names a cause; ERR-016 does not make its three
+    # examples exhaustive (a cancellation is `cancelled`), so any other code
+    # is checked only for the retry ERR-006 requires.
+    if expected is not None and payload.get("category") != expected:
         failures.append(f"{label} reports the cause {payload.get('code')} as {payload.get('category')}, not {expected} (ERR-016)")
     if (payload.get("retry") or {}).get("kind") not in ERR_006_RETRIES:
         failures.append(f"{label} allows a retry ERR-006 forbids after an unknown outcome")
