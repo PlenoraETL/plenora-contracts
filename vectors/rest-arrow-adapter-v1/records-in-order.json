@@ -1,0 +1,101 @@
+{
+  "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-vector-v1",
+  "description": "Three records become three rows in the order of output.records; nested pointer, nulls and missing members.",
+  "declaration": {
+    "schema_version": 1,
+    "contract": "plenora-rest-arrow-adapter-v1",
+    "accept_status": [
+      "success"
+    ],
+    "on_record_error": "fail",
+    "undeclared_members": "ignore",
+    "fields": [
+      {
+        "name": "id",
+        "field_id": 0,
+        "pointer": "/id",
+        "type": "int64",
+        "nullable": false
+      },
+      {
+        "name": "name",
+        "field_id": 1,
+        "pointer": "/name",
+        "type": "utf8",
+        "nullable": true
+      },
+      {
+        "name": "score",
+        "field_id": 2,
+        "pointer": "/metrics/score",
+        "type": "float64",
+        "nullable": true
+      },
+      {
+        "name": "active",
+        "field_id": 3,
+        "pointer": "/active",
+        "type": "bool",
+        "nullable": true
+      }
+    ]
+  },
+  "result": {
+    "schema_version": 1,
+    "status": "success",
+    "output": {
+      "type": "records",
+      "records": [
+        {
+          "id": 3,
+          "name": "c",
+          "metrics": {
+            "score": 0.1
+          },
+          "active": true
+        },
+        {
+          "id": 1,
+          "name": null,
+          "metrics": {},
+          "active": false
+        },
+        {
+          "id": 2,
+          "metrics": {
+            "score": 2
+          }
+        }
+      ]
+    },
+    "errors": []
+  },
+  "expect": {
+    "outcome": "table",
+    "rows": [
+      {
+        "id": 3,
+        "name": "c",
+        "score": 0.1,
+        "active": true
+      },
+      {
+        "id": 1,
+        "name": null,
+        "score": null,
+        "active": false
+      },
+      {
+        "id": 2,
+        "name": null,
+        "score": 2.0,
+        "active": null
+      }
+    ],
+    "excluded": [],
+    "rest_status": "success",
+    "rest_errors": 0
+  }
+}

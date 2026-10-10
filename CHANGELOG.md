@@ -6,6 +6,21 @@ full commit SHA; a release tag names one of those commits.
 
 ## Unreleased
 
+### Added
+
+- REST-to-Arrow Adapter 1.0 (`plenora-rest-arrow-adapter-v1`): the adapter
+  of the `rest.enrich` to `data.run` edges belongs to the application, and
+  an adapter claiming the contract declares fields (name, identity, RFC 6901
+  pointer, `bool`/`int64`/`float64`/`utf8`, nullability), accepted REST
+  statuses, per-record error policy and undeclared members; converts in
+  record order without inference or coercion; fails with `data_mapping`
+  naming record, field and cause, or excludes records with row diagnostics;
+  reports the REST status next to the table (RA-001 to RA-009). New schemas
+  `rest-arrow-adapter-v1` and `rest-arrow-adapter-vector-v1`, 19 vectors
+  whose outcomes a reference adapter in the validator derives. Composition
+  1.0 points to it; the edges stay `adapter_required`. See
+  [decision 0017](decisions/0017-rest-arrow-adapter.md).
+
 ### Changed
 
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays

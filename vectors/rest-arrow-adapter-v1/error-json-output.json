@@ -1,0 +1,39 @@
+{
+  "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-vector-v1",
+  "description": "An output of type json, not records.",
+  "declaration": {
+    "schema_version": 1,
+    "contract": "plenora-rest-arrow-adapter-v1",
+    "accept_status": [
+      "success"
+    ],
+    "on_record_error": "fail",
+    "undeclared_members": "ignore",
+    "fields": [
+      {
+        "name": "id",
+        "field_id": 0,
+        "pointer": "/id",
+        "type": "int64",
+        "nullable": false
+      }
+    ]
+  },
+  "result": {
+    "schema_version": 1,
+    "status": "success",
+    "output": {
+      "type": "json",
+      "value": {
+        "id": 1
+      }
+    },
+    "errors": []
+  },
+  "expect": {
+    "outcome": "error",
+    "category": "schema"
+  }
+}

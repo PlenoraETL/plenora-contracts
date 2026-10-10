@@ -1,0 +1,101 @@
+{
+  "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-vector-v1",
+  "description": "on_record_error exclude: failing records are left out and reported with field and cause.",
+  "declaration": {
+    "schema_version": 1,
+    "contract": "plenora-rest-arrow-adapter-v1",
+    "accept_status": [
+      "success"
+    ],
+    "on_record_error": "exclude",
+    "undeclared_members": "reject",
+    "fields": [
+      {
+        "name": "id",
+        "field_id": 0,
+        "pointer": "/id",
+        "type": "int64",
+        "nullable": false
+      },
+      {
+        "name": "name",
+        "field_id": 1,
+        "pointer": "/name",
+        "type": "utf8",
+        "nullable": true
+      }
+    ]
+  },
+  "result": {
+    "schema_version": 1,
+    "status": "success",
+    "output": {
+      "type": "records",
+      "records": [
+        {
+          "id": 1,
+          "name": "a"
+        },
+        {
+          "id": "2",
+          "name": "b"
+        },
+        {
+          "id": 3,
+          "name": "c",
+          "extra": true
+        },
+        {
+          "name": "d"
+        },
+        {
+          "id": 5,
+          "name": 5
+        },
+        {
+          "id": 6
+        }
+      ]
+    },
+    "errors": []
+  },
+  "expect": {
+    "outcome": "table",
+    "rows": [
+      {
+        "id": 1,
+        "name": "a"
+      },
+      {
+        "id": 6,
+        "name": null
+      }
+    ],
+    "excluded": [
+      {
+        "record": 1,
+        "field": "id",
+        "cause": "adapter.type_mismatch"
+      },
+      {
+        "record": 2,
+        "field": "extra",
+        "cause": "adapter.undeclared_member"
+      },
+      {
+        "record": 3,
+        "field": "id",
+        "cause": "adapter.null_in_non_nullable"
+      },
+      {
+        "record": 4,
+        "field": "name",
+        "cause": "adapter.type_mismatch"
+      }
+    ],
+    "rest_status": "success",
+    "rest_errors": 0
+  }
+}

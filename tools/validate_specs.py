@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
 
 from jsonschema import Draft202012Validator
@@ -43,6 +44,8 @@ EXPECTED_SCHEMAS = {
     "operation-registry-v1.schema.json",
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
+    "rest-arrow-adapter-v1.schema.json",
+    "rest-arrow-adapter-vector-v1.schema.json",
     "row-diagnostics-v1.schema.json",
     "runtime-probe-v1.schema.json",
     "runtime-vector-v1.schema.json",
@@ -119,6 +122,12 @@ CASES = {
         ],
         "runtime-probe-v1.schema.json": [
             "examples/invalid/runtime-probe-two-mutations.json",
+        ],
+        "rest-arrow-adapter-v1.schema.json": [
+            "examples/invalid/rest-arrow-adapter-unknown-type.json",
+        ],
+        "rest-arrow-adapter-vector-v1.schema.json": [
+            "examples/invalid/rest-arrow-adapter-vector-error-without-cause.json",
         ],
         "plan-budget-v1.schema.json": [
             "examples/invalid/plan-budget-v5-with-domain.json",
@@ -530,6 +539,9 @@ def validate_machine_documents(
         ),
         "runtime-probe-v1.schema.json": sorted(
             (ROOT / "vectors/runtime-probes-v1").glob("*.json")
+        ),
+        "rest-arrow-adapter-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/rest-arrow-adapter-v1").glob("*.json")
         ),
     }
     failures: list[str] = []
@@ -1741,6 +1753,19 @@ def validate_arrow_vectors() -> list[str]:
     return failures
 
 
+def validate_rest_adapter_vectors() -> list[str]:
+    """REST-to-Arrow Adapter 1.0 section 8: each vector states the outcome
+    the reference adapter gives."""
+    failures: list[str] = []
+    paths = sorted((ROOT / "vectors/rest-arrow-adapter-v1").glob("*.json"))
+    if not paths:
+        failures.append("vectors/rest-arrow-adapter-v1 has no vectors")
+    for path in paths:
+        for problem in rest_adapter.vector_errors(load_json(path)):
+            failures.append(f"{path.relative_to(ROOT).as_posix()} {problem}")
+    return failures
+
+
 def storage_vector_errors(
     vector: dict[str, Any], operation: dict[str, Any]
 ) -> list[str]:
@@ -2776,6 +2801,7 @@ def run_gate() -> int:
     failures.extend(validate_bindings(catalogs))
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
+    failures.extend(validate_rest_adapter_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
     failures.extend(validate_runtime_probes(catalogs, schemas, registry))
     failures.extend(validate_plan_budget(schemas, registry))

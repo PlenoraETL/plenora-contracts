@@ -1,0 +1,60 @@
+{
+  "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-vector-v1",
+  "description": "float64 takes the nearest binary64 to the decimal text; an integer literal is a float64 too.",
+  "declaration": {
+    "schema_version": 1,
+    "contract": "plenora-rest-arrow-adapter-v1",
+    "accept_status": [
+      "success"
+    ],
+    "on_record_error": "fail",
+    "undeclared_members": "ignore",
+    "fields": [
+      {
+        "name": "v",
+        "field_id": 0,
+        "pointer": "/v",
+        "type": "float64",
+        "nullable": false
+      }
+    ]
+  },
+  "result": {
+    "schema_version": 1,
+    "status": "success",
+    "output": {
+      "type": "records",
+      "records": [
+        {
+          "v": 0.30000000000000004
+        },
+        {
+          "v": 9007199254740993
+        },
+        {
+          "v": 1e-320
+        }
+      ]
+    },
+    "errors": []
+  },
+  "expect": {
+    "outcome": "table",
+    "rows": [
+      {
+        "v": 0.30000000000000004
+      },
+      {
+        "v": 9007199254740992.0
+      },
+      {
+        "v": 1e-320
+      }
+    ],
+    "excluded": [],
+    "rest_status": "success",
+    "rest_errors": 0
+  }
+}
