@@ -654,6 +654,86 @@ def repeated_identity_errors(
     return failures
 
 
+# Public Catalogs 1.0 CAT-003: surfaces a profile declares intentionally
+# absent, with the rule that gives the reason. No catalog version may list
+# them for that operation identity, so no binding map can bind them either.
+INTENTIONAL_ABSENCES = {
+    (DATABASE_COMPONENT, "database.transaction.begin", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.commit", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.rollback", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.savepoint", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.execute", 1): ({"runtime"}, "DB-ABS-002"),
+    (DATA_COMPONENT, "data.run", 3): ({"cli", "python_sdk"}, "DT-ABS-001"),
+    (DATA_COMPONENT, "data.run", 2): ({"runtime"}, "DT-ABS-002"),
+}
+
+
+# CAT-003: at least one ASCII letter, a final period that follows neither a
+# period nor white space.
+REASON = re.compile(r"(?=[^\n]*[A-Za-z]|.*[A-Za-z]).*[^.\s]\.", re.S)
+
+
+def stated_reason(profile: str, rule: str) -> str:
+    """The text after `**RULE** — ` up to the first blank line or the end of
+    the file (CAT-003); empty when the marker or the dash is missing."""
+    marker = f"**{rule}** \u2014 "
+    start = profile.find(marker)
+    if start < 0:
+        return ""
+    lines = profile[start + len(marker):].replace("\r\n", "\n").split("\n")
+    reason = []
+    for line in lines:
+        # CAT-003: a blank line is empty once ASCII spaces and tabs go.
+        if not line.strip(" \t"):
+            break
+        reason.append(line)
+    return "\n".join(reason)
+
+
+def reason_is_stated(profile: str, rule: str) -> bool:
+    text = stated_reason(profile, rule)
+    return bool(REASON.fullmatch(text)) and re.search(r"[A-Za-z]", text) is not None
+
+
+def intentional_absence_errors(
+    versions: dict[str, dict[int, dict[str, Any]]],
+) -> list[str]:
+    """CAT-003: a declared absence holds in every catalog version, and the
+    profile of each catalog that lists the operation states its rule."""
+    failures: list[str] = []
+    found: set[tuple[str, str, int]] = set()
+    for component, by_version in versions.items():
+        for version, catalog in sorted(by_version.items()):
+            profile = None
+            for operation in catalog["operations"]:
+                key = (component, operation["id"], operation["version"])
+                if key not in INTENTIONAL_ABSENCES:
+                    continue
+                found.add(key)
+                absent, rule = INTENTIONAL_ABSENCES[key]
+                listed = sorted(absent & set(operation["surfaces"]))
+                if listed:
+                    failures.append(
+                        f"{component} catalog v{version} lists {listed} for "
+                        f"{key[1]}@{key[2]}, which {rule} declares absent"
+                    )
+                if profile is None:
+                    path = profile_path(component, catalog["profile"])
+                    profile = path.read_text(encoding="utf-8") if path.exists() else ""
+                if f"**{rule}**" not in profile:
+                    failures.append(
+                        f"{component} profile v{version} does not state {rule} "
+                        f"for {key[1]}@{key[2]}"
+                    )
+                elif not reason_is_stated(profile, rule):
+                    failures.append(
+                        f"{component} profile v{version} states {rule} without a reason"
+                    )
+    for key in sorted(set(INTENTIONAL_ABSENCES) - found):
+        failures.append(f"declared absence for unknown operation {key}")
+    return failures
+
+
 def catalog_versions(
     catalogs: dict[str, dict[str, Any]],
 ) -> dict[str, dict[int, dict[str, Any]]]:
@@ -723,6 +803,7 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
             )
 
     failures.extend(repeated_identity_errors(versions))
+    failures.extend(intentional_absence_errors(versions))
 
     for component, version, catalog in every_version:
         identities = [(item["id"], item["version"]) for item in catalog["operations"]]

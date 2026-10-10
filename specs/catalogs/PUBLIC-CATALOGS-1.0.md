@@ -78,6 +78,39 @@ An operation's `surfaces` array is the target binding set. An adopter MUST:
 4. record temporary deviations in its adoption manifest rather than editing
    the common catalog to match an incomplete implementation.
 
+**CAT-001** — An operation's `surfaces` and a catalog's `target_surfaces`
+state the target, never availability. A consumer selects an operation and a
+surface only from the capability document of the artifact it calls (CAP-004,
+CAP-007, CAP-008, SURF-016) and MUST NOT invoke an operation on a surface that
+this document does not list, whatever the catalog lists. A surface that the
+catalog lists and an artifact's capability document does not is **planned**
+for that artifact: the catalog and the binding maps name the spelling it will
+have, not a surface that exists.
+
+**CAT-002** — A published surface is never removed from a catalog or a
+binding map (COMPATIBILITY.md), and neither carries a "planned" marker:
+availability belongs to an artifact, and only capability discovery reports
+it. An artifact that does not implement a target surface omits it from its
+capability document. When that surface's target applicability is `required`,
+the artifact also records a deviation in its adoption manifest; a
+`conditional` surface that an artifact does not implement needs none.
+
+**CAT-003** — A surface that a profile declares intentionally absent for an
+operation, with its reason, is never added to that operation identity: a
+binding on it needs a new operation version whose contract removes the
+reason. The validator checks every catalog version and binding map against
+the absences the profiles declare (DB-ABS-001, DB-ABS-002, DT-ABS-001,
+DT-ABS-002), and that each profile states the rule with its reason. The
+reason has this exact shape: the bold identifier (`**DB-ABS-001**`), one
+space, an em dash (U+2014), one space, then the reason text, which runs to
+the first blank line or to the end of the file. Lines end with LF or CR LF;
+a blank line is a line that is empty once its ASCII spaces (U+0020) and
+tabs (U+0009) are removed. The text contains at least
+one ASCII letter and ends with a period whose preceding character is
+neither a period nor white space. It
+checks the coherence of the documents, not what any artifact exposes:
+availability is reported only by capability discovery (CAP-004, CAP-008).
+
 The exact CLI, Python and runtime spellings are defined by
 [Surface Bindings 1.0](../surfaces/SURFACE-BINDINGS-1.0.md).
 

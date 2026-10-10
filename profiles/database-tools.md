@@ -77,10 +77,85 @@ every mode universally available.
 - Rust API: required.
 - CLI: required and governed by CLI 2.0.
 - Python SDK: required and governed by Python SDK 1.0.
-- Runtime: required for every database operation selected for orchestration.
+- Runtime: conditional. An artifact that publishes the runtime surface
+  follows Runtime Binding 1.0 for every operation it exposes there; an
+  artifact without it omits `runtime` from its capability document, and the
+  catalog's runtime entries are planned for it (CAT-001).
 
 The same operation version exposed on multiple surfaces has equivalent input
 validation, results, error axes and remote-effect semantics.
+
+## Surfaces intentionally absent
+
+These gaps in the catalog are decisions, not missing work. Public Catalogs
+1.0 CAT-003 keeps them: none of these surfaces is ever added to these
+operation identities.
+
+**DB-ABS-001** — `database.transaction.begin`, `database.transaction.commit`,
+`database.transaction.rollback` and `database.transaction.savepoint` are bound
+to the Rust API and the Python SDK only.
+
+- Not to the CLI: a transaction handle does not survive the process that
+  opened it, and CLI 2.0 answers one invocation with one envelope. Spreading
+  a transaction over several invocations needs a session process that holds
+  the connection between them, which no shared contract defines.
+- Not to the runtime: Runtime Binding 1.0 messages are independent requests
+  that a transport may route to different workers. A transaction spread over
+  several messages needs session affinity, a lease and the recovery of a
+  transaction whose owner disappeared, which no shared contract defines.
+
+A process-level caller that needs atomicity uses an operation whose single
+invocation is the transaction, such as `database.write`.
+
+**DB-ABS-002** — `database.execute` is not bound to the runtime. It runs a
+statement the caller supplies, with remote effects the component cannot
+characterize, and its controls accept no idempotency key. Runtime Binding 1.0
+does not promise at-most-once delivery: a transport may deliver a request
+again after a lost acknowledgement, and the shared defense against a second
+execution is an idempotency key (SURF-012, RT-022), which this operation does
+not accept. A runtime binding needs a new operation version that accepts the
+key and states how a repeated key is recognized.
+
+**DB-ABS-003** — `plenora-database-transaction-handle-v1` and
+`plenora-database-savepoint-input-v1` are logical shapes. The Rust API and the
+Python SDK realize them as native handle objects (SURF-009); no surface
+serializes them, and the `application/json` content type the catalog declares
+names the representation a serialized surface would use, not one that
+exists. A consumer MUST NOT expect, persist or exchange them as JSON
+documents; a handle is valid only in the process and session that created it.
+
+## Content types on the runtime
+
+Runtime Binding 1.0 carries one payload per request and per result, and lets
+a caller choose neither among the content types an operation declares.
+
+**DB-RT-001** — On the runtime, the result of `database.query` version 1 is
+`application/json`, one of the two content types the catalog declares; its
+input contract is closed and has no member to ask for Arrow. That JSON is the
+complete `plenora-database-query-result-v1`, with the same meaning as the
+Arrow form on the other surfaces (Arrow Interchange 1.0 section 7): a summary
+without the rows is not the operation's result (RT-008). Arrow on the runtime
+needs a new version of the operation whose input names an artifact sink, as
+`data.run` version 3 does.
+
+**DB-RT-003** — A query result larger than the bound of the runtime surface
+fails with `resource_limit` under RT-024, before any row is returned; it is
+never cut to the bound. `database.query` is read-only, so the remote effect
+is `none`. database-tools declares its bound for the runtime surface in its
+capability document, under its component-owned
+`plenora-database-capability-attributes-v1`, and in its adoption manifest
+while that contract has no member for it; the bound of the transport is the
+transport's (RT-024). The vectors `database-query-result-limit-error.json`
+and `database-query-transport-limit-error.json` are illustrative error
+results (Runtime Vectors 1.0 section 5): they carry neither the request, nor
+the bound, nor the size, and the validator does not derive RT-024 from them.
+
+**DB-RT-002** — On the runtime, the payload of `database.write` is
+`application/json` (`plenora-database-write-input-v1`), and the rows travel
+as an artifact reference that the application resolves (RT-013, RT-015); the
+artifact's content type is one of the two Arrow content types the catalog
+declares. The Arrow content types are artifact types on this surface, never
+payload types.
 
 ## Interchange
 

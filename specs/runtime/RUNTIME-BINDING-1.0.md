@@ -107,6 +107,23 @@ output contract explicitly represents an empty acknowledgement.
 delivery, but every delivered result MUST preserve the advertised content type,
 output contract and correlation identity.
 
+**RT-024** — A result that a bound cannot carry whole, a payload limit of the
+transport or a materialization limit of the component, fails with a typed
+error of category `resource_limit`. A component or transport MUST NOT
+truncate a result and report success (SURF-014): a success result is
+complete. RT-024 fixes no phase: the phase is the last externally
+meaningful phase started (ERR-003), such as `read` while a result is read,
+`finalize` while it is built, or `write`, `commit` or `cleanup` after a
+publication. The remote effect follows ERR-004: `none` when nothing has been
+published or committed; after a publication or a commit, as `data.run`
+version 3 makes before it returns its manifest, the one proven, `committed`
+or `partial`, or `unknown` when it is not proven (ERR-014, ERR-015,
+DT-RUN-006). The retry is `never` when the effect is `none`, and one that
+ERR-006 admits otherwise.
+
+The component declares its limits where its profile says; the transport
+declares its own in its adoption manifest.
+
 ## 7. Failure result
 
 **RT-010** — A public runtime failure MUST preserve the common error axes from

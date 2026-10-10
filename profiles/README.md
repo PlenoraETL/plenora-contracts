@@ -9,7 +9,9 @@ current implementation status.
 - **required**: the component profile expects a released public artifact on this
   surface.
 - **conditional**: required for each operation intentionally exposed on that
-  surface.
+  surface. An artifact that does not expose the surface omits it from its
+  capability document and records no deviation; until it does, the surface
+  is planned for that artifact (Public Catalogs 1.0, CAT-001).
 - **not required**: the profile does not require this surface; if published, it
   must still follow the applicable common contract.
 - **undecided**: no stable public product decision has been made.
