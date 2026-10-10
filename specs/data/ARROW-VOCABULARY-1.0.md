@@ -49,6 +49,15 @@ The canonical geometry type order is:
 When `plenora.geometry.types` contains multiple values they MUST be unique and
 in canonical order.
 
+Each grammar matches the whole value: a decimal integer, an SRID or a
+contract version followed by a line feed or any other character is not
+well-formed. `plenora.geometry.crs_id` is `AUTHORITY:CODE`, an authority name
+starting with a letter (letters, digits, `_`, `.`, `-`), a colon and a code
+without spaces or colons. `plenora.geometry.types`, when present, is not
+empty. The geometry keys are exactly those of the table above: any other key
+beginning with `plenora.geometry.` is not well-formed, except those under
+`plenora.geometry.native.` (section 5).
+
 ## 4. Dependent-field rules
 
 - A field with `ARROW:extension:name=geoarrow.wkb` uses Arrow `binary` or
@@ -158,7 +167,10 @@ and none of them equals `crs_id`. The top-level identifiers are:
 Authority names compare ASCII case-insensitively; codes compare as text, a
 numeric code written as its decimal integer. Identifiers of another authority
 are not compared. A definition that is not well-formed in its declared
-`crs_definition_format` is rejected with `crs`. A definition without an
+`crs_definition_format` is rejected with `crs`: in WKT a bracket closes with
+the kind that opened it, and the outermost keyword belongs to the declared
+version (`GEOGCS`, `PROJCS`, ... for `wkt`; `GEOGCRS`, `PROJCRS`, `BOUNDCRS`,
+... for `wkt2`); PROJJSON is a JSON object without repeated keys. A definition without an
 identifier of that authority is not compared lexically; a consumer that
 resolves both and establishes that they describe different CRSs rejects the
 field with `crs`. In no case does a consumer choose one of the two.
@@ -176,13 +188,21 @@ there is one:
 
 1. the definition carries a top-level identifier equal to `crs_id`
    (VOC-005);
-2. the parts of the definition that the consumer's CRS knowledge decides
-   agree with the CRS that `crs_id` names. The consumer compares at least the
-   CRS kind (geographic or projected), the identifier of the base CRS when
-   the definition names one, the semi-major axis and inverse flattening of
-   the ellipsoid as exact decimal values, and the absence of a datum shift
-   (`TOWGS84`, `BOUNDCRS`) that the CRS of `crs_id` does not have. A
-   component documents any further part it compares.
+2. the parts of the definition agree with the CRS that `crs_id` names. The
+   consumer compares at least:
+   - the CRS kind (geographic or projected) and the identifier of the base
+     CRS when the definition names one;
+   - the semi-major axis and inverse flattening of the ellipsoid, as exact
+     decimal values;
+   - the prime meridian;
+   - every unit of the definition (of the ellipsoid, of the coordinate
+     system, of the parameters), identified by name and conversion factor;
+   - for a projected CRS, the conversion method and every parameter value,
+     as exact decimal values;
+   - the absence of a datum shift (`TOWGS84`, `BOUNDCRS`) that the CRS of
+     `crs_id` does not have.
+
+   A component documents any further part it compares.
 
 A definition without that identifier, one whose parts differ, and one whose
 parts the consumer cannot decide are not verified: the operation fails with
@@ -240,7 +260,14 @@ the declared set rejects the field with `unsupported` before any effect.
 **VOC-011** — A consumer that decodes a value rejects it with `data_mapping`
 when the value is not well-formed WKB or EWKB, when its type is outside a
 declared list (a `multipolygon` is outside `polygon`), or when its dimensions
-differ from a declared `dimensions` other than `unknown`.
+differ from a declared `dimensions` other than `unknown`. A well-formed value
+has a byte order of 0 or 1 in every header, a known type code in either the
+ISO form or the extended form (never both, and the SRID flag only with the
+extended form), members of the types and dimensions its container admits,
+at most 32 levels of nesting and no byte after the geometry; a linestring
+has zero or at least two points, a circular string zero or an odd number of
+at least three, a linear ring of a polygon or triangle at least four points
+with the last equal to the first, and a triangle at most one ring.
 
 **VOC-012** — A schema MAY carry several `geoarrow.wkb` fields. Each declares
 its own complete metadata; CRS, encoding and types of different fields are
