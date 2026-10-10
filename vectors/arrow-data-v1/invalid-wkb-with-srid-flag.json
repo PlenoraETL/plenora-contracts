@@ -6,7 +6,7 @@
   "reason": "A value declared wkb carries the EWKB SRID flag.",
   "category": "data_mapping",
   "rules": [
-    "VOC-008"
+    "GEO-008"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

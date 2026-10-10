@@ -6,8 +6,8 @@
   "reason": "Row 1 has a type outside the declaration, row 2 a different EWKB SRID: row 1 is reported.",
   "category": "data_mapping",
   "rules": [
-    "VOC-011",
-    "ARROW-014"
+    "GEO-011",
+    "REJ-002"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

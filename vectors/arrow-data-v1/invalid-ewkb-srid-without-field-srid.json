@@ -6,7 +6,7 @@
   "reason": "An EWKB value carries an SRID and the field declares none.",
   "category": "crs",
   "rules": [
-    "VOC-009"
+    "GEO-009"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

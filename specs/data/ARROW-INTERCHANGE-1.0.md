@@ -113,59 +113,10 @@ between Plenora components.
 Reusable valid and invalid fixtures are defined by
 [Arrow Metadata Vocabulary 1.0](ARROW-VOCABULARY-1.0.md).
 
-## 9. Rejecting Arrow input
+## 9. Informative: rejection categories
 
-The same invalid input reaches every component of a pipeline. These rules fix
-how each of them reports it, so that a consumer of the error can act on the
-category without knowing which component found the defect.
-
-**ARROW-013** — A component that rejects an Arrow input for one of these
-classes reports the category the table gives, on every surface:
-
-| class | examples | category |
-|---|---|---|
-| contract version absent or not a decimal integer | schema metadata without `plenora.contract.version`; the value `01` or `1.0` | `schema` |
-| contract version not supported | `2` (ARROW-002, ERR-002) | `unsupported` |
-| vocabulary not well-formed | a required key absent; a value outside its closed set or grammar; geometry keys on a field without `geoarrow.wkb`; `geoarrow.wkb` on a storage other than binary; types out of canonical order; a repeated field identifier | `schema` |
-| CRS contradictory or unusable | the CRS rules of [Arrow Vocabulary 1.0](ARROW-VOCABULARY-1.0.md) section 4; a contradictory definition (VOC-005); a CRS the operation must compute with and cannot verify or does not know (VOC-006, VOC-015) | `crs` |
-| type or shape the component does not support | an Arrow type it cannot represent; several geometry fields (VOC-012); a set of geometry types its target cannot store (VOC-010); `geography` semantics for a planar operation | `unsupported` |
-| schema incompatible with the operation | a field the operation requires is absent; a field type differs from the target's and the operation's declared mapping does not convert it; a nullable field into a non-nullable target, when the schema decides it | `schema` |
-| invalid value | malformed WKB or EWKB, a value outside the declared types or dimensions (VOC-011); the SRID flag under `wkb` (VOC-008); a value the target type cannot hold, such as an overflow or a null into a non-nullable target | `data_mapping` |
-| value contradicting the CRS | an EWKB SRID different from the field's, or an SRID on a field that declares none (VOC-009) | `crs` |
-
-These classes are never reported as `invalid_plan` or
-`invalid_configuration`, which describe the request, nor as `resource_limit`,
-`io`, `execution` or `internal`, whatever internal layer detected them. A
-class not in the table keeps the most precise category of ERR-001.
-
-**ARROW-014** — When an input shows defects of several classes, the component
-reports the first in this order: contract version; vocabulary; CRS; support;
-operation schema; values. Values are checked in row order, and fields in
-field order within a row; for one geometry value, well-formedness, then the
-SRID, then types and dimensions. The two value classes, invalid value and
-value contradicting the CRS, are found only in this last step, whatever
-their category: a defect of row 1 is reported before any defect of row 2. A component does not interpret any metadata
-of a contract version it does not support.
-
-**ARROW-015** — A rejection of every class except the two value classes is
-decided from the schema alone and is reported before any effect, with
-`remote_effect: none` and `retry.kind: never`. Its phase is `validate`, or
-`connect` or `probe` when deciding it required reading the target, such as
-the definition of an existing table (ERR-003). A value class is reported
-with the phase in which the component met the value (ERR-003): `read` for a
-component that reads it from its input, `write` for one that writes it to a
-target; the remote effect is the one ERR-004 requires (`none` when nothing
-was published or committed, `rolled_back` when a started write was proven
-undone) and `retry.kind: never`, unless an unproven effect requires
-`quarantine` or `requires_recovery` (ERR-006). The CLI projects every class
-to exit code 3 (CLI 2.0 section 8); a Python SDK raises the exception of the
-category (Python SDK 1.0 section 6).
-
-**ARROW-016** — The invalid vectors of
-[`vectors/arrow-data-v1`](../../vectors/arrow-data-v1/) state the category of
-their class and cite the rules that decide it; the validator derives the
-category with the order of ARROW-014. The classes that depend on the
-operation or on the component's support (support, operation schema) are
-exercised by the interoperability vectors of
-[Composition 1.0](../composition/COMPOSITION-1.0.md), which name the
-operation.
+The category with which a component reports each class of invalid Arrow
+input, and the order in which several defects are reported, are fixed by
+[Arrow Geometry Semantics 1.0](ARROW-GEOMETRY-SEMANTICS-1.0.md) (REJ-001 to
+REJ-004) for the components that claim that contract. This document keeps
+the meaning it was published with.

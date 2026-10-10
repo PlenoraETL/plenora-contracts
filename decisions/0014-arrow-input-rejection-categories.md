@@ -16,97 +16,83 @@ data-tools and database-tools and compared the error axes:
 | contradictory CRS | `crs` | `crs` | `invalid_plan` |
 
 database-tools also reports every failure of its batch validation as
-`resource_limit` (exit code 4), an EWKB SRID mismatch included. ERR-001 asks
-for "the most precise value", but nothing says which class of defect each
-category covers, nor what a component reports when an input has several
-defects; a pipeline whose orchestrator acts on the category (retry, quarantine,
-fix the schema) behaves differently depending on which component met the
-input first.
+`resource_limit`. ERR-001 asks for "the most precise value", but nothing says
+which class of defect each category covers, nor what a component reports
+when an input has several defects.
 
-## Compatibility test
+## Where the rules live
 
-As in [decision 0010](0010-runtime-rejection-and-identity.md): every category
-fixed here is admitted by `error-v1` for the rejection, so a conforming
-consumer of errors already interprets it. The rules make the producers that
-chose another value non-conforming, which is the adoption impact below. No
-input that 1.0 accepts is rejected: the classes are defects that 1.0 already
-requires to be rejected (ARROW-001, ARROW-002, ARROW-006, the vocabulary,
-decision 0013).
+The first version wrote them into Arrow Interchange 1.0 as clarifications.
+An independent reading (Codex) showed two problems: applied to every
+component, they would turn into rejections inputs that a published profile
+accepts (DT-ARROW-003), and they depend on the geometry rules that
+[decision 0013](0013-geometry-vocabulary-semantics.md) moved to an opt-in
+contract. They are therefore section 10 of **Arrow Geometry Semantics 1.0**,
+for the components that claim it; Arrow Interchange 1.0 and Typed Errors 1.0
+keep their published meaning, with informative pointers.
 
 ## Decision
 
-Arrow Interchange 1.0 gains section 9 (ARROW-013 to ARROW-016) and Typed
-Errors 1.0 points to it:
-
-- **ARROW-013**, one category per class: contract version absent or not a
-  decimal, `schema`; version not supported, `unsupported`; vocabulary not
-  well-formed, `schema`; CRS contradictory or unusable, `crs`; type or shape
-  the component does not support, `unsupported`; schema incompatible with
-  the operation, `schema`; invalid value, `data_mapping`. Never
-  `invalid_plan`, `invalid_configuration`, `resource_limit`, `io`,
-  `execution` or `internal`.
-- **ARROW-014**, the order when several defects coexist: version,
-  vocabulary, CRS, support, operation schema, values (row order, field
-  order, then well-formedness, SRID, types and dimensions of one value).
-- **ARROW-015**, the other axes: a schema-level class is reported before any
-  effect, `remote_effect: none`, `retry.kind: never`, phase `validate` (or
-  `connect`/`probe` when it needed the target); an invalid value with the
-  phase where it was met and the remote effect of ERR-004.
-- **ARROW-016**, the vectors.
-
-The four classes the request names map as follows: invalid geometry,
-`data_mapping` (VOC-011); unknown CRS, `crs` (VOC-015); unsupported type,
-`unsupported`; incompatible schema, `schema`.
+- **REJ-001**, one category per class, and the classes are disjoint:
+  contract version absent or malformed `schema`, not supported
+  `unsupported`; vocabulary `schema`; every dependency that involves the CRS
+  keys, an absent CRS key included, `crs`; support `unsupported`; operation
+  schema `schema`; invalid value `data_mapping`; value contradicting the CRS
+  `crs`. Never `invalid_plan`, `invalid_configuration`, `resource_limit`,
+  `io`, `execution` or `internal`.
+- **REJ-002**, one order that includes the operation: version, vocabulary,
+  CRS (a CRS the operation cannot use included), support, operation schema,
+  values in row and field order.
+- **REJ-003**, the other axes: schema-level classes before any effect,
+  `none`, `never`, phase `validate` (or `connect`/`probe`); value classes in
+  the phase where the value is met, `none` or `rolled_back` after a proven
+  rollback of a provisional write (GEO-018).
+- **REJ-004**, the vectors.
+- The rules classify the rejections that are due; they never revoke an
+  acceptance a profile states (GEO-000).
 
 Nine vectors in `vectors/arrow-data-v1`: the three contract-version classes,
-`geoarrow.wkb` on `utf8`, an unknown CRS identifier for a computing consumer
-and four precedence vectors with two defects each. The validator derives each
-category with the order of ARROW-014. The support and operation-schema
-classes depend on the operation and the component; they are exercised by the
-interoperability vectors, which name the operation.
+`geoarrow.wkb` on `utf8`, an unknown CRS identifier for a computing operation
+and four precedence vectors with two defects each.
+
+### Second readings
+
+An EWKB SRID mismatch can only be found while reading values, possibly after
+provisional writes: it is a value class with category `crs`. The vocabulary
+and CRS classes overlapped on an absent CRS key (a resolved CRS without
+`axis_order`): the CRS class now owns every CRS key. "Before any effect"
+meant two things in two rules: it now means before a publication or a
+commit (GEO-018).
 
 ### Why `schema` for an absent version and `unsupported` for version 2
 
-An absent or malformed version is a defect of the schema's own metadata: the
-producer omitted a required key. A well-formed version that the consumer
-does not support is the case ERR-002 names. `data_mapping` describes values,
-and `invalid_plan` the request.
-
-### Second reading
-
-An independent reading found that an EWKB SRID mismatch (VOC-009) sat in the
-CRS class, which ARROW-015 decides from the schema with phase `validate`,
-while it can only be found while reading values, possibly after a streaming
-writer has written earlier batches. It is now a value class of its own,
-"value contradicting the CRS", with category `crs` and the order and axes of
-values (phase `read` or `write`, the remote effect of ERR-004).
+An absent or malformed version is a defect of the schema's own metadata. A
+well-formed version that the component does not support is the case ERR-002
+names.
 
 ## Alternatives
 
 - **Leave the category to each component.** The suite's divergence is the
   result.
-- **One category for every Arrow defect (`schema`).** Simpler, but it hides
-  the distinction an orchestrator acts on: an unsupported version calls for
-  another component version, a CRS defect for metadata repair, an invalid
-  value for data repair.
-- **A new error contract version with an Arrow-specific category.** The
-  existing categories already separate the classes.
+- **One category for every Arrow defect.** It hides the distinction an
+  orchestrator acts on.
+- **The rules in Arrow Interchange 1.0.** They would restrict what v1.1.0
+  admitted.
 
 ## Change statement
 
-- **Consumers affected:** orchestrators and callers that act on the category
-  of an Arrow rejection; the interoperability suite.
+- **Consumers affected:** orchestrators and callers of components that claim
+  the contract.
 - **Before:** the category of each class left to the component.
-- **After:** ARROW-013 to ARROW-016.
-- **Compatible:** yes, by the test above.
-- **Schemas, examples and profiles:** nine vectors; prose in Arrow
-  Interchange 1.0 and Typed Errors 1.0. No schema, catalog, binding or
-  published vector changes.
-- **Adoption impact:**
-  - IO-tools: report Arrow input defects with the table's category instead
-    of `invalid_plan` (exit 3 instead of 2).
-  - database-tools: absent version as `schema`, not `data_mapping`; batch
-    validation failures with their class (`crs`, `data_mapping`,
-    `schema`), never `resource_limit` unless a resource bound was reached.
-  - data-tools: already reports the three suite vectors as the table says;
-    checks its order of checks against ARROW-014.
+- **After:** REJ-001 to REJ-004 in Arrow Geometry Semantics 1.0.
+- **Compatible:** yes: part of a new opt-in contract.
+- **Schemas, examples and profiles:** nine vectors; section 10 of the new
+  specification; informative pointers in Arrow Interchange 1.0 and Typed
+  Errors 1.0.
+- **Adoption impact**, for a component that claims the contract:
+  - IO-tools: the table's categories instead of `invalid_plan` (exit 3
+    instead of 2).
+  - database-tools: absent version `schema`; batch validation failures with
+    their class, never `resource_limit` unless a resource bound was reached.
+  - data-tools: already consistent with the three suite vectors; its order
+    of checks against REJ-002, keeping DT-ARROW-003.

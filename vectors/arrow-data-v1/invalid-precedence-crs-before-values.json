@@ -6,8 +6,8 @@
   "reason": "A contradictory CRS definition and a truncated value: the CRS is reported.",
   "category": "crs",
   "rules": [
-    "VOC-005",
-    "ARROW-014"
+    "GEO-005",
+    "REJ-002"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

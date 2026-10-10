@@ -6,7 +6,7 @@
   "reason": "The WKT 2 definition identifies EPSG:3003, the field EPSG:4326.",
   "category": "crs",
   "rules": [
-    "VOC-005"
+    "GEO-005"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

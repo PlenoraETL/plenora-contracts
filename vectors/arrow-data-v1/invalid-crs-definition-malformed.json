@@ -6,7 +6,7 @@
   "reason": "A WKT 2 definition with an unclosed bracket is not well-formed.",
   "category": "crs",
   "rules": [
-    "VOC-005"
+    "GEO-005"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

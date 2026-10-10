@@ -1809,7 +1809,7 @@ def validate_interop_vectors(catalogs: dict[str, dict[str, Any]]) -> list[str]:
 
 
 def validate_arrow_data_vectors() -> list[str]:
-    """Arrow Vocabulary 1.0 section 12: each vector states the verdict the
+    """Arrow Geometry Semantics 1.0 section 9: each vector states the verdict the
     rules give, derived by `arrow_data`, and cites rules that exist."""
     failures: list[str] = []
     paths = sorted((ROOT / "vectors/arrow-data-v1").glob("*.json"))
