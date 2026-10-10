@@ -66,6 +66,15 @@ result was published, so it is neither a success (SURF-014) nor `partial`.
 publish again, and `requires_recovery` when a remote residue remains. When the
 remote outcome of the cleanup itself is unknown, ERR-014 applies.
 
+**ERR-016** — An unproven outcome does not decide the category: `category`
+names what failed (ERR-001), and the uncertainty is carried by
+`remote_effect: unknown` (ERR-004) with a retry that ERR-006 admits,
+normally `requires_recovery`. A commit whose confirmation was lost because
+the connection or the stream failed is `io`, phase `commit`; one whose
+deadline elapsed is `timeout`; `internal` is reserved for a defect of the
+component, such as a panic or an unhandled exception (CLI 2.0 section 8:
+exit codes 5, 5 and 70).
+
 ## 6. Message and details
 
 **ERR-009** — `message` is diagnostic text for people. It MUST be bounded and
