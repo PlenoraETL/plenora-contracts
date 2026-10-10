@@ -121,7 +121,8 @@ class RestBoundaryHeuristicTests(unittest.TestCase):
 
     def test_secret_reference_must_be_opaque(self):
         errors = self.errors(lambda payload: payload["connection"].update(credential_ref="hunter2"))
-        self.assertTrue(any("credential_ref" in error for error in errors), errors)
+        self.assertTrue(any("inline credential field" in error for error in errors), errors)
+        self.assertFalse(any("credential_ref" in error for error in errors), errors)
         errors = self.errors(lambda payload: payload["connection"].update(secret_reference="vault://kv/rest"))
         self.assertEqual(errors, [])
 
