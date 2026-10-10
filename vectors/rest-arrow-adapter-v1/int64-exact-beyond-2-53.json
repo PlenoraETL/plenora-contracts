@@ -1,0 +1,75 @@
+{
+  "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-vector-v1",
+  "description": "int64 keeps the exact integer of the literal beyond 2^53, and the int64 bounds.",
+  "declaration": {
+    "schema_version": 1,
+    "contract": "plenora-rest-arrow-adapter-v1",
+    "accept_status": [
+      "success"
+    ],
+    "on_record_error": "fail",
+    "undeclared_members": "ignore",
+    "fields": [
+      {
+        "name": "n",
+        "field_id": 0,
+        "pointer": "/n",
+        "type": "int64",
+        "nullable": false
+      }
+    ]
+  },
+  "result": {
+    "schema_version": 1,
+    "status": "success",
+    "output": {
+      "type": "records",
+      "records": [
+        {
+          "n": 9007199254740993
+        },
+        {
+          "n": -9223372036854775808
+        },
+        {
+          "n": 9223372036854775807
+        }
+      ]
+    },
+    "errors": []
+  },
+  "expect": {
+    "outcome": "table",
+    "schema": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "n",
+          "type": "int64",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "0"
+          }
+        }
+      ]
+    },
+    "rows": [
+      {
+        "n": 9007199254740993
+      },
+      {
+        "n": -9223372036854775808
+      },
+      {
+        "n": 9223372036854775807
+      }
+    ],
+    "diagnostics": null,
+    "rest_status": "success",
+    "rest_errors": 0
+  }
+}

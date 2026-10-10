@@ -20,6 +20,8 @@ These schemas are normative and use JSON Schema draft 2020-12.
 | `arrow-metadata-vector-v1.schema.json` | Arrow metadata conformance fixtures |
 | `runtime-vector-v1.schema.json` | Runtime request, success and error fixtures |
 | `runtime-probe-v1.schema.json` | Runtime rejection probes: one request mutation and its expected rejection |
+| `rest-arrow-adapter-v1.schema.json` | Declaration of an adapter from a REST execution result to an Arrow table |
+| `rest-arrow-adapter-vector-v1.schema.json` | REST-to-Arrow adapter fixtures: declaration, REST result and expected outcome |
 | `plan-budget-v1.schema.json` | Plan-format versions and declared memory-budget fragment |
 | `data-plan-v1.schema.json` | Data-tools plan format `plenora-data-plan-v1` (Data Plan 1.0) |
 | `data-execution-input-v3.schema.json` | Request of data-tools `data.run` version 3: plan, artifact sources and sinks |

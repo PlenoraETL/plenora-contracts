@@ -1,0 +1,95 @@
+{
+  "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-vector-v1",
+  "description": "An array index and the escapes ~1 and ~0 in a pointer.",
+  "declaration": {
+    "schema_version": 1,
+    "contract": "plenora-rest-arrow-adapter-v1",
+    "accept_status": [
+      "success"
+    ],
+    "on_record_error": "fail",
+    "undeclared_members": "ignore",
+    "fields": [
+      {
+        "name": "first",
+        "field_id": 0,
+        "pointer": "/tags/0",
+        "type": "utf8",
+        "nullable": false
+      },
+      {
+        "name": "ratio",
+        "field_id": 1,
+        "pointer": "/a~1b/~0c",
+        "type": "float64",
+        "nullable": true
+      }
+    ]
+  },
+  "result": {
+    "schema_version": 1,
+    "status": "success",
+    "output": {
+      "type": "records",
+      "records": [
+        {
+          "tags": [
+            "x",
+            "y"
+          ],
+          "a/b": {
+            "~c": 1.5
+          }
+        },
+        {
+          "tags": [
+            "z"
+          ],
+          "a/b": {}
+        }
+      ]
+    },
+    "errors": []
+  },
+  "expect": {
+    "outcome": "table",
+    "schema": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "first",
+          "type": "utf8",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "0"
+          }
+        },
+        {
+          "name": "ratio",
+          "type": "float64",
+          "nullable": true,
+          "metadata": {
+            "plenora.field_id": "1"
+          }
+        }
+      ]
+    },
+    "rows": [
+      {
+        "first": "x",
+        "ratio": 1.5
+      },
+      {
+        "first": "z",
+        "ratio": null
+      }
+    ],
+    "diagnostics": null,
+    "rest_status": "success",
+    "rest_errors": 0
+  }
+}

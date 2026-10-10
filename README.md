@@ -48,6 +48,7 @@ The normative sources are:
 - [runtime binding contract](specs/runtime/RUNTIME-BINDING-1.0.md);
 - [runtime conformance vectors](specs/runtime/RUNTIME-VECTORS-1.0.md);
 - [cross-component composition contract](specs/composition/COMPOSITION-1.0.md);
+- [REST-to-Arrow adapter contract](specs/composition/REST-ARROW-ADAPTER-1.0.md);
 - [CLI contract](specs/cli/CLI-2.0.md);
 - [Python SDK contract](specs/sdk/PYTHON-SDK-1.0.md);
 - the versioned JSON Schemas in [schemas](schemas/README.md);

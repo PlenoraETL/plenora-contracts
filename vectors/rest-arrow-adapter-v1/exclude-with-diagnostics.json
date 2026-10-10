@@ -1,0 +1,138 @@
+{
+  "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-vector-v1",
+  "description": "on_record_error exclude: failing records are left out and reported with field and cause.",
+  "declaration": {
+    "schema_version": 1,
+    "contract": "plenora-rest-arrow-adapter-v1",
+    "accept_status": [
+      "success"
+    ],
+    "on_record_error": "exclude",
+    "undeclared_members": "reject",
+    "fields": [
+      {
+        "name": "id",
+        "field_id": 0,
+        "pointer": "/id",
+        "type": "int64",
+        "nullable": false
+      },
+      {
+        "name": "name",
+        "field_id": 1,
+        "pointer": "/name",
+        "type": "utf8",
+        "nullable": true
+      }
+    ]
+  },
+  "result": {
+    "schema_version": 1,
+    "status": "success",
+    "output": {
+      "type": "records",
+      "records": [
+        {
+          "id": 1,
+          "name": "a"
+        },
+        {
+          "id": "2",
+          "name": "b"
+        },
+        {
+          "id": 3,
+          "name": "c",
+          "extra": true
+        },
+        {
+          "name": "d"
+        },
+        {
+          "id": 5,
+          "name": 5
+        },
+        {
+          "id": 6
+        }
+      ]
+    },
+    "errors": []
+  },
+  "expect": {
+    "outcome": "table",
+    "schema": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "int64",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "0"
+          }
+        },
+        {
+          "name": "name",
+          "type": "utf8",
+          "nullable": true,
+          "metadata": {
+            "plenora.field_id": "1"
+          }
+        }
+      ]
+    },
+    "rows": [
+      {
+        "id": 1,
+        "name": "a"
+      },
+      {
+        "id": 6,
+        "name": null
+      }
+    ],
+    "diagnostics": {
+      "contract": "plenora-row-diagnostics-v1",
+      "scope": "read",
+      "index_basis": "source_row_zero_based",
+      "completeness": "complete",
+      "observed_total": 4,
+      "input_total": 6,
+      "counts": {
+        "adapter.type_mismatch": 2,
+        "adapter.undeclared_member": 1,
+        "adapter.null_in_non_nullable": 1
+      },
+      "examples_limit": 128,
+      "examples_truncated": false,
+      "examples": [
+        {
+          "source_index": 1,
+          "cause": "adapter.type_mismatch",
+          "column": "id"
+        },
+        {
+          "source_index": 2,
+          "cause": "adapter.undeclared_member"
+        },
+        {
+          "source_index": 3,
+          "cause": "adapter.null_in_non_nullable",
+          "column": "id"
+        },
+        {
+          "source_index": 4,
+          "cause": "adapter.type_mismatch",
+          "column": "name"
+        }
+      ]
+    },
+    "rest_status": "success",
+    "rest_errors": 0
+  }
+}

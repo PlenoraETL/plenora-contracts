@@ -8,6 +8,18 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- REST-to-Arrow Adapter 1.0 (`plenora-rest-arrow-adapter-v1`): the adapter
+  of the `rest.enrich` to `data.run` edges belongs to the application, and
+  an adapter claiming the contract declares fields (name, identity, RFC 6901
+  pointer, `bool`/`int64`/`float64`/`utf8`, nullability), accepted REST
+  statuses, per-record error policy and undeclared members; converts in
+  record order without inference or coercion; fails with `data_mapping`
+  naming record, field and cause, or excludes records with row diagnostics;
+  reports the REST status next to the table (RA-001 to RA-010). New schemas
+  `rest-arrow-adapter-v1` and `rest-arrow-adapter-vector-v1`, 28 vectors
+  whose outcomes a reference adapter in the validator derives. Composition
+  1.0 points to it; the edges stay `adapter_required`. See
+  [decision 0017](decisions/0017-rest-arrow-adapter.md).
 - Runtime vector `database-write-commit-timeout-error.json` (an elapsed
   deadline after the commit was sent: `timeout`, `unknown`,
   `requires_recovery`), and a validator check that every runtime error
@@ -25,6 +37,13 @@ full commit SHA; a release tag names one of those commits.
 
 ### Changed
 
+- The gate's messages carry no data: only fixed text, rule identifiers,
+  repository paths, positions and names the contracts define; schema errors
+  name the keyword and anonymous paths instead of quoting the instance. A
+  sentinel test injects a marker into every value, number and key of every
+  vector and example and requires that the gate never prints it. No
+  contract document changes. See
+  [decision 0021](decisions/0021-messages-without-data.md).
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
   universal from Python 3.10: `rpds-py` keeps 0.30.0, its last release for
   Python 3.10, under `python_full_version < '3.11'` and 2026.9.1 above; the

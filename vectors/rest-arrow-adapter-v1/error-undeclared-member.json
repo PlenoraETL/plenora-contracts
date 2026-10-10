@@ -1,0 +1,48 @@
+{
+  "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-vector-v1",
+  "description": "undeclared_members reject: a top-level member no pointer names.",
+  "declaration": {
+    "schema_version": 1,
+    "contract": "plenora-rest-arrow-adapter-v1",
+    "accept_status": [
+      "success"
+    ],
+    "on_record_error": "fail",
+    "undeclared_members": "reject",
+    "fields": [
+      {
+        "name": "id",
+        "field_id": 0,
+        "pointer": "/id",
+        "type": "int64",
+        "nullable": false
+      }
+    ]
+  },
+  "result": {
+    "schema_version": 1,
+    "status": "success",
+    "output": {
+      "type": "records",
+      "records": [
+        {
+          "id": 1,
+          "x": 2
+        }
+      ]
+    },
+    "errors": []
+  },
+  "expect": {
+    "outcome": "error",
+    "category": "data_mapping",
+    "record": 0,
+    "field": "@undeclared",
+    "cause": "adapter.undeclared_member",
+    "phase": "read",
+    "remote_effect": "none",
+    "retry": "never"
+  }
+}

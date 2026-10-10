@@ -1,0 +1,50 @@
+{
+  "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-vector-v1",
+  "description": "int64 refuses 2^63.",
+  "declaration": {
+    "schema_version": 1,
+    "contract": "plenora-rest-arrow-adapter-v1",
+    "accept_status": [
+      "success"
+    ],
+    "on_record_error": "fail",
+    "undeclared_members": "ignore",
+    "fields": [
+      {
+        "name": "id",
+        "field_id": 0,
+        "pointer": "/id",
+        "type": "int64",
+        "nullable": false
+      }
+    ]
+  },
+  "result": {
+    "schema_version": 1,
+    "status": "success",
+    "output": {
+      "type": "records",
+      "records": [
+        {
+          "id": 9223372036854775807
+        },
+        {
+          "id": 9223372036854775808
+        }
+      ]
+    },
+    "errors": []
+  },
+  "expect": {
+    "outcome": "error",
+    "category": "data_mapping",
+    "record": 1,
+    "field": "id",
+    "cause": "adapter.not_representable",
+    "phase": "read",
+    "remote_effect": "none",
+    "retry": "never"
+  }
+}
