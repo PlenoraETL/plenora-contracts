@@ -91,7 +91,15 @@ bytes and does not infer domain semantics from their fields.
 `database-write-error.json` (`internal`, phase `commit`) illustrates an
 unknown commit outcome caused by a defect of the component; it does not make
 every unknown commit outcome `internal`. `database-write-commit-io-error.json`
-shows the outcome of a lost confirmation (ERR-016).
+shows the outcome of a lost confirmation and
+`database-write-commit-timeout-error.json` that of an elapsed deadline
+(ERR-016). Every error vector with phase `commit` and an unknown remote
+effect states its cause through a `code` the validator maps to a category:
+`COMMIT_CONFIRMATION_LOST` to `io`, `COMMIT_DEADLINE_ELAPSED` to `timeout`,
+`COMMIT_OUTCOME_UNKNOWN` (a defect of the component) to `internal`; a vector
+whose code is in the map and whose category is not the one it gives fails
+the gate, and a vector with another code, such as
+`storage-put-unknown-error.json`, has one of those three categories.
 
 ## 6. Rejection probes
 
