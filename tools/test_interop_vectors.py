@@ -32,7 +32,8 @@ def errors_of(name, document=None):
         )
         for edge in edges if edge["mode"] == "direct"
     }
-    return interop.vector_errors(path, document or vector(name), operations, direct, validator.load_json)
+    kernels = {kernel["id"] for kernel in validator.load_json(ROOT / "catalogs/data-kernels-v2.json")["operations"]}
+    return interop.vector_errors(path, document or vector(name), operations, direct, validator.load_json, kernels)
 
 
 class GateTests(unittest.TestCase):
@@ -84,6 +85,25 @@ class HandoffTests(unittest.TestCase):
         first["chain"][0]["via"] = "target"
         self.assertTrue(any("first step" in error for error in errors_of("handoff-database-data-io.json", first)))
 
+    def test_transformations_belong_to_their_operation(self):
+        document = vector("handoff-io-data-io-points.json")
+        document["chain"][0]["transformations"] = ["srid_from_epsg_identifier", "axis_order_unknown"]
+        errors = errors_of("handoff-io-data-io-points.json", document)
+        self.assertEqual(sum("cannot declare" in error for error in errors), 2)
+
+    def test_transformations_apply_in_the_order_of_the_table(self):
+        table = validator.load_json(ROOT / "vectors/arrow-data-v1/axis-lon-lat-epsg4326.json")
+        forward = [{"transformations": ["srid_from_epsg_identifier", "ewkb_with_field_srid"]}]
+        backward = [{"transformations": ["ewkb_with_field_srid", "srid_from_epsg_identifier"]}]
+        self.assertEqual(interop.expected_output(table, forward), interop.expected_output(table, backward))
+
+    def test_comparison_tells_types_apart(self):
+        document = vector("handoff-io-data-io-points.json")
+        document["expected_output"]["rows"][0]["id"] = True
+        self.assertTrue(any("differs" in error for error in errors_of("handoff-io-data-io-points.json", document)))
+        self.assertFalse(interop.same(1, 1.0))
+        self.assertTrue(interop.same({"a": [1]}, {"a": [1]}))
+
     def test_unknown_operation_and_reserved_prefix(self):
         document = vector("handoff-io-database-io.json")
         document["chain"][2]["provider_prefix"] = "plenora.geometry."
@@ -120,7 +140,7 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(interop._with_srid(big, 4326)[1:5], struct.pack(">I", 1 | 0x20000000))
 
     def test_an_input_that_is_not_a_table(self):
-        for name in ("handoff-io-data-io-points.json", "rejection-wkb-truncated-data-run.json"):
+        for name in ("handoff-io-data-io-points.json", "rejection-wkb-truncated-database-write.json"):
             document = vector(name)
             path = (VECTORS / document["input"]).resolve()
             broken = validator.load_json(path)
@@ -146,7 +166,7 @@ class RejectionTests(unittest.TestCase):
         document["expected_error"]["category"] = "resource_limit"
         document["expected_error"]["rules"] = ["ARROW-013"]
         document["expected_error"]["class"] = "support"
-        document["expected_error"]["phases"] = ["write"]
+        document["expected_error"]["phases"] = ["validate"]
         self.assertEqual(len(errors_of(name, document)), 4)
 
     def test_a_valid_input_needs_a_class_and_its_rule(self):
@@ -168,9 +188,38 @@ class RejectionTests(unittest.TestCase):
         document["expected_error"]["rules"] = ["ARROW-013"]
         self.assertEqual(len(errors_of("rejection-unknown-crs-geo-operation.json", document)), 1)
 
-    def test_data_mapping_admits_read_and_write(self):
-        document = vector("rejection-wkb-truncated-data-run.json")
-        self.assertEqual(document["expected_error"]["phases"], ["read", "write"])
+    def test_value_classes_follow_the_role_of_the_step(self):
+        writer = vector("rejection-wkb-truncated-database-write.json")["expected_error"]
+        self.assertEqual((writer["phases"], writer["remote_effects"]), (["write"], ["none", "rolled_back"]))
+        reader = vector("rejection-wkb-truncated-data-run-geo.json")["expected_error"]
+        self.assertEqual((reader["phases"], reader["remote_effects"]), (["read"], ["none"]))
+        document = vector("rejection-wkb-truncated-data-run-geo.json")
+        document["expected_error"]["remote_effects"] = ["none", "rolled_back"]
+        self.assertEqual(len(errors_of("rejection-wkb-truncated-data-run-geo.json", document)), 1)
+
+    def test_a_value_class_needs_a_step_that_decodes(self):
+        """Second reader: carrying the bytes leaves the check to the next consumer."""
+        for step in (
+            {"component": "plenora-io-tools", "operation": "io.read", "version": 2, "transformations": []},
+            {"component": "plenora-data-tools", "operation": "data.run", "version": 2,
+             "params": {"plan": "identity"}, "transformations": []},
+            {"component": "plenora-io-tools", "operation": "io.write", "version": 2,
+             "params": {"format": "arrow_ipc_file"}, "transformations": []},
+        ):
+            document = vector("rejection-ewkb-srid-differs-data-run-geo.json")
+            document["chain"] = [step]
+            with self.subTest(step["operation"]):
+                self.assertTrue(any("without decoding" in error
+                                    for error in errors_of("rejection-ewkb-srid-differs-data-run-geo.json", document)))
+
+    def test_a_crs_rejection_needs_a_step_that_computes(self):
+        """Second reader: VOC-004 forbids the refusal to a step that carries."""
+        name = "rejection-unknown-crs-geo-operation.json"
+        for params in ({"plan": "identity"}, {"plan": "geo.unknown_kernel"}):
+            document = vector(name)
+            document["chain"][0]["params"] = params
+            with self.subTest(params):
+                self.assertTrue(any("computes" in error for error in errors_of(name, document)))
 
 
 class SourceTests(unittest.TestCase):

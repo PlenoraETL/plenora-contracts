@@ -19,7 +19,20 @@ from typing import Any, Callable
 import arrow_data
 
 GEOMETRY = "plenora.geometry."
-CLASS_CATEGORY = {"support": "unsupported", "operation_schema": "schema", "crs": "crs"}
+CLASS_CATEGORY = {"support": "unsupported", "crs": "crs"}
+# ARROW-014: the value classes; everything else is decided from the schema.
+VALUE_RULES = {"VOC-008", "VOC-009", "VOC-011"}
+# COMP-003: who may declare each transformation; `None` is any step.
+TRANSFORMATION_OWNERS: dict[str, set[tuple[str, str]] | None] = {
+    "assign_field_ids": None,
+    "large_to_standard": {("plenora-data-tools", "data.run")},
+    "srid_from_epsg_identifier": {("plenora-data-tools", "data.run")},
+    "ewkb_with_field_srid": {("plenora-database-tools", "database.read")},
+    "axis_order_unknown": {("plenora-database-tools", "database.read")},
+    "several_types_to_mixed": {("plenora-database-tools", "database.read")},
+    "provider_metadata": {("plenora-database-tools", "database.read")},
+}
+IPC_FORMATS = {"arrow_ipc_file", "arrow_ipc_stream"}
 NORTH_FIRST = {"lat_lon", "northing_easting"}
 RESERVED_PREFIXES = ("plenora.geometry.", "plenora.contract.", "plenora.field_id")
 EPSG = re.compile(r"^EPSG:([1-9][0-9]*)$")
@@ -125,15 +138,50 @@ TRANSFORMATIONS: dict[str, Callable[[dict[str, Any]], None]] = {
 
 
 def expected_output(table: dict[str, Any], chain: list[dict[str, Any]]) -> dict[str, Any]:
+    """COMP-003: a step applies its transformations in the order of the table."""
     result = {
         "schema_metadata": dict(table["schema_metadata"]),
         "fields": copy.deepcopy(table["fields"]),
         "rows": copy.deepcopy(table["rows"]),
     }
     for step in chain:
-        for name in step["transformations"]:
-            TRANSFORMATIONS[name](result)
+        for name in TRANSFORMATIONS:
+            if name in step["transformations"]:
+                TRANSFORMATIONS[name](result)
     return result
+
+
+def same(left: Any, right: Any) -> bool:
+    """Equality that tells 1 from 1.0 and from true."""
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return left.keys() == right.keys() and all(same(left[key], right[key]) for key in left)
+    if isinstance(left, list):
+        return len(left) == len(right) and all(map(same, left, right))
+    return left == right
+
+
+def computes(step: dict[str, Any], kernels: set[str]) -> bool:
+    """A step that computes with coordinates: `data.run` whose plan is a
+    registered `geo.` kernel."""
+    plan = (step.get("params") or {}).get("plan")
+    return (
+        step["operation"] == "data.run"
+        and isinstance(plan, str)
+        and plan.startswith("geo.")
+        and plan in kernels
+    )
+
+
+def decodes(step: dict[str, Any], kernels: set[str]) -> bool:
+    """A step that decodes geometry values (VOC-009, VOC-011): one that
+    computes, or one that writes them to a target that interprets them."""
+    if computes(step, kernels):
+        return True
+    if step["operation"] == "database.write":
+        return True
+    return step["operation"] == "io.write" and (step.get("params") or {}).get("format") not in IPC_FORMATS
 
 
 # --- chains (COMP-002) ---------------------------------------------------------
@@ -154,6 +202,10 @@ def chain_errors(
     for step in chain:
         if step_key(step) not in operations:
             errors.append(f"names unknown operation {step_key(step)}")
+        for name in step["transformations"]:
+            owners = TRANSFORMATION_OWNERS[name]
+            if owners is not None and (step["component"], step["operation"]) not in owners:
+                errors.append(f"{step['operation']} cannot declare {name} (COMP-003)")
         prefix = step.get("provider_prefix")
         if prefix is not None and prefix.startswith(RESERVED_PREFIXES):
             errors.append(f"provider prefix {prefix} is reserved for the shared vocabulary")
@@ -176,21 +228,23 @@ def chain_errors(
 
 # --- rejections (COMP-004) -------------------------------------------------------
 
-def rejection_errors(vector: dict[str, Any], table: dict[str, Any]) -> list[str]:
+def rejection_errors(vector: dict[str, Any], table: dict[str, Any], kernels: set[str]) -> list[str]:
     expected = vector["expected_error"]
     step = vector["chain"][0]
     found = arrow_data.verdict(table)
     errors = []
+    value_class = False
     if found is not None:
+        value_class = found.rule in VALUE_RULES
         if expected["class"] != "input":
             errors.append(f"an invalid input is class input, not {expected['class']}")
         if expected["category"] != found.category:
             errors.append(f"expects {expected['category']}, the input vector gives {found.category}")
         if found.rule not in expected["rules"]:
             errors.append(f"does not cite {found.rule}, the rule that rejects the input")
-        phases = {"read", "write"} if found.category == "data_mapping" else {"validate"}
+        if value_class and not decodes(step, kernels):
+            errors.append(f"{step['operation']} carries values without decoding them (VOC-009, VOC-011)")
     else:
-        phases = {"validate"}
         if expected["class"] == "input":
             errors.append("a valid input cannot be rejected as class input")
             return errors
@@ -201,21 +255,42 @@ def rejection_errors(vector: dict[str, Any], table: dict[str, Any]) -> list[str]
         if expected["class"] == "support":
             several_fields = len(geometry) > 1
             several_types = any(
-                len((arrow_data._type_list(_metadata(field).get(GEOMETRY + "types")) or [])) > 1
+                len((arrow_data._type_list(arrow_data_metadata(field).get(GEOMETRY + "types")) or [])) > 1
                 for field in geometry
             )
             if not ("VOC-012" in rules and several_fields) and not ("VOC-010" in rules and several_types):
                 errors.append("a support rejection cites VOC-012 or VOC-010 for an input that shows it")
         if expected["class"] == "crs":
-            computed = next(filter(None, map(arrow_data.computation_verdict, geometry)), None)
-            north_first = any(_metadata(field).get(GEOMETRY + "axis_order") in NORTH_FIRST for field in geometry)
+            if not computes(step, kernels):
+                errors.append("a crs rejection of a valid input needs a step that computes (VOC-004)")
+            declared = [
+                field for field in geometry
+                if arrow_data_metadata(field)[GEOMETRY + "crs_resolution"] != "missing"
+            ]
+            try:
+                computed = next(filter(None, map(arrow_data.computation_verdict, declared)), None)
+            except arrow_data.Undecidable:
+                computed = None
+            north_first = any(arrow_data_metadata(field).get(GEOMETRY + "axis_order") in NORTH_FIRST for field in geometry)
             by_vocabulary = computed is not None and computed.rule in rules
-            by_profile = "DT-ARROW-004" in rules and north_first and step["operation"] == "data.run"
+            by_profile = "DT-ARROW-004" in rules and north_first
             if not (by_vocabulary or by_profile):
                 errors.append("a crs rejection of a valid input cites the rule that refuses the computation")
+    if value_class:
+        writes = step["operation"].endswith(".write")
+        phases = {"write"} if writes else {"read"}
+        effects = {"none", "rolled_back"} if writes else {"none"}
+    else:
+        phases, effects = {"validate"}, {"none"}
     if set(expected["phases"]) != phases:
         errors.append(f"expects phases {sorted(expected['phases'])}, the class gives {sorted(phases)}")
+    if set(expected["remote_effects"]) != effects:
+        errors.append(f"expects remote effects {sorted(expected['remote_effects'])}, the class gives {sorted(effects)}")
     return errors
+
+
+def arrow_data_metadata(field: dict[str, Any]) -> dict[str, str]:
+    return field["metadata"]
 
 
 # --- sources (VOC-002, VOC-003) ----------------------------------------------------
@@ -264,6 +339,7 @@ def vector_errors(
     operations: dict[Key, dict[str, Any]],
     direct_edges: set[tuple[Key, Key]],
     load: Callable[[Path], Any],
+    kernels: set[str] = frozenset(),
 ) -> list[str]:
     errors = chain_errors(vector["chain"], operations, direct_edges)
     if vector["kind"] == "source":
@@ -274,7 +350,7 @@ def vector_errors(
     table = load(input_path)
     try:
         if vector["kind"] == "rejection":
-            return errors + rejection_errors(vector, table)
+            return errors + rejection_errors(vector, table, kernels)
         if table["expect"] != "valid" or arrow_data.verdict(table) is not None:
             return errors + ["a handoff starts from a valid input"]
     except arrow_data.FixtureError as problem:
@@ -284,7 +360,7 @@ def vector_errors(
         expected = expected_output(table, vector["chain"])
     except ValueError as problem:
         return errors + [f"transformations cannot apply: {problem}"]
-    if vector["expected_output"] != expected:
+    if not same(vector["expected_output"], expected):
         errors.append("expected_output differs from the input with the declared transformations")
     produced = dict(expected, expect="valid")
     if arrow_data.verdict(produced) is not None:

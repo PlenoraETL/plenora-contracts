@@ -23,7 +23,9 @@
     "phases": [
       "validate"
     ],
-    "remote_effect": "none",
+    "remote_effects": [
+      "none"
+    ],
     "retry": "never",
     "exit_code": 3,
     "rules": [

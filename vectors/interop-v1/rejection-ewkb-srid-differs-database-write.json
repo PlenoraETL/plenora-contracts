@@ -21,9 +21,12 @@
     "class": "input",
     "category": "crs",
     "phases": [
-      "validate"
+      "write"
     ],
-    "remote_effect": "none",
+    "remote_effects": [
+      "none",
+      "rolled_back"
+    ],
     "retry": "never",
     "exit_code": 3,
     "rules": [

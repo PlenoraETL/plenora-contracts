@@ -26,10 +26,13 @@ Composition 1.0 gains section 6 (COMP-001 to COMP-005), schema
   database→data→io. The input is a valid vector of `vectors/arrow-data-v1`;
   the expected table is recomputed by the validator from the input and the
   transformations each step declares.
-- **23 rejection vectors**: six invalid inputs (contract version 2, version
-  absent, contradictory definition, EWKB SRID mismatch, type outside the
-  declaration, truncated WKB) against `io.read`, `data.run` and
-  `database.write`, each with the category of its class (ARROW-013); two
+- **23 rejection vectors**: three schema-level invalid inputs (contract
+  version 2, version absent, contradictory definition) against `io.read`,
+  `data.run` with the identity plan and `database.write`; three value-level
+  ones (EWKB SRID mismatch, type outside the declaration, truncated WKB)
+  against the steps that decode values, `data.run` with `geo.centroid`,
+  `database.write` and `io.write` to GeoPackage; each with the category,
+  phase and remote effect of its class (ARROW-013 to ARROW-015); two
   geometry fields against `io.write` and `data.run` (`unsupported`,
   VOC-012); geometry operations on values stored latitude first
   (DT-ARROW-004), on an unknown CRS and on a definition modified under its
@@ -50,6 +53,20 @@ a defect of the step.
 Chains are checked against the composition matrix (`direct` edges, or a write
 then a read of one component on its target); rejections against their input
 vector and ARROW-013; sources by reading the document.
+
+### Second reading
+
+An independent reading found, and this decision corrects: a `crs` rejection
+did not check that the step computes, so a step that only carries the field
+could be expected to refuse it against VOC-004 (now a `data.run` whose plan is
+a registered `geo.` kernel); value-level rejections were expected from steps
+that carry the bytes unchanged, which VOC-009 exempts (now only decoding
+steps); the phases and remote effects of value classes follow the role of
+the step; the order of transformations within a step changed the result (now
+the order of the table); the comparison of expected tables did not tell `1`
+from `1.0` or `true`; any step could declare any transformation (now each has
+its owner); the operation-schema class had no check and is left to the
+components' vectors; cited rules must exist.
 
 ### What the vectors fix that the suite observed differently
 

@@ -11,7 +11,7 @@
       "operation": "data.run",
       "version": 2,
       "params": {
-        "plan": "identity"
+        "plan": "geo.centroid"
       },
       "transformations": []
     }
@@ -20,10 +20,11 @@
     "class": "input",
     "category": "data_mapping",
     "phases": [
-      "read",
-      "write"
+      "read"
     ],
-    "remote_effect": "none",
+    "remote_effects": [
+      "none"
+    ],
     "retry": "never",
     "exit_code": 3,
     "rules": [

@@ -3,30 +3,33 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "rejection",
-  "description": "io.read rejects ewkb-srid-differs with the category of its class (ARROW-013).",
-  "input": "../arrow-data-v1/invalid-ewkb-srid-differs.json",
+  "description": "io.write rejects type-outside-declaration with the category of its class (ARROW-013).",
+  "input": "../arrow-data-v1/invalid-type-outside-declaration.json",
   "chain": [
     {
       "component": "plenora-io-tools",
-      "operation": "io.read",
+      "operation": "io.write",
       "version": 2,
       "params": {
-        "source": "input.arrow"
+        "format": "gpkg"
       },
       "transformations": []
     }
   ],
   "expected_error": {
     "class": "input",
-    "category": "crs",
+    "category": "data_mapping",
     "phases": [
-      "validate"
+      "write"
     ],
-    "remote_effect": "none",
+    "remote_effects": [
+      "none",
+      "rolled_back"
+    ],
     "retry": "never",
     "exit_code": 3,
     "rules": [
-      "VOC-009",
+      "VOC-011",
       "ARROW-013"
     ]
   }

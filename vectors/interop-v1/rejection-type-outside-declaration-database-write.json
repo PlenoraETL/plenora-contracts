@@ -21,10 +21,12 @@
     "class": "input",
     "category": "data_mapping",
     "phases": [
-      "read",
       "write"
     ],
-    "remote_effect": "none",
+    "remote_effects": [
+      "none",
+      "rolled_back"
+    ],
     "retry": "never",
     "exit_code": 3,
     "rules": [

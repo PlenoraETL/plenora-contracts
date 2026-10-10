@@ -3,15 +3,15 @@
   "schema_version": 1,
   "contract": "plenora-interop-vector-v1",
   "kind": "rejection",
-  "description": "io.read rejects wkb-truncated with the category of its class (ARROW-013).",
+  "description": "data.run rejects wkb-truncated with the category of its class (ARROW-013).",
   "input": "../arrow-data-v1/invalid-wkb-truncated.json",
   "chain": [
     {
-      "component": "plenora-io-tools",
-      "operation": "io.read",
+      "component": "plenora-data-tools",
+      "operation": "data.run",
       "version": 2,
       "params": {
-        "source": "input.arrow"
+        "plan": "geo.centroid"
       },
       "transformations": []
     }
@@ -20,10 +20,11 @@
     "class": "input",
     "category": "data_mapping",
     "phases": [
-      "read",
-      "write"
+      "read"
     ],
-    "remote_effect": "none",
+    "remote_effects": [
+      "none"
+    ],
     "retry": "never",
     "exit_code": 3,
     "rules": [

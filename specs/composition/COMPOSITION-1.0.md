@@ -104,8 +104,12 @@ IPC. Step parameters such as a plan or a sink format are abstract: the
 harness maps them to each surface's spelling.
 
 **COMP-003** — A step changes the table only through the transformations it
-declares, from this closed list; everything else, data and metadata, is
-compared exactly, byte for byte for WKB:
+declares, from this closed list, applied in the order of the table; only the
+component and operation the basis names may declare one (`assign_field_ids`
+any step, `large_to_standard` and `srid_from_epsg_identifier` `data.run`,
+the four others `database.read`). Everything else, data and metadata, is
+compared exactly and by type (`1`, `1.0` and `true` differ), byte for byte
+for WKB:
 
 | transformation | effect | basis |
 |---|---|---|
@@ -121,13 +125,21 @@ A loss that is not in the list is a defect of the step, never an expected
 difference.
 
 **COMP-004** — A `rejection` vector whose input is an `invalid` data vector
-expects that vector's category and the rule that decides it. A `rejection`
-of a valid input names its class: `support` (`unsupported`),
-`operation_schema` (`schema`) or `crs` for a step that computes and cannot
-verify or use the CRS (VOC-015, or a profile rule such as DT-ARROW-004).
-Classes decided from the schema expect phase `validate`; an invalid value
-admits `read` or `write`. Every rejection expects `remote_effect: none` and
-`retry.kind: never`, and the CLI exit code 3.
+expects that vector's category and the rule that decides it; when the rule is
+a value class (VOC-008, VOC-009, VOC-011), the step decodes values: it
+computes with coordinates or writes them to a target that interprets
+geometry, never one that carries the bytes (VOC-009). A `rejection` of a
+valid input names its class: `support` (`unsupported`, with VOC-012 or VOC-010
+shown by the input) or `crs` for a step that computes, a `data.run` whose plan
+is a registered `geo.` kernel, and cannot verify or use the CRS (VOC-015, or
+DT-ARROW-004); a step that only carries or records the CRS is never expected
+to refuse it (VOC-004). The schema classes expect phase `validate` and remote
+effect `none`; a value class expects `read` for a reading step, or `write`
+with remote effect `none` or `rolled_back` for a writing step. Every
+rejection expects `retry.kind: never` and the CLI exit code 3. The
+operation-schema class of ARROW-013 depends on a target or a plan that the
+vectors of this version do not describe; the components' own vectors
+exercise it.
 
 **COMP-005** — The validator recomputes every expected table from the input
 and the declared transformations, checks every chain against the matrix and
