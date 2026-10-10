@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID
 
 import arrow_data
+import interop_vectors
 from conformance_checks import example_inventory_errors, public_semantic_errors
 
 from jsonschema import Draft202012Validator
@@ -42,6 +43,7 @@ EXPECTED_SCHEMAS = {
     "data-execution-result-v3.schema.json",
     "data-plan-v1.schema.json",
     "error-v1.schema.json",
+    "interop-vector-v1.schema.json",
     "operation-registry-v1.schema.json",
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
@@ -121,6 +123,9 @@ CASES = {
         ],
         "runtime-probe-v1.schema.json": [
             "examples/invalid/runtime-probe-two-mutations.json",
+        ],
+        "interop-vector-v1.schema.json": [
+            "examples/invalid/interop-vector-handoff-with-error.json",
         ],
         "arrow-data-vector-v1.schema.json": [
             "examples/invalid/arrow-data-vector-valid-with-category.json",
@@ -533,6 +538,9 @@ def validate_machine_documents(
         ),
         "arrow-data-vector-v1.schema.json": sorted(
             (ROOT / "vectors/arrow-data-v1").glob("*.json")
+        ),
+        "interop-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/interop-v1").glob("*.json")
         ),
         "runtime-vector-v1.schema.json": sorted(
             (ROOT / "vectors/runtime-v1").glob("*.json")
@@ -1750,6 +1758,29 @@ def validate_arrow_vectors() -> list[str]:
     return failures
 
 
+def validate_interop_vectors(catalogs: dict[str, dict[str, Any]]) -> list[str]:
+    """Composition 1.0 section 6: chains against the matrix, expectations
+    recomputed from the inputs (`interop_vectors`)."""
+    operations = operation_index(catalogs)
+    edges = load_json(ROOT / "composition/pipelines-v1.json")["edges"]
+    direct = {
+        (
+            (edge["from"]["component"], edge["from"]["operation"], edge["from"]["version"]),
+            (edge["to"]["component"], edge["to"]["operation"], edge["to"]["version"]),
+        )
+        for edge in edges
+        if edge["mode"] == "direct"
+    }
+    failures: list[str] = []
+    paths = sorted((ROOT / "vectors/interop-v1").glob("*.json"))
+    if not paths:
+        failures.append("vectors/interop-v1 has no vectors")
+    for path in paths:
+        for problem in interop_vectors.vector_errors(path, load_json(path), operations, direct, load_json):
+            failures.append(f"{path.relative_to(ROOT).as_posix()} {problem}")
+    return failures
+
+
 def validate_arrow_data_vectors() -> list[str]:
     """Arrow Vocabulary 1.0 section 12: each vector states the verdict the
     rules give, derived by `arrow_data`."""
@@ -2799,6 +2830,7 @@ def run_gate() -> int:
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_arrow_data_vectors())
+    failures.extend(validate_interop_vectors(catalogs))
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
     failures.extend(validate_runtime_probes(catalogs, schemas, registry))
     failures.extend(validate_plan_budget(schemas, registry))

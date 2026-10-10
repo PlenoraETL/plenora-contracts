@@ -1,0 +1,85 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "handoff",
+  "description": "Several declared geometry types cross IO and data unchanged (VOC-010).",
+  "input": "../arrow-data-v1/types-point-polygon.json",
+  "chain": [
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.read",
+      "version": 2,
+      "params": {
+        "source": "input.arrow"
+      },
+      "transformations": []
+    },
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "identity"
+      },
+      "transformations": [
+        "large_to_standard",
+        "assign_field_ids",
+        "srid_from_epsg_identifier"
+      ]
+    },
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.write",
+      "version": 2,
+      "params": {
+        "format": "arrow_ipc_file"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_output": {
+    "schema_metadata": {
+      "plenora.contract.version": "1"
+    },
+    "fields": [
+      {
+        "name": "id",
+        "type": "int64",
+        "nullable": false,
+        "metadata": {
+          "plenora.field_id": "0"
+        }
+      },
+      {
+        "name": "geometry",
+        "type": "binary",
+        "nullable": true,
+        "metadata": {
+          "plenora.field_id": "1",
+          "ARROW:extension:name": "geoarrow.wkb",
+          "plenora.geometry.encoding": "wkb",
+          "plenora.geometry.dimensions": "xy",
+          "plenora.geometry.spatial_semantics": "geometry",
+          "plenora.geometry.precision": "float64",
+          "plenora.geometry.types_declaration": "exact",
+          "plenora.geometry.types": "point,polygon",
+          "plenora.geometry.crs_resolution": "resolved",
+          "plenora.geometry.crs_id": "EPSG:4326",
+          "plenora.geometry.axis_order": "lon_lat",
+          "plenora.geometry.srid": "4326"
+        }
+      }
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "geometry": "01010000000000000000205ec00000000000a04640"
+      },
+      {
+        "id": 2,
+        "geometry": "010300000001000000050000000000000000205ec00000000000a046409a99999999195ec00000000000a046409a99999999195ec0cdccccccccac46400000000000205ec0cdccccccccac46400000000000205ec00000000000a04640"
+      }
+    ]
+  }
+}

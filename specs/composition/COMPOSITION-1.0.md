@@ -75,3 +75,61 @@ For an `adapter_required` edge, the named contract MUST be either the source
 operation's output contract or an interchange contract declared by that
 output. The adapter owns the conversion from that complete source result to a
 contract accepted by the target.
+
+## 6. Interoperability vectors
+
+The vectors in [`vectors/interop-v1`](../../vectors/interop-v1/) fix what a
+pipeline of public operations must deliver, so that a suite running the same
+chain through every surface (Rust, Python, CLI, runtime) compares each
+result with one expectation instead of with another implementation. Their
+shape is
+[`interop-vector-v1.schema.json`](../../schemas/interop-vector-v1.schema.json).
+
+**COMP-001** — A vector is one of three kinds:
+
+- `handoff`: an input table (an `expect: valid` vector of
+  [`vectors/arrow-data-v1`](../../vectors/arrow-data-v1/)), a chain of steps
+  and the exact table the chain delivers;
+- `rejection`: an input table, one step and the error axes that step reports
+  (Arrow Interchange 1.0, ARROW-013 to ARROW-015);
+- `source`: a source document in a format whose specification fixes the
+  coordinate order, the reading step and the coordinates and axis order it
+  must declare (Arrow Vocabulary 1.0, VOC-002, VOC-003).
+
+**COMP-002** — Consecutive steps of a chain are a `direct` edge of the
+matrix, or a write followed by a read of the same component on the same
+target (`via: target`). The first step reads the input table as Arrow IPC;
+the output of a chain is the table its last step delivers or writes as Arrow
+IPC. Step parameters such as a plan or a sink format are abstract: the
+harness maps them to each surface's spelling.
+
+**COMP-003** — A step changes the table only through the transformations it
+declares, from this closed list; everything else, data and metadata, is
+compared exactly, byte for byte for WKB:
+
+| transformation | effect | basis |
+|---|---|---|
+| `assign_field_ids` | a field without `plenora.field_id` receives the smallest free identifier, in field order | VOC-013 |
+| `large_to_standard` | `large_utf8` becomes `utf8` and `large_binary` becomes `binary` | the data-tools output contract (ARROW-010) |
+| `srid_from_epsg_identifier` | a geometry field with a resolved `EPSG:<n>` and no `srid`, `n` within 32 bits, receives `srid=<n>` | the data-tools output contract (ARROW-010) |
+| `ewkb_with_field_srid` | geometry values become EWKB carrying the field's `srid` on the outermost geometry, in the same byte order, and `encoding` becomes `ewkb` | VOC-009 |
+| `axis_order_unknown` | `axis_order` becomes `unknown` on a geometry field with a declared CRS: the step cannot establish the stored order | VOC-002 |
+| `several_types_to_mixed` | a geometry field declared `exact` with several types becomes `mixed` without a list: the target keeps them in an unconstrained column | VOC-010 |
+| `provider_metadata` | keys under the step's reviewed provider prefix are added; they are verified by the provider's own vectors, not by this one | ARROW-009 |
+
+A loss that is not in the list is a defect of the step, never an expected
+difference.
+
+**COMP-004** — A `rejection` vector whose input is an `invalid` data vector
+expects that vector's category and the rule that decides it. A `rejection`
+of a valid input names its class: `support` (`unsupported`),
+`operation_schema` (`schema`) or `crs` for a step that computes and cannot
+verify or use the CRS (VOC-015, or a profile rule such as DT-ARROW-004).
+Classes decided from the schema expect phase `validate`; an invalid value
+admits `read` or `write`. Every rejection expects `remote_effect: none` and
+`retry.kind: never`, and the CLI exit code 3.
+
+**COMP-005** — The validator recomputes every expected table from the input
+and the declared transformations, checks every chain against the matrix and
+every rejection against the input vector and ARROW-013, and reads every
+source document itself.

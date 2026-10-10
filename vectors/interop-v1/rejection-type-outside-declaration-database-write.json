@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "rejection",
+  "description": "database.write rejects type-outside-declaration with the category of its class (ARROW-013).",
+  "input": "../arrow-data-v1/invalid-type-outside-declaration.json",
+  "chain": [
+    {
+      "component": "plenora-database-tools",
+      "operation": "database.write",
+      "version": 1,
+      "params": {
+        "mode": "create",
+        "provider": "postgresql"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "input",
+    "category": "data_mapping",
+    "phases": [
+      "read",
+      "write"
+    ],
+    "remote_effect": "none",
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "VOC-011",
+      "ARROW-013"
+    ]
+  }
+}

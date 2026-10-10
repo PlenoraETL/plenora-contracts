@@ -33,6 +33,15 @@ full commit SHA; a release tag names one of those commits.
   four of them with two defects. No schema, catalog, binding or published
   vector changes. See
   [decision 0014](decisions/0014-arrow-input-rejection-categories.md).
+- Interoperability vectors (Composition 1.0 section 6, COMP-001 to COMP-005):
+  new schema `interop-vector-v1` and 31 vectors in `vectors/interop-v1` for
+  the cross-library suite: 7 handoff chains among IO-tools, data-tools and
+  database-tools whose expected table the validator recomputes from the
+  input and a closed list of declared transformations; 23 rejections with
+  the category of their class; one GeoJSON source whose axis order and
+  coordinates the validator reads. Chains are checked against the
+  composition matrix. No catalog, binding, profile or published vector
+  changes. See [decision 0018](decisions/0018-interoperability-vectors.md).
 
 ### Changed
 

@@ -1,0 +1,33 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "rejection",
+  "description": "A sink limited to one geometry field refuses two with unsupported, before any effect (VOC-012).",
+  "input": "../arrow-data-v1/two-geometry-fields.json",
+  "chain": [
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.write",
+      "version": 2,
+      "params": {
+        "format": "gpkg"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "support",
+    "category": "unsupported",
+    "phases": [
+      "validate"
+    ],
+    "remote_effect": "none",
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "VOC-012",
+      "ARROW-013"
+    ]
+  }
+}

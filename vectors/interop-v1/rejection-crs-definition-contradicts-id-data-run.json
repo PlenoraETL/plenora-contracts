@@ -1,0 +1,33 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "rejection",
+  "description": "data.run rejects crs-definition-contradicts-id with the category of its class (ARROW-013).",
+  "input": "../arrow-data-v1/invalid-crs-definition-contradicts-id.json",
+  "chain": [
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "identity"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "input",
+    "category": "crs",
+    "phases": [
+      "validate"
+    ],
+    "remote_effect": "none",
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "VOC-005",
+      "ARROW-013"
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "source",
+  "description": "GeoJSON stores longitude first (RFC 7946): IO declares lon_lat and delivers the stored ordinates (VOC-002, VOC-003).",
+  "source": {
+    "format": "geojson",
+    "text": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"properties\":{\"id\":1},\"geometry\":{\"type\":\"Point\",\"coordinates\":[-120.5,45.25]}},{\"type\":\"Feature\",\"properties\":{\"id\":2},\"geometry\":{\"type\":\"Point\",\"coordinates\":[12.4964,41.9028]}}]}"
+  },
+  "chain": [
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.read",
+      "version": 2,
+      "params": {
+        "source": "points.geojson"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_geometry": {
+    "crs_id": "OGC:CRS84",
+    "axis_order": "lon_lat",
+    "coordinates": [
+      [
+        -120.5,
+        45.25
+      ],
+      [
+        12.4964,
+        41.9028
+      ]
+    ]
+  }
+}
