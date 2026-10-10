@@ -43,7 +43,8 @@ name, a unique `plenora.field_id`, an RFC 6901 JSON Pointer into a record,
 an Arrow type among `bool`, `int64`, `float64` and `utf8`, and a
 nullability. It also states `accept_status`, `on_record_error` (`fail` or
 `exclude`) and `undeclared_members` (`ignore` or `reject`). A declaration
-with a repeated name or identifier, or a pointer that is not a non-empty
+with a repeated name or identifier, a field named `@undeclared` (reserved
+by RA-006), or a pointer that is not a non-empty
 RFC 6901 pointer (it starts with `/`, and every `~` is followed by `0` or
 `1`), fails with `invalid_configuration` before any record is read.
 
@@ -108,7 +109,8 @@ with scope `read`, `index_basis: source_row_zero_based`,
 `input_total` the number of records, `counts` by cause, `examples_limit`
 128, `examples_truncated` true only beyond 128, and one example per excluded
 record in record order: `source_index` the record index, `cause`, and
-`column` the declared field name, omitted for an undeclared member. With
+`column` the declared field name, omitted when the cause is
+`adapter.undeclared_member`, whatever the name. With
 `fail` the table carries no diagnostics.
 
 **RA-008** — Every error of the adapter has `remote_effect: none` and

@@ -151,6 +151,22 @@ class VectorTests(unittest.TestCase):
             with self.subTest(name):
                 self.assertEqual(len(adapter.vector_errors(leaked)), 1)
 
+    def test_messages_never_carry_values(self):
+        document = vector("undeclared-keys-never-reported.json")
+        document["expect"]["rows"][0]["id"] = 999
+        errors = adapter.vector_errors(document)
+        self.assertEqual(errors, ["expect differs from the outcome the rules give at /rows/0/id"])
+        self.assertNotIn("999", errors[0])
+        self.assertEqual(adapter.difference({"a": 1}, {"b": 1}), "/a")
+        self.assertEqual(adapter.difference([1], [1, 2]), " (length)")
+        self.assertEqual(adapter.difference(1, 1.0), "/")
+
+    def test_the_reserved_name_and_the_cause(self):
+        reserved = declaration(("@undeclared", "/x", "int64", True))
+        self.assertIn("a field uses the reserved name @undeclared", adapter.declaration_errors(reserved))
+        found = adapter.diagnostics([{"record": 0, "field": "@undeclared", "cause": "adapter.type_mismatch"}], 1)
+        self.assertEqual(found["examples"][0]["column"], "@undeclared")
+
     def test_int64_keeps_the_exact_integer(self):
         rows = vector("int64-exact-beyond-2-53.json")["expect"]["rows"]
         self.assertEqual(rows[0]["n"], 9007199254740993)

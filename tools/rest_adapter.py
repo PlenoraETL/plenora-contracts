@@ -113,6 +113,8 @@ def declaration_errors(declaration: dict[str, Any]) -> list[str]:
         errors.append("accept_status lists failed")
     if len(names) != len(set(names)):
         errors.append("repeated field name")
+    if UNDECLARED in names:
+        errors.append("a field uses the reserved name @undeclared")
     if len(identities) != len(set(identities)):
         errors.append("repeated field identifier")
     for field in fields:
@@ -145,7 +147,7 @@ def diagnostics(excluded: list[dict[str, Any]], records: int) -> dict[str, Any]:
     examples = []
     for item in excluded[:EXAMPLES_LIMIT]:
         example = {"source_index": item["record"], "cause": item["cause"]}
-        if item["field"] != UNDECLARED:
+        if item["cause"] != "adapter.undeclared_member":
             example["column"] = item["field"]
         examples.append(example)
     return {
@@ -234,5 +236,24 @@ def vector_errors(vector: dict[str, Any]) -> list[str]:
             for row in expected["rows"]
         ]
     if not _same(found, expected):
-        return [f"states {vector['expect']}, the rules give {found}"]
+        # The path of the first difference, never the outcomes: they hold
+        # source values and keys (ERR-010).
+        return [f"expect differs from the outcome the rules give at {difference(expected, found)}"]
     return []
+
+
+def difference(left: Any, right: Any, path: str = "") -> str:
+    """The path of the first difference of two values that are not `_same`."""
+    if type(left) is type(right) and isinstance(left, dict):
+        for key in sorted(set(left) | set(right), key=str):
+            if key not in left or key not in right:
+                return f"{path}/{key}"
+            if not _same(left[key], right[key]):
+                return difference(left[key], right[key], f"{path}/{key}")
+    if type(left) is type(right) and isinstance(left, list):
+        if len(left) != len(right):
+            return f"{path} (length)"
+        for index, (one, other) in enumerate(zip(left, right)):
+            if not _same(one, other):
+                return difference(one, other, f"{path}/{index}")
+    return path or "/"

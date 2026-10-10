@@ -125,6 +125,7 @@ CASES = {
         ],
         "rest-arrow-adapter-v1.schema.json": [
             "examples/invalid/rest-arrow-adapter-unknown-type.json",
+            "examples/invalid/rest-arrow-adapter-reserved-name.json",
         ],
         "rest-arrow-adapter-vector-v1.schema.json": [
             "examples/invalid/rest-arrow-adapter-vector-error-without-cause.json",

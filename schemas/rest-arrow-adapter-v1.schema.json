@@ -14,16 +14,35 @@
     "fields"
   ],
   "properties": {
-    "schema_version": {"const": 1},
-    "contract": {"const": "plenora-rest-arrow-adapter-v1"},
+    "schema_version": {
+      "const": 1
+    },
+    "contract": {
+      "const": "plenora-rest-arrow-adapter-v1"
+    },
     "accept_status": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": {"enum": ["success", "partial"]}
+      "items": {
+        "enum": [
+          "success",
+          "partial"
+        ]
+      }
     },
-    "on_record_error": {"enum": ["fail", "exclude"]},
-    "undeclared_members": {"enum": ["ignore", "reject"]},
+    "on_record_error": {
+      "enum": [
+        "fail",
+        "exclude"
+      ]
+    },
+    "undeclared_members": {
+      "enum": [
+        "ignore",
+        "reject"
+      ]
+    },
     "fields": {
       "type": "array",
       "minItems": 1,
@@ -31,13 +50,43 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "field_id", "pointer", "type", "nullable"],
+        "required": [
+          "name",
+          "field_id",
+          "pointer",
+          "type",
+          "nullable"
+        ],
         "properties": {
-          "name": {"type": "string", "minLength": 1, "maxLength": 256},
-          "field_id": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
-          "pointer": {"type": "string", "minLength": 1, "maxLength": 1024},
-          "type": {"enum": ["bool", "int64", "float64", "utf8"]},
-          "nullable": {"type": "boolean"}
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "not": {
+              "const": "@undeclared"
+            }
+          },
+          "field_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pointer": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "type": {
+            "enum": [
+              "bool",
+              "int64",
+              "float64",
+              "utf8"
+            ]
+          },
+          "nullable": {
+            "type": "boolean"
+          }
         }
       }
     }

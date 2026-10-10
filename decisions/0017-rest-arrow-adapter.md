@@ -77,6 +77,15 @@ A second reading (Codex) found two blocking defects and a gap, corrected:
   2^53, that an exponent is never an `int64`, and lists the declared losses
   of `float64` and of absent members (equal to null), with vectors.
 
+A further reading (Codex) found two more blocking defects, corrected: a
+declared field named `@undeclared` collided with the reserved identifier and
+lost its `column`; the identifier is now reserved (the declaration schema
+rejects it, with an invalid example) and diagnostics omit `column` by cause,
+not by name. The validator printed both outcomes on a mismatch, and with
+them source values and keys: it now reports only the path of the first
+difference; the other validators of the repository were checked for the same
+class (their messages carry rules, field names and paths).
+
 ### Scope left out of version 1
 
 - Types beyond the four JSON scalars (decimals, dates, timestamps,
