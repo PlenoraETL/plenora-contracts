@@ -72,6 +72,15 @@ producer omitted a required key. A well-formed version that the consumer
 does not support is the case ERR-002 names. `data_mapping` describes values,
 and `invalid_plan` the request.
 
+### Second reading
+
+An independent reading found that an EWKB SRID mismatch (VOC-009) sat in the
+CRS class, which ARROW-015 decides from the schema with phase `validate`,
+while it can only be found while reading values, possibly after a streaming
+writer has written earlier batches. It is now a value class of its own,
+"value contradicting the CRS", with category `crs` and the order and axes of
+values (phase `read` or `write`, the remote effect of ERR-004).
+
 ## Alternatives
 
 - **Leave the category to each component.** The suite's divergence is the

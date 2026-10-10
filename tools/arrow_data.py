@@ -36,6 +36,15 @@ class Malformed(Exception):
     """A WKB or EWKB value, or a CRS definition, that is not well-formed."""
 
 
+class SridOnMember(Malformed):
+    """An SRID flag on a member geometry: VOC-008 under `wkb`, VOC-009 under
+    `ewkb`."""
+
+
+class Undecidable(Malformed):
+    """Well-formed CRS definition whose parts VOC-015 cannot decide."""
+
+
 class Verdict(NamedTuple):
     category: str
     rule: str
@@ -122,8 +131,8 @@ def _geometry(reader: _Reader, depth: int, outer: bool) -> Geometry:
     thousands, kind = divmod(base, 1000)
     if thousands not in ISO_DIMENSIONS:
         raise Malformed("unknown geometry type code")
-    if thousands and (has_z or has_m):
-        raise Malformed("ISO and extended dimension flags together")
+    if thousands and (has_z or has_m or has_srid):
+        raise Malformed("ISO type code with extended flags")
     if thousands:
         has_z, has_m = ISO_DIMENSIONS[thousands]
     name = GEOMETRY_TYPES.get(kind)
@@ -132,7 +141,7 @@ def _geometry(reader: _Reader, depth: int, outer: bool) -> Geometry:
     srid = None
     if has_srid:
         if not outer:
-            raise Malformed("SRID on a member geometry")
+            raise SridOnMember("SRID on a member geometry")
         (srid,) = struct.unpack(prefix + "i", reader.take(4))
     width = 8 * (2 + has_z + has_m)
 
@@ -140,21 +149,35 @@ def _geometry(reader: _Reader, depth: int, outer: bool) -> Geometry:
         (value,) = struct.unpack(prefix + "I", reader.take(4))
         return value
 
-    def points(number: int) -> None:
+    def points(number: int) -> bytes:
         if number * width > reader.remaining():
             raise Malformed("value ends early")
-        reader.take(number * width)
+        return reader.take(number * width)
+
+    def ring() -> None:
+        # VOC-011: a linear ring has at least four points and is closed.
+        number = count()
+        data = points(number)
+        if number < 4 or data[:width] != data[-width:]:
+            raise Malformed("ring not closed or shorter than four points")
 
     if name == "point":
         points(1)
-    elif name in ("linestring", "circularstring"):
-        points(count())
+    elif name == "linestring":
+        if count_points(points, count()) == 1:
+            raise Malformed("linestring of one point")
+    elif name == "circularstring":
+        number = count_points(points, count())
+        if number and (number < 3 or number % 2 == 0):
+            raise Malformed("circular string without an odd count of at least three points")
     elif name in ("polygon", "triangle"):
         rings = count()
         if rings * 4 > reader.remaining():
             raise Malformed("value ends early")
+        if name == "triangle" and rings > 1:
+            raise Malformed("triangle with more than one ring")
         for _ in range(rings):
-            points(count())
+            ring()
     else:
         members = count()
         # Every member has at least a header: bounds the loop by the bytes.
@@ -168,6 +191,11 @@ def _geometry(reader: _Reader, depth: int, outer: bool) -> Geometry:
             if member.dimensions != DIMENSIONS[(has_z, has_m)]:
                 raise Malformed("member dimensions differ from their container")
     return Geometry(name, DIMENSIONS[(has_z, has_m)], srid)
+
+
+def count_points(points: Any, number: int) -> int:
+    points(number)
+    return number
 
 
 def decode_wkb(data: bytes) -> Geometry:
@@ -184,7 +212,7 @@ def decode_wkb(data: bytes) -> Geometry:
 _WKT_TOKEN = re.compile(
     r'\s*(?:(?P<open>[\[(])|(?P<close>[\])])|(?P<comma>,)'
     r'|(?P<string>"(?:[^"]|"")*")'
-    r'|(?P<number>[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)'
+    r'|(?P<number>[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)'
     r'|(?P<word>[A-Za-z_][A-Za-z0-9_]*))'
 )
 
@@ -222,6 +250,7 @@ def parse_wkt(text: str) -> _Node:
         if position + 1 >= len(tokens) or tokens[position][0] != "word" or tokens[position + 1][0] != "open":
             raise Malformed("WKT keyword expected")
         keyword = tokens[position][1]
+        opening = tokens[position + 1][1]
         position += 2
         items: list[Any] = []
         while True:
@@ -240,9 +269,11 @@ def parse_wkt(text: str) -> _Node:
                 raise Malformed("WKT value expected")
             if position >= len(tokens):
                 raise Malformed("unclosed WKT bracket")
-            kind, _ = tokens[position]
+            kind, text_token = tokens[position]
             position += 1
             if kind == "close":
+                if {"[": "]", "(": ")"}[opening] != text_token:
+                    raise Malformed("WKT brackets of different kinds")
                 return _Node(keyword, items)
             if kind != "comma":
                 raise Malformed("WKT separator expected")
@@ -255,7 +286,7 @@ def parse_wkt(text: str) -> _Node:
 
 def _code(kind: str, value: Any) -> str:
     if kind == "number":
-        if not re.fullmatch(r"[+]?\d+", str(value)):
+        if not re.fullmatch(r"\+?[0-9]+", str(value)):
             raise Malformed("non-integer numeric authority code")
         return str(int(str(value)))
     return str(value)
@@ -317,12 +348,29 @@ def wkt_identifiers(node: _Node, keyword: str) -> list[tuple[str, str]]:
     return pairs
 
 
+WKT1_ROOTS = {"GEOGCS", "PROJCS", "GEOCCS", "VERT_CS", "COMPD_CS", "LOCAL_CS", "FITTED_CS"}
+WKT2_ROOTS = {
+    "GEOGCRS", "GEOGRAPHICCRS", "GEODCRS", "GEODETICCRS", "PROJCRS", "PROJECTEDCRS",
+    "VERTCRS", "VERTICALCRS", "COMPOUNDCRS", "ENGCRS", "ENGINEERINGCRS", "BOUNDCRS",
+    "DERIVEDPROJCRS", "TIMECRS", "PARAMETRICCRS",
+}
+
+
+def parse_definition(text: str, definition_format: str) -> _Node:
+    """A WKT definition whose root keyword belongs to its declared format."""
+    root = parse_wkt(text)
+    roots = WKT2_ROOTS if definition_format == "wkt2" else WKT1_ROOTS
+    if root.keyword.upper() not in roots:
+        raise Malformed("root keyword of another WKT version")
+    return root
+
+
 def definition_identifiers(text: str, definition_format: str) -> list[tuple[str, str]]:
     """The top-level (authority, code) pairs of a CRS definition (VOC-005)."""
     if definition_format == "projjson":
         return projjson_identifiers(load_projjson(text))
     keyword = "ID" if definition_format == "wkt2" else "AUTHORITY"
-    return wkt_identifiers(parse_wkt(text), keyword)
+    return wkt_identifiers(parse_definition(text, definition_format), keyword)
 
 
 def _same(pair: tuple[str, str], crs_id: str) -> bool:
@@ -349,21 +397,49 @@ class Reference(NamedTuple):
     kind: str
     base: str | None
     ellipsoid: tuple[Decimal, Decimal]
+    conversion: tuple[str, dict[str, Decimal]] | None = None
 
 
 # The reference parts of the identifiers the vectors use (EPSG registry). A
 # consumer uses its own CRS knowledge; this table only lets the validator
 # derive the verdict a vector states, and an identifier outside it is
-# undecidable, as it is for a consumer that does not know it.
+# undecidable, as it is for a consumer that does not know it. Every one of
+# them has the Greenwich meridian, degrees and metres.
 WGS84 = (Decimal("6378137"), Decimal("298.257223563"))
 INTERNATIONAL_1924 = (Decimal("6378388"), Decimal("297"))
+
+
+def transverse_mercator(longitude: str, false_easting: str) -> tuple[str, dict[str, Decimal]]:
+    return ("transverse_mercator", {
+        "latitude_of_origin": Decimal("0"),
+        "central_meridian": Decimal(longitude),
+        "scale_factor": Decimal("0.9996"),
+        "false_easting": Decimal(false_easting),
+        "false_northing": Decimal("0"),
+    })
+
+
 REFERENCE_CRS = {
     "EPSG:4326": Reference("geographic", None, WGS84),
     "EPSG:4265": Reference("geographic", None, INTERNATIONAL_1924),
-    "EPSG:3003": Reference("projected", "EPSG:4265", INTERNATIONAL_1924),
-    "EPSG:32632": Reference("projected", "EPSG:4326", WGS84),
-    "EPSG:32633": Reference("projected", "EPSG:4326", WGS84),
+    "EPSG:3003": Reference("projected", "EPSG:4265", INTERNATIONAL_1924, transverse_mercator("9", "1500000")),
+    "EPSG:32632": Reference("projected", "EPSG:4326", WGS84, transverse_mercator("9", "500000")),
+    "EPSG:32633": Reference("projected", "EPSG:4326", WGS84, transverse_mercator("15", "500000")),
 }
+# Parameter spellings of WKT 1, WKT 2 and PROJJSON for the reference methods.
+PARAMETER_NAMES = {
+    "latitude_of_origin": "latitude_of_origin",
+    "latitude of natural origin": "latitude_of_origin",
+    "central_meridian": "central_meridian",
+    "longitude of natural origin": "central_meridian",
+    "scale_factor": "scale_factor",
+    "scale factor at natural origin": "scale_factor",
+    "false_easting": "false_easting",
+    "false easting": "false_easting",
+    "false_northing": "false_northing",
+    "false northing": "false_northing",
+}
+METHOD_NAMES = {"transverse_mercator": "transverse_mercator", "transverse mercator": "transverse_mercator"}
 
 
 class Parts(NamedTuple):
@@ -371,6 +447,9 @@ class Parts(NamedTuple):
     bases: list[tuple[str, str]]
     ellipsoid: tuple[Decimal, Decimal] | None
     datum_shift: bool
+    prime_meridian_zero: bool
+    units_decided: bool
+    conversion: tuple[str, dict[str, Decimal]] | None
 
 
 def _children(node: _Node, *keywords: str) -> list[_Node]:
@@ -380,27 +459,72 @@ def _children(node: _Node, *keywords: str) -> list[_Node]:
     ]
 
 
+def _descendants(node: _Node, *keywords: str) -> list[_Node]:
+    found = []
+    for item in node.items:
+        if isinstance(item, _Node):
+            if item.keyword.upper() in keywords:
+                found.append(item)
+            found.extend(_descendants(item, *keywords))
+    return found
+
+
 def _anywhere(node: _Node, *keywords: str) -> bool:
-    return any(
-        isinstance(item, _Node)
-        and (item.keyword.upper() in keywords or _anywhere(item, *keywords))
-        for item in node.items
-    )
+    return bool(_descendants(node, *keywords))
 
 
 def _decimal(item: Any) -> Decimal:
     if not isinstance(item, tuple) or item[0] != "number":
-        raise Malformed("ellipsoid parameter is not a number")
+        raise Undecidable("parameter is not a number")
     return Decimal(item[1])
+
+
+DEGREE = "0.0174532925199433"
+
+
+def unit_decided(name: str, factor: Decimal) -> bool:
+    """A metre, a degree (pi/180 to 15 significant digits) or unity."""
+    name = name.lower()
+    if name in ("metre", "meter", "unity"):
+        return factor == 1
+    if name == "degree":
+        return f"{factor:.15g}" == DEGREE
+    return False
+
+
+def _wkt_units(root: _Node) -> bool:
+    for unit in _descendants(root, "UNIT", "ANGLEUNIT", "LENGTHUNIT", "SCALEUNIT"):
+        if len(unit.items) < 2 or not isinstance(unit.items[0], tuple) or unit.items[0][0] != "string":
+            raise Undecidable("unit without name and factor")
+        if not unit_decided(unit.items[0][1], _decimal(unit.items[1])):
+            return False
+    return True
 
 
 def _wkt_ellipsoid(geographic: _Node) -> tuple[Decimal, Decimal] | None:
     for datum in _children(geographic, "DATUM", "GEODETICDATUM", "TRF", "ENSEMBLE"):
         for ellipsoid in _children(datum, "SPHEROID", "ELLIPSOID"):
             if len(ellipsoid.items) < 3:
-                raise Malformed("ellipsoid without its two parameters")
+                raise Undecidable("ellipsoid without its two parameters")
             return _decimal(ellipsoid.items[1]), _decimal(ellipsoid.items[2])
     return None
+
+
+def _wkt_prime_meridian_zero(geographic: _Node) -> bool:
+    meridians = _children(geographic, "PRIMEM", "PRIMEMERIDIAN")
+    return all(len(item.items) >= 2 and _decimal(item.items[1]) == 0 for item in meridians)
+
+
+def _parameters(nodes: list[_Node]) -> dict[str, Decimal]:
+    found: dict[str, Decimal] = {}
+    for node in nodes:
+        if len(node.items) < 2 or not isinstance(node.items[0], tuple):
+            raise Undecidable("parameter without name and value")
+        name = PARAMETER_NAMES.get(str(node.items[0][1]).lower())
+        if name is None or name in found:
+            raise Undecidable("parameter outside the reference methods")
+        found[name] = _decimal(node.items[1])
+    return found
 
 
 WKT_KINDS = {
@@ -414,15 +538,47 @@ def _wkt_parts(root: _Node, wkt2: bool) -> Parts:
     kind = WKT_KINDS.get(keyword, "other")
     shift = keyword == "BOUNDCRS" or _anywhere(root, "TOWGS84", "BOUNDCRS")
     identifier = "ID" if wkt2 else "AUTHORITY"
-    geographic = root
+    geographic: _Node | None = root
     bases: list[tuple[str, str]] = []
+    conversion = None
     if kind == "projected":
         found = _children(root, "BASEGEOGCRS", "BASEGEODCRS") if wkt2 else _children(root, "GEOGCS")
         geographic = found[0] if found else None
         if geographic is not None:
             bases = wkt_identifiers(geographic, identifier)
-    ellipsoid = _wkt_ellipsoid(geographic) if geographic is not None else None
-    return Parts(kind, bases, ellipsoid, shift)
+        if wkt2:
+            holders = _children(root, "CONVERSION")
+            methods = [method for holder in holders for method in _children(holder, "METHOD", "PROJECTION")]
+            parameters = [parameter for holder in holders for parameter in _children(holder, "PARAMETER")]
+        else:
+            methods = _children(root, "PROJECTION")
+            parameters = _children(root, "PARAMETER")
+        if len(methods) != 1 or not methods[0].items or not isinstance(methods[0].items[0], tuple):
+            raise Undecidable("projection method not readable")
+        method = METHOD_NAMES.get(str(methods[0].items[0][1]).lower())
+        if method is None:
+            raise Undecidable("projection method outside the reference methods")
+        conversion = (method, _parameters(parameters))
+    if geographic is None:
+        raise Undecidable("projected CRS without its base")
+    return Parts(
+        kind, bases, _wkt_ellipsoid(geographic), shift,
+        _wkt_prime_meridian_zero(geographic), _wkt_units(root), conversion,
+    )
+
+
+def _json_number(value: Any) -> Decimal:
+    if isinstance(value, bool) or not isinstance(value, (int, Decimal)):
+        raise Undecidable("PROJJSON value with a unit or not a number")
+    return Decimal(value)
+
+
+def _projjson_unit(unit: Any) -> bool:
+    if isinstance(unit, str):
+        return unit.lower() in ("metre", "meter", "degree", "unity")
+    if isinstance(unit, dict) and isinstance(unit.get("name"), str):
+        return unit_decided(unit["name"], _json_number(unit.get("conversion_factor")))
+    raise Undecidable("PROJJSON unit not readable")
 
 
 def _projjson_parts(root: dict[str, Any]) -> Parts:
@@ -431,25 +587,46 @@ def _projjson_parts(root: dict[str, Any]) -> Parts:
     shift = root.get("type") == "BoundCRS"
     geographic = root
     bases: list[tuple[str, str]] = []
+    conversion = None
+    units = True
     if kind == "projected":
         geographic = root.get("base_crs")
         if not isinstance(geographic, dict):
-            raise Malformed("projected PROJJSON without its base CRS")
+            raise Undecidable("projected PROJJSON without its base CRS")
         bases = projjson_identifiers(geographic)
+        found = root.get("conversion")
+        if not isinstance(found, dict) or not isinstance(found.get("method"), dict):
+            raise Undecidable("projected PROJJSON without its conversion")
+        method = METHOD_NAMES.get(str(found["method"].get("name", "")).lower())
+        if method is None or not isinstance(found.get("parameters"), list):
+            raise Undecidable("conversion outside the reference methods")
+        parameters: dict[str, Decimal] = {}
+        for parameter in found["parameters"]:
+            if not isinstance(parameter, dict):
+                raise Undecidable("parameter not readable")
+            name = PARAMETER_NAMES.get(str(parameter.get("name", "")).lower())
+            if name is None or name in parameters:
+                raise Undecidable("parameter outside the reference methods")
+            parameters[name] = _json_number(parameter.get("value"))
+            units = units and _projjson_unit(parameter.get("unit", "unity"))
+        conversion = (method, parameters)
     datum = geographic.get("datum", geographic.get("datum_ensemble"))
     ellipsoid = None
     if isinstance(datum, dict) and isinstance(datum.get("ellipsoid"), dict):
-        found = datum["ellipsoid"]
-        a, rf = found.get("semi_major_axis"), found.get("inverse_flattening")
-        if all(isinstance(value, (int, Decimal)) and not isinstance(value, bool) for value in (a, rf)):
-            ellipsoid = (Decimal(a), Decimal(rf))
-    return Parts(kind, bases, ellipsoid, shift)
+        found_ellipsoid = datum["ellipsoid"]
+        ellipsoid = (
+            _json_number(found_ellipsoid.get("semi_major_axis")),
+            _json_number(found_ellipsoid.get("inverse_flattening")),
+        )
+    meridian = geographic.get("prime_meridian")
+    zero = meridian is None or (isinstance(meridian, dict) and _json_number(meridian.get("longitude", 0)) == 0)
+    return Parts(kind, bases, ellipsoid, shift, zero, units, conversion)
 
 
 def definition_parts(text: str, definition_format: str) -> Parts:
     if definition_format == "projjson":
         return _projjson_parts(load_projjson(text))
-    return _wkt_parts(parse_wkt(text), definition_format == "wkt2")
+    return _wkt_parts(parse_definition(text, definition_format), definition_format == "wkt2")
 
 
 def computation_verdict(field: dict[str, Any]) -> Verdict | None:
@@ -460,8 +637,9 @@ def computation_verdict(field: dict[str, Any]) -> Verdict | None:
     if definition is None:
         return None if crs_id in REFERENCE_CRS else Verdict("crs", "VOC-015")
     if crs_id is None:
-        # Interpreting a definition completely is beyond the minimum parts.
-        return Verdict("crs", "VOC-006")
+        # Interpreting a definition completely is beyond the minimum parts:
+        # the verdict depends on the consumer's CRS knowledge (VOC-006).
+        raise Undecidable("a definition without identifier")
     definition_format = metadata["plenora.geometry.crs_definition_format"]
     if not any(_same(pair, crs_id) for pair in definition_identifiers(definition, definition_format)):
         return Verdict("crs", "VOC-015")
@@ -473,7 +651,14 @@ def computation_verdict(field: dict[str, Any]) -> Verdict | None:
     except Malformed:
         # Well-formed syntax (VOC-005) whose parts cannot be read is undecidable.
         return Verdict("crs", "VOC-015")
-    if parts.kind != reference.kind or parts.datum_shift or parts.ellipsoid != reference.ellipsoid:
+    if (
+        parts.kind != reference.kind
+        or parts.datum_shift
+        or parts.ellipsoid != reference.ellipsoid
+        or not parts.prime_meridian_zero
+        or not parts.units_decided
+        or parts.conversion != reference.conversion
+    ):
         return Verdict("crs", "VOC-015")
     if parts.bases and not any(_same(pair, reference.base or "") for pair in parts.bases):
         return Verdict("crs", "VOC-015")
@@ -503,9 +688,16 @@ CLOSED_VALUES = {
         "lon_lat", "lat_lon", "easting_northing", "northing_easting", "other", "unknown",
     },
 }
-DECIMAL = re.compile(r"^(0|[1-9][0-9]*)$")
-SRID = re.compile(r"^(0|-?[1-9][0-9]*)$")
-VERSION = re.compile(r"^[1-9][0-9]*$")
+# Grammars match the whole value (`fullmatch`): `$` would admit a final newline.
+DECIMAL = re.compile(r"0|[1-9][0-9]*")
+SRID = re.compile(r"0|-?[1-9][0-9]*")
+VERSION = re.compile(r"[1-9][0-9]*")
+CRS_ID = re.compile(r"[A-Za-z][A-Za-z0-9_.-]*:[^\s:]+")
+GEOMETRY_KEYS = set(REQUIRED_GEOMETRY) | set(CLOSED_VALUES) | {
+    "plenora.geometry.srid", "plenora.geometry.types", "plenora.geometry.crs_id",
+    "plenora.geometry.crs_definition",
+}
+NATIVE_PREFIX = "plenora.geometry.native."
 INTEGER_RANGES = {"int32": 2**31, "int64": 2**63}
 VOCABULARY = "VOCABULARY-4"
 
@@ -526,7 +718,7 @@ def _vocabulary(fields: list[dict[str, Any]]) -> Verdict | None:
     for field in fields:
         metadata = field["metadata"]
         if "plenora.field_id" in metadata:
-            if not DECIMAL.match(metadata["plenora.field_id"]):
+            if not DECIMAL.fullmatch(metadata["plenora.field_id"]):
                 return Verdict("schema", VOCABULARY)
             identities.append(int(metadata["plenora.field_id"]))
         if not is_geometry(field):
@@ -537,15 +729,23 @@ def _vocabulary(fields: list[dict[str, Any]]) -> Verdict | None:
             return Verdict("schema", VOCABULARY)
         if any(key not in metadata for key in REQUIRED_GEOMETRY):
             return Verdict("schema", VOCABULARY)
+        if any(
+            key.startswith("plenora.geometry.") and key not in GEOMETRY_KEYS
+            and not key.startswith(NATIVE_PREFIX)
+            for key in metadata
+        ):
+            return Verdict("schema", VOCABULARY)
         for key, values in CLOSED_VALUES.items():
             if key in metadata and metadata[key] not in values:
                 return Verdict("schema", VOCABULARY)
         if "plenora.geometry.srid" in metadata:
             srid = metadata["plenora.geometry.srid"]
-            if not SRID.match(srid) or not -(2**31) <= int(srid) < 2**31:
+            if not SRID.fullmatch(srid) or not -(2**31) <= int(srid) < 2**31:
                 return Verdict("schema", VOCABULARY)
         declaration = metadata["plenora.geometry.types_declaration"]
         types = _type_list(metadata.get("plenora.geometry.types"))
+        if types == []:
+            return Verdict("schema", VOCABULARY)
         if declaration == "exact" and not types:
             return Verdict("schema", VOCABULARY)
         if declaration == "unresolved" and types is not None:
@@ -556,9 +756,10 @@ def _vocabulary(fields: list[dict[str, Any]]) -> Verdict | None:
             positions = [CANONICAL_TYPES.index(item) for item in types]
             if positions != sorted(set(positions)):
                 return Verdict("schema", VOCABULARY)
-        for key in ("plenora.geometry.crs_id", "plenora.geometry.crs_definition"):
-            if key in metadata and metadata[key] == "":
-                return Verdict("schema", VOCABULARY)
+        if "plenora.geometry.crs_definition" in metadata and metadata["plenora.geometry.crs_definition"] == "":
+            return Verdict("schema", VOCABULARY)
+        if "plenora.geometry.crs_id" in metadata and not CRS_ID.fullmatch(metadata["plenora.geometry.crs_id"]):
+            return Verdict("schema", VOCABULARY)
     if len(identities) != len(set(identities)):
         return Verdict("schema", VOCABULARY)
     return None
@@ -599,6 +800,8 @@ def _value(field: dict[str, Any], data: bytes) -> Verdict | None:
     encoding = metadata["plenora.geometry.encoding"]
     try:
         geometry = decode_wkb(data)
+    except SridOnMember:
+        return Verdict("data_mapping", "VOC-008" if encoding == "wkb" else "VOC-009")
     except Malformed:
         return Verdict("data_mapping", "VOC-011")
     if geometry.srid is not None:
@@ -653,7 +856,7 @@ def verdict(vector: dict[str, Any]) -> Verdict | None:
     cells = [[_cell(field, row[field["name"]]) for field in fields] for row in vector["rows"]]
 
     version = vector["schema_metadata"].get("plenora.contract.version")
-    if version is None or not VERSION.match(version):
+    if version is None or not VERSION.fullmatch(version):
         return Verdict("schema", "ARROW-001")
     if version != "1":
         return Verdict("unsupported", "ARROW-002")
@@ -683,11 +886,17 @@ def computation_errors(vector: dict[str, Any]) -> list[str]:
     stated = vector.get("computation")
     if not declared:
         return [] if stated is None else ["states a computation verdict without a declared CRS"]
+    undecided = [
+        field for field in with_definition if "plenora.geometry.crs_id" not in field["metadata"]
+    ]
     if stated is None:
-        if with_definition:
+        if len(undecided) < len(with_definition):
             return ["carries a CRS definition and states no computation verdict"]
         return []
-    found = next(filter(None, map(computation_verdict, declared)), None)
+    try:
+        found = next(filter(None, map(computation_verdict, declared)), None)
+    except Undecidable:
+        return ["states a computation verdict the validator cannot decide (VOC-006)"]
     if found is None:
         if stated != "accepted":
             return ["states a computation rejection, the rules accept it"]

@@ -99,6 +99,28 @@ contradictory definition the outcome is the one data-tools proposed: the
 field passes through unchanged and an operation that computes fails with
 `crs`.
 
+### Second reading
+
+An independent reading of the rules and of the validator found, and this
+decision corrects:
+
+- the minimum of VOC-015 let the most common modifications under the same
+  identifier pass (another central meridian, an ellipsoid in feet, the Paris
+  meridian): it now includes the prime meridian, every unit by name and
+  factor, and the conversion method and parameters of a projected CRS;
+- "well-formed" was undefined for WKB (cardinalities, closed rings, the SRID
+  flag with an ISO type code, nesting) and for WKT (brackets of different
+  kinds, a WKT 1 root declared `wkt2`): VOC-011 and VOC-005 define it;
+- the grammars accepted a final line feed (`1
+` as contract version, field
+  identifier or SRID), an empty type list, a `crs_id` without authority and
+  unknown `plenora.geometry.*` keys in a closed vocabulary: section 3 states
+  the whole-value grammars and the closed key set;
+- an SRID flag on a member is cited as VOC-008 or VOC-009 by encoding;
+- the validator no longer states a computation verdict for a definition
+  without identifier, which depends on the consumer's CRS knowledge, and
+  checks that every rule a vector cites is defined.
+
 ### Not ratified
 
 - **Rejecting `unknown` axis order for computation.** A consumer that
