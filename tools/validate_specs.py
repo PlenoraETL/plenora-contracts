@@ -11,6 +11,7 @@ from uuid import UUID
 
 import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
+from messages import differing_members
 
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
@@ -1530,7 +1531,7 @@ def inline_credential_errors(payload: Any, label: str) -> list[str]:
             continue
         if name.endswith(("ref", "reference")) and is_opaque_reference(value):
             continue
-        errors.append(f"{label} contains inline credential field {key}")
+        errors.append(f"{label} contains an inline credential field")
     if any(SECRET_VALUE.search(value) for value in artifact_strings(payload)):
         errors.append(f"{label} contains an inline credential value")
     return errors
@@ -1964,7 +1965,7 @@ def unknown_commit_errors(label: str, payload: dict[str, Any]) -> list[str]:
     # examples exhaustive (a cancellation is `cancelled`), so any other code
     # is checked only for the retry ERR-006 requires.
     if expected is not None and payload.get("category") != expected:
-        failures.append(f"{label} reports the cause {payload.get('code')} as {payload.get('category')}, not {expected} (ERR-016)")
+        failures.append(f"{label} reports a mapped cause with another category than {expected} (ERR-016)")
     if (payload.get("retry") or {}).get("kind") not in ERR_006_RETRIES:
         failures.append(f"{label} allows a retry ERR-006 forbids after an unknown outcome")
     return failures
@@ -2206,7 +2207,7 @@ def well_formed(key: str, value: Any) -> bool:
         return True
     if key == IDEMPOTENCY_KEY:
         return isinstance(value, str) and value != ""
-    raise ProbeUndecided(f"metadata key {key} is not reserved by Runtime Binding 1.0")
+    raise ProbeUndecided("a metadata key is not reserved by Runtime Binding 1.0")
 
 
 def probe_outcome(
@@ -2220,7 +2221,7 @@ def probe_outcome(
             well_formed(name, metadata[name])
     if key not in metadata:
         if key not in REQUIRED_REQUEST_KEYS:
-            raise ProbeUndecided(f"removing optional {key} is not a rejection")
+            raise ProbeUndecided("removing an optional key is not a rejection")
         return "protocol", "RT-017"
     if not well_formed(key, metadata[key]):
         return "protocol", rule_of_key.get(key, "RT-017")
@@ -2302,6 +2303,13 @@ def probe_result_metadata(metadata: dict[str, Any]) -> dict[str, str]:
     return result
 
 
+ERROR_AXES = ("category", "phase", "remote_effect", "retry", "code", "message")
+RESERVED_METADATA = (
+    "plenora.capability.operation", "plenora.operation.version", "plenora.output.contract",
+    "plenora.trace.correlation_id", "plenora.message.id", "plenora.message.causation_id",
+)
+
+
 def runtime_probe_errors(
     probe: dict[str, Any],
     versions: dict[str, dict[int, dict[str, Any]]],
@@ -2310,21 +2318,21 @@ def runtime_probe_errors(
 ) -> list[str]:
     base_path = ROOT / "vectors/runtime-v1" / probe["base"]
     if not base_path.is_file():
-        return [f"base {probe['base']} is not a runtime vector"]
+        return ["the base is not a runtime vector"]
     base = load_json(base_path)
     if member(base, "kind") != "request" or not isinstance(member(base, "metadata"), dict):
-        return [f"base {probe['base']} is not a request vector"]
+        return ["the base is not a request vector"]
     metadata = dict(base["metadata"])
     mutation = probe["mutation"]
     if "remove" in mutation:
         key = mutation["remove"]
         if key not in metadata:
-            return [f"removes {key}, which the base does not carry"]
+            return ["removes a key the base does not carry"]
         del metadata[key]
     else:
         ((key, value),) = mutation["set"].items()
         if key in metadata and metadata[key] == value and type(metadata[key]) is type(value):
-            return [f"sets {key} to the value the base already carries"]
+            return ["sets a key to the value the base already carries"]
         metadata[key] = value
     try:
         category, rule = artifact_probe_outcome(base["metadata"], metadata, key, versions)
@@ -2344,14 +2352,15 @@ def runtime_probe_errors(
         errors.append(f"expected error is not a plenora-error-v1 value: {schema_errors[0]}")
     if declared_error != expected_error:
         errors.append(
-            f"expects {declared_error}, but RT-016 and {rule} give {expected_error}"
+            f"expects an error that RT-016 and {rule} do not give "
+            f"(members {differing_members(declared_error, expected_error, ERROR_AXES)})"
         )
     if probe["rule"] != rule:
-        errors.append(f"names {probe['rule']}, but the rejection follows {rule}")
+        errors.append(f"names another rule, but the rejection follows {rule}")
     if probe["expected"]["metadata"] != expected_metadata:
         errors.append(
-            f"expects result metadata {probe['expected']['metadata']}, "
-            f"but RT-019 gives {expected_metadata}"
+            "expects result metadata that RT-019 does not give (members "
+            f"{differing_members(probe['expected']['metadata'], expected_metadata, RESERVED_METADATA)})"
         )
     return errors
 
@@ -2661,14 +2670,14 @@ def data_plan_number_errors(text: str) -> list[str]:
     def integer(token: str) -> int:
         value = int(token)
         if not -(2**63) <= value <= 2**64 - 1:
-            problems.append(f"integer {token} outside i64/u64 (DPLAN-003)")
+            problems.append("an integer outside i64/u64 (DPLAN-003)")
         return value
 
     def number(token: str) -> decimal.Decimal:
         written = decimal.Decimal(token)
         nearest = float(token)
         if nearest in (float("inf"), float("-inf")) or decimal.Decimal(repr(nearest)) != written:
-            problems.append(f"number {token} is not exactly a binary64 shortest decimal (DPLAN-003)")
+            problems.append("a number that is not exactly a binary64 shortest decimal (DPLAN-003)")
         return written
 
     def constant(name: str) -> None:
