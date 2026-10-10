@@ -18,7 +18,9 @@ full commit SHA; a release tag names one of those commits.
   runtime), DB-ABS-002 (`database.execute` without runtime), DB-ABS-003
   (handle and savepoint contracts as logical shapes, never serialized),
   DT-ABS-001 (`data.run` version 3 without CLI and Python SDK), DT-ABS-002
-  (`data.run` version 2 without runtime). The runtime of IO-tools,
+  (`data.run` version 2 without runtime). On the runtime, `database.query`
+  returns its complete result as JSON (DB-RT-001) and `database.write`
+  receives its rows by artifact reference (DB-RT-002). The runtime of IO-tools,
   database-tools and data-tools version 1 is stated `conditional`, as their
   catalogs select it. No schema, catalog, binding or vector changes. See
   [decision 0015](decisions/0015-intentional-absences-and-planned-surfaces.md).

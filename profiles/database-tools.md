@@ -124,6 +124,27 @@ names the representation a serialized surface would use, not one that
 exists. A consumer MUST NOT expect, persist or exchange them as JSON
 documents; a handle is valid only in the process and session that created it.
 
+## Content types on the runtime
+
+Runtime Binding 1.0 carries one payload per request and per result, and lets
+a caller choose neither among the content types an operation declares.
+
+**DB-RT-001** — On the runtime, the result of `database.query` version 1 is
+`application/json`, one of the two content types the catalog declares; its
+input contract is closed and has no member to ask for Arrow. That JSON is the
+complete `plenora-database-query-result-v1`, with the same meaning as the
+Arrow form on the other surfaces (Arrow Interchange 1.0 section 7): a summary
+without the rows is not the operation's result (RT-008). Arrow on the runtime
+needs a new version of the operation whose input names an artifact sink, as
+`data.run` version 3 does.
+
+**DB-RT-002** — On the runtime, the payload of `database.write` is
+`application/json` (`plenora-database-write-input-v1`), and the rows travel
+as an artifact reference that the application resolves (RT-013, RT-015); the
+artifact's content type is one of the two Arrow content types the catalog
+declares. The Arrow content types are artifact types on this surface, never
+payload types.
+
 ## Interchange
 
 `database.read` returns tabular results through the Arrow Interchange 1.0

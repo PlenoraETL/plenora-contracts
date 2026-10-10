@@ -95,6 +95,30 @@ Profiles:
   `conditional` for the runtime instead of "required for every operation
   selected for orchestration", which the catalogs never said.
 
+### Content types on the runtime (database-tools)
+
+database-tools asked how the runtime carries the content types its catalog
+declares, which Runtime Binding 1.0 cannot select:
+
+- **`database.query`**: the catalog declares `application/json` and the Arrow
+  stream for the result, and the closed input contract cannot ask for one.
+  Two options: (a) JSON only on the runtime for version 1; (b) a selection
+  member in a new input contract, which is a new operation version, not a
+  minor change, because `plenora-database-query-input-v1` is closed.
+  Decided (a), as **DB-RT-001**, with the condition that the JSON is the
+  complete result and not a summary (RT-008, Arrow Interchange 1.0 section
+  7); (b) is the route when a pipeline needs Arrow from the runtime, with an
+  artifact sink rather than inline bytes, as `data.run` version 3.
+- **`database.write`**: the envelope is `application/json` and the Arrow
+  rows arrive by artifact reference; **DB-RT-002** states it, without
+  changing the catalog, whose content types describe the operation.
+- **`database.query` in the Python SDK**: no binding returns Arrow. The
+  result may be the structured JSON form, but Python SDK 1.0 section 3
+  says a tabular SDK SHOULD use PyArrow or Arrow IPC at the boundary, and
+  without it `database.query` enters no Python pipeline. This is a gap to
+  close, not an intentional absence: a PyArrow (or `__arrow_c_stream__`)
+  result for `Session.select`.
+
 ### Open point: mutating runtime operations without an idempotency key
 
 DB-ABS-002 belongs to a class. On the runtime, with `side_effect: remote` and
@@ -117,8 +141,8 @@ profile, a separate adopter.
 - **Before:** catalog surfaces could be read as availability; four absences
   had no stated reason; the handle contracts declared a JSON form that no
   surface has.
-- **After:** CAT-001 to CAT-003, DB-ABS-001 to DB-ABS-003, DT-ABS-001,
-  DT-ABS-002 and the validator guard.
+- **After:** CAT-001 to CAT-003, DB-ABS-001 to DB-ABS-003, DB-RT-001,
+  DB-RT-002, DT-ABS-001, DT-ABS-002 and the validator guard.
 - **Compatible:** yes: no catalog, binding, schema or vector changes; the
   rules restate what Capability Discovery 2.0 already makes authoritative and
   forbid only additions that no published document contains.
@@ -132,4 +156,8 @@ profile, a separate adopter.
     surface that answers (`crates/plenora-cli/src/capacita.rs`), as it does;
     no deviation is needed, the surface is conditional.
   - database-tools: write the reasons of DB-ABS-001 and DB-ABS-002 in its
-    documentation and keep the handles out of every serialized surface.
+    documentation and keep the handles out of every serialized surface;
+    return the complete query result as JSON on the runtime (DB-RT-001) or
+    record a deviation while the runtime returns a summary; accept the
+    Arrow of `database.write` on the runtime only by artifact reference
+    (DB-RT-002); give `Session.select` an Arrow result.
