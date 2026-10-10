@@ -8,20 +8,20 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
-- Meaning of the geometry keys, ratified in Arrow Vocabulary 1.0 as
-  clarifications (sections 7 to 12, VOC-001 to VOC-015): `axis_order` is the
-  order of the coordinates stored in the WKB, not the registry order, and
-  the producer declares it from the source convention; `crs_id` is
-  normative, a definition whose top-level identifier contradicts it fails
-  with `crs`, and a consumer that computes verifies the definition first
-  (identifier at the root and decidable parts); every consumer accepts both
-  `wkb` and `ewkb`, an EWKB SRID different from the field's fails with
-  `crs`; several geometry types and several geometry fields are valid, and a
-  target that cannot store them fails with `unsupported`; identity and
-  precision of produced fields. New schema `arrow-data-vector-v1.schema.json`
-  and 29 vectors in `vectors/arrow-data-v1` with row values, whose verdicts
-  the validator derives by decoding every geometry. No existing schema,
-  catalog, binding or vector changes. See
+- Arrow Geometry Semantics 1.0 (`plenora-arrow-geometry-semantics-v1`), an
+  opt-in contract next to Arrow Vocabulary 1.0 that changes neither keys,
+  values nor `plenora.contract.version` (GEO-000 to GEO-018): input
+  conformance, component support and operation applicability are distinct
+  verdicts; `axis_order` is the stored order, declared by the producer;
+  `crs_id` is normative, a contradictory top-level identifier is `crs`, and a
+  component verifies a definition before computing with one conservative
+  subset (exact decimals, two spellings of the degree, closed aliases, units
+  by quantity, datum and conversion); both `wkb` and `ewkb` are accepted;
+  several types and geometry fields are valid; identity and precision of
+  produced fields. Arrow Vocabulary 1.0 keeps its published text, with an
+  informative pointer. New schema `arrow-data-vector-v1` and 39 vectors in
+  `vectors/arrow-data-v1`. No existing schema, catalog, binding or vector
+  changes. See
   [decision 0013](decisions/0013-geometry-vocabulary-semantics.md).
 
 ### Changed

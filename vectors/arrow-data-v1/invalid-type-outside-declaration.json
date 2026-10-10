@@ -6,7 +6,7 @@
   "reason": "A linestring value in a field whose exact types are point and polygon.",
   "category": "data_mapping",
   "rules": [
-    "VOC-011"
+    "GEO-011"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

@@ -6,7 +6,7 @@
   "reason": "The top-level identifier is EPSG:3003; the nested GEOGCS EPSG:4326 does not satisfy the field.",
   "category": "crs",
   "rules": [
-    "VOC-005"
+    "GEO-005"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

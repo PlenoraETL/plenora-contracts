@@ -6,7 +6,7 @@
   "reason": "An EWKB value carries SRID 3003 in a field that declares SRID 4326.",
   "category": "crs",
   "rules": [
-    "VOC-009"
+    "GEO-009"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

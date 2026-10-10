@@ -6,8 +6,8 @@
   "reason": "An SRID on a member of a multipoint is malformed EWKB.",
   "category": "data_mapping",
   "rules": [
-    "VOC-009",
-    "VOC-011"
+    "GEO-009",
+    "GEO-011"
   ],
   "schema_metadata": {
     "plenora.contract.version": "1"

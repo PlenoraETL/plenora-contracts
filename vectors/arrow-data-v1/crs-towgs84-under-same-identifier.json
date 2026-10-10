@@ -6,7 +6,7 @@
   "computation": {
     "category": "crs",
     "rules": [
-      "VOC-015"
+      "GEO-015"
     ]
   },
   "schema_metadata": {

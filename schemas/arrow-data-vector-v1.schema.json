@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.plenora.dev/arrow-data-vector-v1.schema.json",
   "title": "Plenora Arrow data conformance vector v1",
-  "description": "An Arrow schema fixture with row values (Arrow Vocabulary 1.0, section 12). Binary values are lowercase hexadecimal.",
+  "description": "An Arrow schema fixture with row values (Arrow Geometry Semantics 1.0, section 9). Binary values are lowercase hexadecimal.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -53,7 +53,7 @@
       "description": "Rule identifiers; VOCABULARY-<n> names a section of Arrow Vocabulary 1.0 whose rules carry no identifier."
     },
     "computation": {
-      "description": "Verdict of a consumer that computes with the coordinates (VOC-015): accepted, or the rejection.",
+      "description": "Verdict of a consumer that computes with the coordinates (GEO-015): accepted, or the rejection.",
       "oneOf": [
         {
           "const": "accepted"
