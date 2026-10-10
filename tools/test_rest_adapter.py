@@ -96,6 +96,22 @@ class AdaptTests(unittest.TestCase):
         outcome = adapter.adapt(decl, result({"n": 1, "extra": 1}))
         self.assertEqual((outcome.field, outcome.cause), ("extra", "adapter.undeclared_member"))
 
+    def test_status_before_output_and_failed_never_accepted(self):
+        failed = {"schema_version": 1, "status": "failed", "output": {"type": "none"}, "errors": [{}]}
+        self.assertEqual(adapter.adapt(declaration(("n", "/n", "int64", True)), failed).category, "execution")
+        listed = declaration(("n", "/n", "int64", True), accept=["success", "failed"])
+        self.assertEqual(adapter.adapt(listed, failed).category, "invalid_configuration")
+
+    def test_trailing_line_feed_in_an_index(self):
+        with self.assertRaises(adapter.RecordError):
+            adapter.evaluate({"a": [1, 2]}, "/a/1\n")
+        self.assertEqual(len(adapter.declaration_errors(declaration(("a", "/a\n", "int64", True)))), 0)
+        self.assertEqual(len(adapter.declaration_errors(declaration(("a", "a/\n", "int64", True)))), 1)
+
+    def test_signed_zero(self):
+        self.assertFalse(adapter._same(0.0, -0.0))
+        self.assertTrue(adapter._same(-0.0, -0.0))
+
     def test_output_without_records(self):
         missing = {"schema_version": 1, "status": "success", "output": {"type": "records"}, "errors": []}
         self.assertEqual(adapter.adapt(declaration(("n", "/n", "int64", True)), missing).category, "schema")

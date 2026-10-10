@@ -45,10 +45,22 @@ contract is verifiable.
   schema, with `plenora.contract.version=1` and the declared identities.
 
 Two schemas (`rest-arrow-adapter-v1` for the declaration,
-`rest-arrow-adapter-vector-v1` for the vectors), 19 vectors in
+`rest-arrow-adapter-vector-v1` for the vectors), 22 vectors in
 `vectors/rest-arrow-adapter-v1`, a reference adapter in the validator
 (`tools/rest_adapter.py`) that derives every outcome. Composition 1.0
 section 4 points to the contract; the edges stay `adapter_required`.
+
+### Second reading
+
+An independent reading found, and this decision corrects: a failed result
+without records gave `schema`, because the output was checked before the
+status (RA-002 now fixes the order); the overflow sentence contradicted
+rounding to nearest at the boundary (RA-005 now states the IEEE threshold,
+with a vector on each side); an integer literal `-0` and the sign of zero
+were unstated (RA-005 states them, and the comparison of vectors tells
+`0.0` from `-0.0`); an array index followed by a line feed was read as an
+index; RA-006 did not say which undeclared member to name; a declaration
+listing `failed` was accepted by the reference adapter.
 
 ### Scope left out of version 1
 
@@ -76,7 +88,7 @@ section 4 points to the contract; the edges stay `adapter_required`.
 - **Before:** an adapter with no stated behavior.
 - **After:** REST-to-Arrow Adapter 1.0, optional to claim.
 - **Compatible:** yes; nothing existing changes meaning.
-- **Schemas, examples and profiles:** two schemas, two invalid examples, 19
+- **Schemas, examples and profiles:** two schemas, two invalid examples, 22
   vectors, a new normative specification listed in the README; Composition
   1.0 section 4 gains a paragraph. No catalog, binding or profile changes.
 - **Adoption impact:** none for the five libraries. The suite replaces its

@@ -28,10 +28,11 @@ explicitly; it never infers a type, a nullability or an order.
 
 **RA-002** — The adapter consumes one complete
 `plenora-rest-execution-result-v1` (owned by rest-tools) and reads only its
-`status`, `output` and `errors`. The output must be of type `records`; any
-other output type fails with `schema`. A `status` the declaration does not
-list in `accept_status` fails with `execution`: `failed` is never accepted,
-and `partial` only when the declaration lists it. A partial result carries
+`status`, `output` and `errors`, in this order. A `status` the declaration
+does not list in `accept_status` fails with `execution`: `failed` is never
+accepted, even when a declaration lists it, and `partial` only when the
+declaration lists it. Then the output must be of type `records`; any other
+output type fails with `schema`. A partial result carries
 the REST errors in its own `errors`; the adapter reports their number next
 to its table, so the partial outcome is never read as complete (SURF-014).
 
@@ -67,8 +68,10 @@ the pointer is evaluated on the record:
   or exponent, within the signed 64-bit range (`adapter.not_representable`
   beyond it);
 - `float64` accepts any JSON number and takes the binary64 value nearest to
-  its decimal text, ties to even; a magnitude beyond the largest finite
-  binary64 is `adapter.not_representable`;
+  its decimal text, ties to even (IEEE 754 round to nearest); a text whose
+  rounding gives an infinity, a magnitude of at least 2^1024 - 2^970, is
+  `adapter.not_representable`. A number written as an integer converts from
+  its integer value, so `-0` gives `+0.0` and `-0.0` gives `-0.0`;
 - `utf8` accepts only a JSON string, unchanged;
 - any other JSON type, an object or an array included, is
   `adapter.type_mismatch`. No value is coerced between types: the string
@@ -76,7 +79,8 @@ the pointer is evaluated on the record:
 
 **RA-006** — With `undeclared_members: reject`, a top-level member of a
 record that is not the first token of any declared pointer is a record error
-(`adapter.undeclared_member`), checked after the declared fields. With
+(`adapter.undeclared_member`), checked after the declared fields; the error
+names the first such member in the order of the record's JSON text. With
 `ignore` it is not converted: a declared loss, never reported as a failure.
 
 ## 6. Record errors

@@ -14,8 +14,9 @@ import re
 from typing import Any, NamedTuple
 
 INT64 = 2**63
-ARRAY_INDEX = re.compile(r"^(0|[1-9][0-9]*)$")
-POINTER = re.compile(r"^(/([^~/]|~[01])*)+$")
+# Matched with `fullmatch`: `$` would admit a final line feed.
+ARRAY_INDEX = re.compile(r"0|[1-9][0-9]*")
+POINTER = re.compile(r"(/([^~/]|~[01])*)+")
 
 
 class RecordError(Exception):
@@ -71,7 +72,7 @@ def evaluate(record: Any, pointer: str) -> Any:
                 return MISSING
             value = value[token]
         elif isinstance(value, list):
-            if not ARRAY_INDEX.match(token):
+            if not ARRAY_INDEX.fullmatch(token):
                 raise RecordError("adapter.path_not_traversable")
             index = int(token)
             if index >= len(value):
@@ -114,12 +115,14 @@ def declaration_errors(declaration: dict[str, Any]) -> list[str]:
     names = [field["name"] for field in fields]
     identities = [field["field_id"] for field in fields]
     errors = []
+    if "failed" in declaration["accept_status"]:
+        errors.append("accept_status lists failed")
     if len(names) != len(set(names)):
         errors.append("repeated field name")
     if len(identities) != len(set(identities)):
         errors.append("repeated field identifier")
     for field in fields:
-        if not POINTER.match(field["pointer"]):
+        if not POINTER.fullmatch(field["pointer"]):
             errors.append(f"pointer of {field['name']} is not RFC 6901")
     return errors
 
@@ -127,11 +130,11 @@ def declaration_errors(declaration: dict[str, Any]) -> list[str]:
 def adapt(declaration: dict[str, Any], result: dict[str, Any]) -> Outcome:
     if declaration_errors(declaration):
         return error("invalid_configuration")
+    if result["status"] not in declaration["accept_status"]:
+        return error("execution")
     output = result["output"]
     if output.get("type") != "records" or not isinstance(output.get("records"), list):
         return error("schema")
-    if result["status"] not in declaration["accept_status"]:
-        return error("execution")
     fields = declaration["fields"]
     declared_heads = {tokens(field["pointer"])[0] for field in fields}
     rows: list[dict[str, Any]] = []
@@ -174,6 +177,8 @@ def _same(left: Any, right: Any) -> bool:
         return left.keys() == right.keys() and all(_same(left[key], right[key]) for key in left)
     if isinstance(left, list):
         return len(left) == len(right) and all(map(_same, left, right))
+    if isinstance(left, float):
+        return left == right and math.copysign(1.0, left) == math.copysign(1.0, right)
     return left == right
 
 
