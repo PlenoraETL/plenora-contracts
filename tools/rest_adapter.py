@@ -242,14 +242,35 @@ def vector_errors(vector: dict[str, Any]) -> list[str]:
     return []
 
 
-def difference(left: Any, right: Any, path: str = "") -> str:
-    """The path of the first difference of two values that are not `_same`."""
+# Keys of the outcome's own structure; any other key (a field name, a cause,
+# a metadata key) may be data and is never written into a message.
+STRUCTURAL_KEYS = {
+    "outcome", "schema", "schema_metadata", "fields", "rows", "diagnostics", "rest_status",
+    "rest_errors", "category", "phase", "remote_effect", "retry", "record", "field", "cause",
+    "name", "type", "nullable", "metadata", "contract", "scope", "index_basis", "completeness",
+    "observed_total", "input_total", "counts", "examples_limit", "examples_truncated", "examples",
+    "source_index", "column",
+}
+
+
+def _segment(key: Any, position: int, structural: bool) -> str:
+    return str(key) if structural and key in STRUCTURAL_KEYS else f"#{position}"
+
+
+def difference(left: Any, right: Any, path: str = "", structural: bool = True) -> str:
+    """The path of the first difference of two values that are not `_same`.
+    Inside a row, a count map or a metadata map, a member is named by its
+    position among the sorted keys, never by its key."""
     if type(left) is type(right) and isinstance(left, dict):
-        for key in sorted(set(left) | set(right), key=str):
+        inner = structural and not path.endswith(("/counts", "/metadata", "/schema_metadata")) \
+            and "/rows/" not in path + "/"
+        keys = sorted(set(left) | set(right), key=str)
+        for position, key in enumerate(keys):
+            segment = _segment(key, position, inner)
             if key not in left or key not in right:
-                return f"{path}/{key}"
+                return f"{path}/{segment}"
             if not _same(left[key], right[key]):
-                return difference(left[key], right[key], f"{path}/{key}")
+                return difference(left[key], right[key], f"{path}/{segment}", structural)
     if type(left) is type(right) and isinstance(left, list):
         if len(left) != len(right):
             return f"{path} (length)"

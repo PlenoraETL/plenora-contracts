@@ -155,11 +155,25 @@ class VectorTests(unittest.TestCase):
         document = vector("undeclared-keys-never-reported.json")
         document["expect"]["rows"][0]["id"] = 999
         errors = adapter.vector_errors(document)
-        self.assertEqual(errors, ["expect differs from the outcome the rules give at /rows/0/id"])
+        self.assertEqual(errors, ["expect differs from the outcome the rules give at /rows/0/#0"])
         self.assertNotIn("999", errors[0])
-        self.assertEqual(adapter.difference({"a": 1}, {"b": 1}), "/a")
+        self.assertEqual(adapter.difference({"a": 1}, {"b": 1}), "/#0")
+        self.assertEqual(adapter.difference({"rows": [{"segreto_cliente": 1}]}, {"rows": [{"segreto_cliente": 2}]}),
+                         "/rows/0/#0")
+        self.assertEqual(adapter.difference({"diagnostics": {"counts": {"x.y": 1}}},
+                                            {"diagnostics": {"counts": {"x.y": 2}}}), "/diagnostics/counts/#0")
+        self.assertEqual(adapter.difference({"category": "a"}, {"category": "b"}), "/category")
         self.assertEqual(adapter.difference([1], [1, 2]), " (length)")
         self.assertEqual(adapter.difference(1, 1.0), "/")
+
+    def test_schema_errors_carry_no_instance_data(self):
+        schema = {"type": "object", "required": ["a"], "additionalProperties": {"type": "integer"}}
+        errors = validator.instance_errors(schema, {"secret-key": "secret-value"}, validator.schema_registry({}))
+        self.assertEqual(len(errors), 2)
+        for error in errors:
+            self.assertNotIn("secret", error)
+        self.assertTrue(any("(missing a)" in error for error in errors))
+        self.assertEqual(validator.anonymous_path(["rows", 0, "x"]), "/*/0/*")
 
     def test_the_reserved_name_and_the_cause(self):
         reserved = declaration(("@undeclared", "/x", "int64", True))
