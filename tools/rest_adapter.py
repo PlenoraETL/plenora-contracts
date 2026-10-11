@@ -117,9 +117,10 @@ def declaration_errors(declaration: dict[str, Any]) -> list[str]:
         errors.append("a field uses the reserved name @undeclared")
     if len(identities) != len(set(identities)):
         errors.append("repeated field identifier")
-    for field in fields:
+    for position, field in enumerate(fields):
         if not POINTER.fullmatch(field["pointer"]):
-            errors.append(f"pointer of {field['name']} is not RFC 6901")
+            # By position: a field name is the declaration's data (ERR-010).
+            errors.append(f"pointer of field #{position} is not RFC 6901")
     return errors
 
 
