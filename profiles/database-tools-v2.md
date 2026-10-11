@@ -138,13 +138,6 @@ documents; a handle is valid only in the process and session that created it.
 
 ## The runtime surface
 
-**DB-RT-002** — On the runtime, the payload of `database.write` is
-`application/json` (`plenora-database-write-input-v1`), and the rows travel
-as an artifact reference that the application resolves (RT-013, RT-015); the
-artifact's content type is one of the two Arrow content types the catalog
-declares. The Arrow content types are artifact types on this surface, never
-payload types.
-
 **DB-RT-003** — A query result larger than the bound of the runtime surface
 fails with `resource_limit` under RT-024, before any row is returned; it is
 never cut to the bound. `database.query` is read-only, so the remote effect
@@ -158,10 +151,13 @@ and
 [`database-query-transport-limit-error.json`](../vectors/runtime-v2/database-query-transport-limit-error.json)
 illustrate both errors.
 
-`database.query` version 1 keeps on the runtime the content types its
-catalog declares; this profile adds no restriction to them. A
-representation chosen by the caller on the runtime needs a new operation
-version whose input names it.
+`database.query` version 1 and `database.write` version 1 keep on the
+runtime the input and output content types their catalog declares, Arrow
+included; this profile adds no restriction to them, and the identifiers
+DB-RT-001 and DB-RT-002 of the first form of decision 0015 are not used. A
+representation chosen by the caller on the runtime, or rows only by
+artifact reference, needs a new operation version whose input contract
+states it.
 
 ## Interchange
 

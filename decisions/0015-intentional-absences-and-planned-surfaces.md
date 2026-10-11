@@ -149,9 +149,17 @@ identities of the previous current version unchanged; only `contract`,
 `data-tools-v3.md`, `io-tools-v3.md`) are the previous ones with: Public
 Catalogs 2.0 and Runtime Binding 2.0 among the applicable contracts; the
 runtime `conditional` under CAT-001 and CAT-002 instead of "required for
-every operation selected for orchestration"; DB-ABS-001 to DB-ABS-003,
-DB-RT-002 and DB-RT-003 for database-tools; DT-ABS-001 and DT-ABS-002 for
-data-tools. Only the latest version of each component gets a successor:
+every operation selected for orchestration"; DB-ABS-001 to DB-ABS-003
+and DB-RT-003 for database-tools; DT-ABS-001 and DT-ABS-002 for data-tools.
+No profile restricts the content types of an operation its catalog
+publishes.
+
+An artifact that exposes the runtime under one of these catalog versions
+follows Runtime Binding 2.0, as the three profiles state: a catalog version
+fixes one set of contracts, so that its profile, its absences and RT-024
+bind together. An artifact that keeps Runtime Binding 1.0 implements the
+previous catalog version (`database-tools-v1.json`, `data-tools-v2.json`,
+`io-tools-v2.json`), which stays available and unchanged. Only the latest version of each component gets a successor:
 data-tools profile version 1 and IO-tools profile version 1 also stated the
 runtime as required, and stay unchanged as available identities. The
 previous catalogs and profiles are unchanged. The validator checks a
@@ -192,10 +200,15 @@ vectors.
   pipeline needs a chosen representation on the runtime, the route is a new
   operation version whose input names it, with an artifact sink rather than
   inline bytes, as `data.run` version 3.
-- **`database.write`**: on the runtime the envelope is `application/json`
-  and the Arrow rows arrive by artifact reference; the database-tools
-  profile of version 2 states it (DB-RT-002) without changing the catalog,
-  whose content types describe the operation.
+- **`database.write`**: a first draft of the database-tools profile of
+  version 2 allowed only `application/json` as runtime payload, with the
+  Arrow rows by artifact reference (DB-RT-002), while the catalog declares
+  JSON, the Arrow stream and the Arrow file as input content types: the same
+  restriction added afterwards to a published operation as DB-RT-001, which
+  Public Catalogs 2.0 section 3 admits only as a new operation version.
+  Withdrawn (seventh reading, Codex): `database.write` version 1 keeps every
+  content type its catalog declares on the runtime. Rows only by artifact
+  reference would be a new operation version whose input contract says so.
 - **A result beyond a bound**: the database-tools profile of version 2
   applies RT-024 to `database.query` and says where the bound is declared
   (DB-RT-003).
@@ -249,18 +262,20 @@ be ratified there (issue
   - database-tools: pin a revision with `database-tools-v2.json` and claim
     `plenora-public-catalog-v2`; write the reasons of DB-ABS-001 and
     DB-ABS-002 in its documentation and keep the handles out of every
-    serialized surface (DB-ABS-003); on the runtime, accept the Arrow of
-    `database.write` only by artifact reference (DB-RT-002) and fail a
-    query result beyond its bound with `resource_limit`, declaring the
-    bound in its capability attributes or adoption manifest (DB-RT-003,
-    RT-024); give `Session.select` an Arrow result (gap, not absence).
+    serialized surface (DB-ABS-003); on the runtime, follow Runtime
+    Binding 2.0 and fail a query result beyond its bound with
+    `resource_limit`, declaring the bound in its capability attributes or
+    adoption manifest (DB-RT-003, RT-024); give `Session.select` an Arrow
+    result (gap, not absence).
   - data-tools: pin a revision with `data-tools-v3.json` and claim
     `plenora-public-catalog-v2`; no change while its capability document
     lists only the surfaces that answer; never bind `data.run` 3 on CLI or
     Python, nor `data.run` 2 on the runtime.
   - IO-tools: pin a revision with `io-tools-v3.json` and claim
     `plenora-public-catalog-v2`; no change while its capability document
-    omits `runtime`; with the runtime (PR #27) it claims Runtime Binding 2.0
-    or 1.0.
+    omits `runtime`; with the runtime (PR #27) under catalog version 3 it
+    follows and claims Runtime Binding 2.0, as `io-tools-v3.md` requires; an
+    artifact that ships the runtime under Runtime Binding 1.0 implements
+    `io-tools-v2.json` instead.
   - runtime-tools: optional claim of Runtime Binding 2.0 (transport bound
     in the manifest, `vectors/runtime-v2`).

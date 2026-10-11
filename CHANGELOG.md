@@ -15,9 +15,10 @@ full commit SHA; a release tag names one of those commits.
   `database-tools-v2`, `data-tools-v3` and `io-tools-v3` with the runtime
   `conditional` (CAT-001, CAT-002), the intentional absences DB-ABS-001 to
   DB-ABS-003, DT-ABS-001 and DT-ABS-002 (CAT-003, checked by the validator),
-  and for database-tools the runtime payload of `database.write` (DB-RT-002)
-  and the bound of a `database.query` result (DB-RT-003, RT-024). No
-  restriction is added to `database.query` version 1. The previous catalogs
+  and for database-tools the bound of a `database.query` result (DB-RT-003,
+  RT-024). No restriction is added to the content types of `database.query`
+  or `database.write` version 1. An artifact that exposes the runtime under
+  these catalogs follows Runtime Binding 2.0. The previous catalogs
   and profiles are unchanged and remain available. See
   [decision 0015](decisions/0015-intentional-absences-and-planned-surfaces.md).
 - Public Catalogs 2.0 (`plenora-public-catalog-v2`, schema
