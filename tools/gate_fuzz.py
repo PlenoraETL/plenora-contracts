@@ -30,7 +30,7 @@ from unittest.mock import patch
 from referencing import Registry
 
 import validate_specs as validator
-from json_values import JsonNumber, canonical_text
+from json_values import JsonInteger, JsonNumber, canonical_text
 
 ROOT = validator.ROOT.resolve()
 DATA_DIRECTORIES = ("vectors", "examples")
@@ -413,8 +413,8 @@ def _scalar_image(value: Any) -> Any:
         return ("float", repr(value))
     if kind is Decimal:
         return ("Decimal", str(value))
-    if kind is JsonNumber:
-        return ("JsonNumber", value.text)
+    if kind is JsonNumber or kind is JsonInteger:
+        return (kind.__name__, value.text)
     if kind is Raw:
         return ("Raw", value.text)
     if kind in (set, frozenset):

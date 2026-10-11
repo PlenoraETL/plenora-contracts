@@ -41,8 +41,7 @@ class JsonNumber(Decimal):
     """A JSON number as written: its exact value (a `Decimal`, so JSON
     Schema and arithmetic read it as a number) and its exact text, which
     `same_document` compares. `parse_float` gives it for every number with a
-    fraction or an exponent; `parse_integer` for `-0`, the only integer
-    whose text an `int` would lose."""
+    fraction or an exponent: a decimal literal, never an integer one."""
 
     def __new__(cls, text: str) -> "JsonNumber":
         number = super().__new__(cls, text)
@@ -59,18 +58,44 @@ class JsonNumber(Decimal):
         return self
 
 
-def parse_integer(text: str) -> Any:
-    return JsonNumber(text) if text == "-0" else int(text)
+class JsonInteger(int):
+    """An integer literal whose text an `int` would lose: `-0`, the only
+    one JSON allows (no leading zero, no `+`). It is an `int` of value 0 for
+    every consumer, as the literal is an integer (RA-005: `-0` is the
+    integer 0, never a decimal and never -0.0); its text stays for the
+    exact comparison of a document."""
+
+    def __new__(cls, text: str) -> "JsonInteger":
+        number = super().__new__(cls, int(text))
+        number.text = text
+        return number
+
+    def __reduce__(self):
+        return (type(self), (self.text,))
+
+    def __copy__(self) -> "JsonInteger":
+        return self
+
+    def __deepcopy__(self, memo: Any) -> "JsonInteger":
+        return self
 
 
-def number_text(value: Decimal) -> str:
-    """The exact text of a parsed number; `str` of any other decimal."""
-    return value.text if isinstance(value, JsonNumber) else str(value)
+def parse_integer(text: str) -> int:
+    """Every integer literal is an `int`; `-0` keeps its text in a
+    `JsonInteger`, the integer 0."""
+    value = int(text)
+    return JsonInteger(text) if str(value) != text else value
+
+
+def number_text(value: Any) -> str:
+    """The exact text of a parsed number; `str` of any other number."""
+    return value.text if isinstance(value, (JsonNumber, JsonInteger)) else str(value)
 
 
 def loads(text: str, **options: Any) -> Any:
     """`json.loads` with exact numbers: every decimal a `JsonNumber`, every
-    integer an `int` (`-0` a `JsonNumber`). No binary float is produced."""
+    integer an `int` (`-0` a `JsonInteger`, the integer 0 with its text).
+    No binary float is produced."""
     return json.loads(text, parse_float=JsonNumber, parse_int=parse_integer, **options)
 
 
@@ -94,6 +119,9 @@ def _scalar(value: Any, by_value: bool) -> tuple[str, Any] | None:
         return ("boolean", value)
     if kind is int:
         return ("integer", value)
+    if kind is JsonInteger:
+        # `-0`: the integer 0 by value, its own text in a document.
+        return ("integer", int(value)) if by_value else ("integer-text", value.text)
     if kind is float:
         if by_value:
             # -0.0 == 0.0 (and they hash alike); a NaN is the same as itself.
@@ -167,6 +195,8 @@ def canonical_text(value: Any, sort_keys: bool = True, by_value: bool = True) ->
             parts.append(item[1])
         elif item is None or type(item) in (bool, int, str, float):
             parts.append(json.dumps(item))
+        elif type(item) is JsonInteger:
+            parts.append(json.dumps(int(item)) if by_value else item.text)
         elif type(item) is Decimal or type(item) is JsonNumber:
             parts.append(decimal_text(item) if by_value else number_text(item))
         elif type(item) is dict:

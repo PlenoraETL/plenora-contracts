@@ -89,10 +89,12 @@ def convert(value: Any, kind: str, nullable: bool) -> Any:
             return value
     elif kind == "int64":
         # The exact integer of the literal, never through binary64.
+        # An integer literal is an `int` (`-0` included, the integer 0);
+        # the value is the plain integer, never the literal's text.
         if isinstance(value, int) and not isinstance(value, bool):
             if not -INT64 <= value < INT64:
                 raise RecordError("adapter.not_representable")
-            return value
+            return int(value)
     elif kind == "float64":
         # A decimal is the exact number the parser read (`JsonNumber`); its
         # nearest binary64 is the one a float parse would give.
@@ -146,7 +148,8 @@ def field_id_text(value: Any) -> str:
     number, which writes `123.0` for a float."""
     if not _integer_literal(value) or value < 0:
         raise ValueError("a field identity is a non-negative integer")
-    return str(value)
+    # The integer's decimal text: `-0` is the identity 0.
+    return str(int(value))
 
 
 def arrow_schema(declaration: dict[str, Any]) -> dict[str, Any]:

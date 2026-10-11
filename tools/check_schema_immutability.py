@@ -339,7 +339,7 @@ def published_changes(relative: str, previous: bytes, current: bytes) -> list[st
     """How a published document changed, from its bytes. A schema compares
     its assertions by value; a catalog, a registry or a binding map, which
     may grow, compares its entries with each number's exact text; any other
-    document (a vector, an example) compares its bytes, line ends
+    document (a normative vector) compares its bytes, line ends
     normalized, without parsing: COMPATIBILITY.md forbids modifying it, so
     no spelling (`-0e-1` for `-0.0`, `10e-1` for `1.0`) is tolerated."""
     if relative.startswith("schemas/"):
@@ -374,6 +374,10 @@ def document_changes(relative: str, previous: Any, current: Any) -> list[str]:
 
 
 def is_protected(relative: str) -> bool:
+    """The documents COMPATIBILITY.md fixes once published: versioned
+    schemas, catalogs, registries, binding maps and normative vectors.
+    Examples are not among them (they illustrate, README.md) and are not
+    guarded."""
     if relative.startswith("schemas/"):
         return relative.endswith(".schema.json") and relative.count("/") == 1
     if relative.startswith("vectors/"):

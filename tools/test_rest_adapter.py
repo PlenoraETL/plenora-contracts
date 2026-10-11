@@ -36,6 +36,35 @@ def result(*records, status="success"):
 
 
 class ConversionTests(unittest.TestCase):
+    def test_the_integer_literal_minus_zero(self):
+        """RA-005: `-0` is an integer literal (the integer 0), read exactly by
+        the validator's parser; `0.0`, `-0.0` and `0e0` are not."""
+        import math
+        import validate_specs as validator
+        expected = {"int64": 0, "float64": 0.0}
+        for kind, value in expected.items():
+            with self.subTest(kind=kind):
+                out = adapter.adapt(declaration(("n", "/n", kind, True)), result(validator.loads_json('{"n": -0}')))
+                self.assertEqual(out["outcome"], "table", out)
+                found = out["rows"][0]["n"]
+                self.assertIs(type(found), type(value))
+                self.assertEqual(found, value)
+                if kind == "float64":
+                    self.assertEqual(math.copysign(1.0, found), 1.0)
+        for text in ("0.0", "-0.0", "0e0"):
+            with self.subTest(text=text):
+                out = adapter.adapt(declaration(("n", "/n", "int64", True)),
+                                    result(validator.loads_json('{"n": %s}' % text)))
+                self.assertEqual(out.get("cause"), "adapter.type_mismatch")
+        negative = adapter.adapt(declaration(("n", "/n", "float64", True)),
+                                 result(validator.loads_json('{"n": -0.0}')))
+        self.assertEqual(math.copysign(1.0, negative["rows"][0]["n"]), -1.0)
+        # The identity -0 is the integer 0.
+        identity = declaration(("n", "/n", "int64", True))
+        identity["fields"][0]["field_id"] = validator.loads_json("-0")
+        self.assertEqual(adapter.adapt(identity, result({"n": 1}))["schema"]["fields"][0]["metadata"],
+                         {"plenora.field_id": "0"})
+
     def test_types_without_coercion(self):
         cases = [
             ("bool", True, True), ("bool", 1, None),

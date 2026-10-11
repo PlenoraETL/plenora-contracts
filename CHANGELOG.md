@@ -81,7 +81,7 @@ full commit SHA; a release tag names one of those commits.
   read keeps each number exactly as written (a decimal, never a binary
   float; JSON Schema's `integer` still admits an integral decimal), and
   `NaN` and `Infinity` are refused. The immutability guard compares a
-  published vector, example or other document by its bytes (line ends
+  published normative vector by its bytes (line ends
   normalized as `.gitattributes` stores them): no spelling is tolerated
   (`-0e-1` for `-0.0`, `10e-1` for `1.0`); catalogs, registries and binding
   maps, which may grow, compare their entries with each number's exact
@@ -89,7 +89,9 @@ full commit SHA; a release tag names one of those commits.
   `0.0` and `-0.0` validate the same instances). The erratum of
   `data-run-success-v3.json` declares the digests of its bytes, for the
   same two states. A repeated catalog identity is compared with the
-  version just before it. The gate's other traversals (fuzz members and
+  version just before it. The integer literal `-0` stays the integer 0 for
+  every consumer (RA-005), with its text kept for the exact comparison. The
+  gate's other traversals (fuzz members and
   cache keys, nested items and strings of payloads, the error size bound,
   the REST adapter's difference path, now linear in time and memory) walk
   with an explicit stack too. No contract document changes.

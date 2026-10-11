@@ -13,7 +13,7 @@ from uuid import UUID
 import arrow_data
 import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
-from json_values import document_key, loads, number_text, same_document
+from json_values import JsonInteger, document_key, loads, number_text, same_document
 from messages import contract_name, differing_members
 
 import jsonschema.validators
@@ -526,7 +526,7 @@ def compact_json_size(value: Any) -> int:
         elif isinstance(item, (list, tuple)):
             size += 2 + max(len(item) - 1, 0)
             stack.extend(item)
-        elif isinstance(item, decimal.Decimal):
+        elif isinstance(item, (decimal.Decimal, JsonInteger)):
             # A parsed number as written, which is its size in the text.
             size += len(number_text(item).encode("utf-8"))
         else:

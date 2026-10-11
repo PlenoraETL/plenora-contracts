@@ -217,7 +217,10 @@ class PublishedBytesTests(unittest.TestCase):
                                          b'{"v": %s}\n' % other.encode()), ["document changed"])
         self.assertEqual(changes("vectors/x.json", b'{"v": 1}\n', b'{"v":  1}\n'), ["document changed"])
         self.assertEqual(changes("vectors/x.json", b'{"v": 1}\n', b'{"v": 1}\r\n'), [])
-        self.assertEqual(changes("examples/valid/x.json", b'[1.0]', b'[1.0]'), [])
+        self.assertEqual(changes("vectors/y/x.json", b'[1.0]', b'[1.0]'), [])
+        # Examples are not published documents (COMPATIBILITY.md): unguarded.
+        self.assertFalse(immutability.is_protected("examples/valid/x.json"))
+        self.assertTrue(immutability.is_protected("vectors/y/x.json"))
 
     def test_schemas_by_value(self):
         changes = immutability.published_changes
@@ -246,6 +249,35 @@ class PublishedBytesTests(unittest.TestCase):
             with self.subTest(relative):
                 data = (ROOT / relative).read_bytes()
                 self.assertEqual(immutability.erratum_digest(relative, data), erratum.after)
+
+
+class IntegerLiteralTests(unittest.TestCase):
+    """`-0` is an integer literal: every consumer reads it as the integer 0
+    (an `int`), while the exact text stays for the immutability of a
+    document; `0.0`, `-0.0` and `0e0` are decimals."""
+
+    def test_minus_zero_is_an_integer(self):
+        value = validator.loads_json("-0")
+        self.assertIsInstance(value, int)
+        self.assertNotIsInstance(value, bool)
+        self.assertEqual(value, 0)
+        for text in ("0.0", "-0.0", "0e0"):
+            with self.subTest(text):
+                self.assertNotIsInstance(validator.loads_json(text), int)
+        # Exact text in a document, by value in a schema.
+        self.assertFalse(same_document(validator.loads_json("-0"), validator.loads_json("0")))
+        self.assertTrue(same_schema_value(validator.loads_json("-0"), validator.loads_json("0")))
+        self.assertTrue(immutability.published_changes(
+            "catalogs/x-v1.json",
+            b'{"contract": "plenora-operation-registry-v1", "operations": [{"id": "a", "n": -0}]}',
+            b'{"contract": "plenora-operation-registry-v1", "operations": [{"id": "a", "n": 0}]}'))
+        self.assertEqual(validator.compact_json_size(validator.loads_json('{"a": -0}')), len('{"a":-0}'))
+        import gate_fuzz
+        gate = gate_fuzz.Gate()
+        self.assertNotEqual(gate._content(validator.loads_json("[-0]")), gate._content(validator.loads_json("[0]")))
+        # The arrow-data rows read it as an integer too.
+        import arrow_data
+        self.assertIsNone(arrow_data._cell(0, {"type": "int64", "nullable": False}, validator.loads_json("-0")))
 
 
 class CatalogVersionsTests(unittest.TestCase):
