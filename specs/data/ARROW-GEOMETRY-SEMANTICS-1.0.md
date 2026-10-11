@@ -23,13 +23,13 @@ which one it gives:
 
 1. **input conformance**: the input satisfies Arrow Vocabulary 1.0 and the
    grammar and consistency rules of this contract (GEO-004 to GEO-009,
-   GEO-011, GEO-016). Every component that claims this contract accepts a
+   GEO-011, GEO-016, GEO-020). Every component that claims this contract accepts a
    conforming input and rejects a non-conforming one the same way;
 2. **component support**: a component MAY refuse a conforming input that its
    targets cannot represent (GEO-010, GEO-012), with `unsupported`;
 3. **operation applicability**: an operation that computes with the
    coordinates MAY refuse a conforming input whose CRS it cannot verify or
-   use (GEO-006, GEO-015, or a profile rule), with `crs`.
+   use (GEO-006, GEO-015, GEO-020, or a profile rule), with `crs`.
 
 A component profile MAY accept input that this contract rejects, such as the
 missing keys that data-tools completes (DT-ARROW-003); this contract never
@@ -121,6 +121,29 @@ contradict this comparison; GEO-015 reads them.
 component that computes with the coordinates and cannot interpret the
 definition completely fails with `crs`; one that only passes the field
 through carries it unchanged.
+
+**GEO-020** — A local catalog authority names the spatial reference catalog
+of one database installation, not a registry: its codes identify a CRS only
+inside the installation that wrote them, and the same code in two
+installations may name two different CRSs. The local catalog authorities are,
+ASCII case-insensitively, `POSTGIS`, `MYSQL`, `MARIADB`, `MSSQL`, `ORACLE`,
+`DB2` and `SQLITE`; a name is added to this closed list only by a version of
+this contract. For a `crs_id` of a local catalog authority:
+
+1. the producer declares `crs_resolution=declared_unresolved`, never
+   `resolved`: a field that declares `resolved` is not a conforming input and
+   is rejected with `crs`. The producer does not promote the identifier to a
+   registry one (`POSTGIS:4326` does not become `EPSG:4326`) unless its own
+   catalog states that registry identifier, in which case it writes that one;
+2. two such identifiers are never comparable across sources: an equal text
+   from two installations is not evidence of the same CRS, and a component
+   that compares the CRS of fields from different sources treats them as
+   undecidable;
+3. a component that computes with the coordinates treats the CRS as
+   undecidable and fails with `crs`, whatever it knows of that catalog and
+   whatever definition is next to it; a component that only carries the
+   field, or records its identity in the same installation, carries it
+   unchanged (GEO-004).
 
 ## 4. Encodings and SRID
 
@@ -214,9 +237,12 @@ there is one:
 2. the parts of the definition agree with the CRS that `crs_id` names:
    - the CRS kind (geographic or projected) and the identifier of the base
      CRS when the definition names one;
-   - the identifier of the datum or datum ensemble, which the definition
-     must state: a datum without identifier is undecidable, never inferred
-     from its ellipsoid or its name;
+   - the identity of the datum or datum ensemble, as the definition states
+     it: the identifier of the datum when it has one; otherwise its name,
+     from the closed list of GEO-017; for a datum ensemble, the reference
+     ensemble of GEO-019 it is identical to. It is never inferred from the
+     ellipsoid, and a datum without identifier whose name is not in the list
+     is undecidable;
    - the semi-major axis and inverse flattening of the ellipsoid;
    - the prime meridian, wherever the format places it (in PROJJSON, in the
      datum or datum ensemble);
@@ -288,6 +314,7 @@ whether a definition is verified:
   | name in the reference | aliases |
   |---|---|
   | transverse mercator | `Transverse Mercator`, `Transverse_Mercator` |
+  | popular visualisation pseudo mercator | `Popular Visualisation Pseudo Mercator`, `Popular_Visualisation_Pseudo_Mercator` |
   | latitude of origin | `latitude_of_origin`, `Latitude of natural origin` |
   | central meridian | `central_meridian`, `Longitude of natural origin` |
   | scale factor | `scale_factor`, `Scale factor at natural origin` |
@@ -296,6 +323,14 @@ whether a definition is verified:
 
   A method or parameter outside the list, or a parameter repeated, is
   undecidable. Parameters compare as a set, whatever their order;
+- **datum names**, for a datum without identifier, from this closed list,
+  ASCII case-insensitively:
+
+  | datum | names |
+  |---|---|
+  | `EPSG:6326` | `World Geodetic System 1984`, `WGS_1984` |
+  | `EPSG:6265` | `Monte Mario`, `Monte_Mario` |
+
 - **reference values** are those of the EPSG registry for the identifier.
 
 **GEO-019** — The closed grammar. A definition is verifiable only when it is
@@ -303,10 +338,38 @@ made entirely of the nodes and members below; any other node, member, object
 type or attribute, whatever it says, makes it undecidable, so the operation
 that computes fails with `crs` and a pass-through carries the field
 unchanged. A dynamic frame (`DYNAMIC`, `FRAMEEPOCH`,
-`DynamicGeodeticReferenceFrame`, `frame_reference_epoch`), a datum ensemble,
-`USAGE`, `SCOPE`, `AREA`, `BBOX`, `REMARK`, a datum shift, a unit on an axis
-and any member a later version of a format adds are therefore undecidable: a
-format's extension never turns into a verified definition.
+`DynamicGeodeticReferenceFrame`, `frame_reference_epoch`), a datum ensemble
+other than a reference one, a datum shift and any member a later version of
+a format adds are therefore undecidable: a format's extension never turns
+into a verified definition.
+
+**Usage metadata is ignorable.** `USAGE`, `SCOPE`, `AREA`, `BBOX`, `REMARK`
+and the identifiers inside a `USAGE` (in PROJJSON `usages`, `scope`, `area`,
+`bbox` and `remarks`) state where and what for a CRS is used; they never
+enter the comparison of GEO-015, whatever they say. Their content has a
+closed grammar of its own, in the tables below: an unknown node or member
+inside them, such as a `VERTICALEXTENT` or a `TIMEEXTENT`, is undecidable as
+anywhere else.
+
+**Reference datum ensembles.** A datum ensemble (`ENSEMBLE`,
+`datum_ensemble`) is admitted only when it is identical to one of these, as
+the EPSG registry v12.013 (PROJ 9.6.2) states them: the same name, the same
+members in the same order, the same accuracy as a decimal value and, where
+the definition gives identifiers to the ensemble or to its members, those
+identifiers. Any other ensemble, including one a later registry version
+extends with a new member, is undecidable until this table follows it.
+
+| ensemble | identifier | members, in order (identifier) | accuracy |
+|---|---|---|---|
+| `World Geodetic System 1984 ensemble` | `EPSG:6326` | `World Geodetic System 1984 (Transit)` (1166), `(G730)` (1152), `(G873)` (1153), `(G1150)` (1154), `(G1674)` (1155), `(G1762)` (1156), `(G2139)` (1309), `(G2296)` (1383) | `2.0` |
+
+Names compare ASCII case-insensitively. The ensemble stands for its
+identifier in GEO-015.
+
+**Axes.** In WKT 2 an `AXIS` may carry its `ORDER` and its unit. An `ORDER`
+is admitted only when every axis of the coordinate system carries one and
+each equals the position of its axis in the definition; the axis unit is
+then compared like the coordinate system's (GEO-017).
 
 WKT 1, outermost `GEOGCS` or `PROJCS`; each node admits at most the number
 of values shown and the children listed, each once unless marked `*`:
@@ -321,33 +384,49 @@ of values shown and the children listed, each once unless marked `*`:
 | `PROJECTION` | 1 | `AUTHORITY` |
 | `AXIS`, `PARAMETER`, `AUTHORITY` | 2 | none |
 
-WKT 2, outermost `GEOGCRS` or `PROJCRS`:
+WKT 1 has no ignorable node: an `EXTENSION`, such as the `PROJ4` one GDAL
+writes for `EPSG:3857`, is undecidable.
+
+WKT 2, outermost `GEOGCRS` or `PROJCRS`; a value marked as text or number is
+exactly one of that kind:
 
 | node | values | children |
 |---|---|---|
-| `GEOGCRS` | 1 | `DATUM`, `PRIMEM`, `CS`, `AXIS`*, `ANGLEUNIT`, `ID`* |
-| `PROJCRS` | 1 | `BASEGEOGCRS`, `CONVERSION`, `CS`, `AXIS`*, `LENGTHUNIT`, `ID`* |
-| `BASEGEOGCRS` | 1 | `DATUM`, `PRIMEM`, `ANGLEUNIT`, `ID`* |
+| `GEOGCRS` | 1 | `DATUM` or `ENSEMBLE`, `PRIMEM`, `CS`, `AXIS`*, `ANGLEUNIT`, `ID`*, `USAGE`*, `SCOPE`, `AREA`, `BBOX`, `REMARK` |
+| `PROJCRS` | 1 | `BASEGEOGCRS`, `CONVERSION`, `CS`, `AXIS`*, `LENGTHUNIT`, `ID`*, `USAGE`*, `SCOPE`, `AREA`, `BBOX`, `REMARK` |
+| `BASEGEOGCRS` | 1 | `DATUM` or `ENSEMBLE`, `PRIMEM`, `ANGLEUNIT`, `ID`* |
 | `DATUM` | 1 | `ELLIPSOID`, `ID`* |
+| `ENSEMBLE` | 1 text | `MEMBER`*, `ELLIPSOID`, `ENSEMBLEACCURACY`, `ID`* |
+| `MEMBER` | 1 text | `ID`* |
+| `ENSEMBLEACCURACY` | 1 number | none |
 | `ELLIPSOID` | 3 | `LENGTHUNIT`, `ID`* |
 | `PRIMEM` | 2 | `ANGLEUNIT`, `ID`* |
 | `CONVERSION` | 1 | `METHOD`, `PARAMETER`*, `ID`* |
 | `METHOD` | 1 | `ID`* |
 | `PARAMETER` | 2 | `ANGLEUNIT`, `LENGTHUNIT`, `SCALEUNIT`, `ID`* |
 | `ANGLEUNIT`, `LENGTHUNIT`, `SCALEUNIT` | 2 | `ID`* |
-| `CS`, `AXIS`, `ID` | 2 | none |
+| `AXIS` | 2 | `ORDER`, `ANGLEUNIT`, `LENGTHUNIT` |
+| `ORDER` | 1 number | none |
+| `CS`, `ID` | 2 | none |
+| `USAGE` | none | `SCOPE`, `AREA`, `BBOX`, `ID`* |
+| `SCOPE`, `AREA`, `REMARK` | 1 text | none |
+| `BBOX` | 4 numbers | none |
 
 PROJJSON, root of type `GeographicCRS` or `ProjectedCRS`; each object admits
 only the members listed (an `id` or `ids` holds objects with `authority` and
 `code` only; a unit object holds `type`, `name` and `conversion_factor`; a
-number may be an object with `value` and `unit`):
+number may be an object with `value` and `unit`; `scope`, `area` and
+`remarks` are strings; a `bbox` holds exactly `south_latitude`,
+`west_longitude`, `north_latitude` and `east_longitude`, each a number):
 
 | object | members |
 |---|---|
-| `GeographicCRS` | `$schema`, `type`, `name`, `datum`, `coordinate_system`, `id`, `ids` |
-| `ProjectedCRS` | `$schema`, `type`, `name`, `base_crs`, `conversion`, `coordinate_system`, `id`, `ids` |
-| base CRS (type `GeographicCRS` when stated) | `type`, `name`, `datum`, `coordinate_system`, `id`, `ids` |
+| `GeographicCRS` | `$schema`, `type`, `name`, `datum` or `datum_ensemble`, `coordinate_system`, `id`, `ids`, `scope`, `area`, `bbox`, `usages`, `remarks` |
+| `ProjectedCRS` | `$schema`, `type`, `name`, `base_crs`, `conversion`, `coordinate_system`, `id`, `ids`, `scope`, `area`, `bbox`, `usages`, `remarks` |
+| base CRS (type `GeographicCRS` when stated) | `type`, `name`, `datum` or `datum_ensemble`, `coordinate_system`, `id`, `ids` |
 | datum (type `GeodeticReferenceFrame` when stated) | `type`, `name`, `ellipsoid`, `prime_meridian`, `id`, `ids` |
+| datum ensemble (type `DatumEnsemble` when stated) | `type`, `name`, `members`, `ellipsoid`, `accuracy` (a string), `id`, `ids` |
+| ensemble member | `name`, `id`, `ids` |
 | ellipsoid | `name`, `semi_major_axis`, `inverse_flattening`, `id`, `ids` |
 | prime meridian | `name`, `longitude`, `id`, `ids` |
 | coordinate system | `subtype`, `axis` |
@@ -355,6 +434,13 @@ number may be an object with `value` and `unit`):
 | conversion | `name`, `method`, `parameters`, `id`, `ids` |
 | method | `name`, `id`, `ids` |
 | parameter | `name`, `value`, `unit`, `id`, `ids` |
+| usage (in `usages`) | `scope`, `area`, `bbox`, `id`, `ids` |
+
+The vectors whose name begins with `crs-proj-epsg-` hold, unchanged, the
+WKT 1, WKT 2 (2019) and PROJJSON that PROJ 9.6.2 (GDAL 3.9.3, EPSG v12.013)
+writes for `EPSG:4326`, `EPSG:3857`, `EPSG:32632` and `EPSG:3003`: every one
+is verified, except the WKT 1 of `EPSG:3857`, whose `EXTENSION` and
+`Mercator_1SP` method are undecidable.
 
 A definition admitted by the grammar is then verified by GEO-015 and GEO-017.
 

@@ -59,13 +59,13 @@ no key. The rules are therefore an opt-in contract next to the vocabulary,
 
 ## Decision
 
-Arrow Geometry Semantics 1.0, rules GEO-000 to GEO-018:
+Arrow Geometry Semantics 1.0, rules GEO-000 to GEO-020:
 
 | gap | rules |
 |---|---|
 | three verdicts | GEO-000: input conformance, component support and operation applicability are distinct; profile acceptances such as DT-ARROW-003 are never revoked |
 | 1 | GEO-001 (stored order, `other` for polar or south-oriented axes), GEO-002 (the producer declares it from the source, the request or the computation; `unknown` gives no guarantee), GEO-003 (verification with coordinates that cannot be exchanged unnoticed) |
-| 2 | GEO-004 (the identifier is normative), GEO-005 (top-level identifiers only; contradiction and malformed definitions are `crs`), GEO-006 (definition without identifier), GEO-015 (verification before computing: identifier at the root, kind, base CRS, datum, ellipsoid, prime meridian, units by quantity, conversion, datum shift), GEO-017 (the conservative subset every component applies identically) |
+| 2 | GEO-004 (the identifier is normative), GEO-005 (top-level identifiers only; contradiction and malformed definitions are `crs`), GEO-006 (definition without identifier), GEO-020 (local catalog authorities), GEO-015 (verification before computing: identifier at the root, kind, base CRS, datum, ellipsoid, prime meridian, units by quantity, conversion, datum shift), GEO-017 (the conservative subset every component applies identically) |
 | 3 | GEO-007 (both encodings accepted), GEO-008 (`wkb`), GEO-009 (`ewkb`, SRID only on the outermost geometry, ISO to EWKB conversion), GEO-018 (an effect is a publication or a commit) |
 | 4 | GEO-010 (types as a closed set), GEO-011 (well-formed WKB), GEO-012 (several geometry fields), GEO-013 (identifiers), GEO-014 (precision), GEO-016 (whole-value grammars, closed geometry keys) |
 
@@ -119,6 +119,36 @@ extension of a format included, makes it undecidable. A generative test
 inserts an unknown node or member at every position of every accepted
 definition and requires the refusal.
 
+The first grammar was too narrow for the definitions PROJ actually writes:
+the WKT 2 and PROJJSON of `EPSG:4326`, `EPSG:3857`, `EPSG:32632` and
+`EPSG:3003` from PROJ 9.6.2 (GDAL 3.9.3, EPSG v12.013, the version IO-tools
+pins on both platforms) all carry usage metadata, axes with `ORDER` and
+their unit, identifiers on methods and parameters, the WGS 84 datum
+ensemble, and, for `EPSG:3003`, a datum without identifier. GEO-019 now
+admits, each with a closed grammar of its content: usage metadata as
+ignorable (it never enters the comparison; an unknown node inside it stays
+undecidable, and the generative test inserts one there too); a datum
+ensemble only when identical to a reference one (name, members in order,
+accuracy, identifiers when given), which stands for its identifier; an axis
+`ORDER` only when it equals the axis position, and an axis unit compared like
+the coordinate system's. GEO-015 identifies a datum without identifier by
+its name from a closed list of GEO-017, never from its ellipsoid. Those
+twelve PROJ outputs are vectors, unchanged: all verified but the WKT 1 of
+`EPSG:3857`, whose `EXTENSION` is undecidable. Hazard: a PROJ whose registry
+adds a member to the WGS 84 ensemble writes a definition that is undecidable
+(a refusal, never a wrong verification) until the table follows it.
+
+### Local catalog authorities
+
+database-tools writes `POSTGIS:n` or `MYSQL:n` for an SRID its catalog does
+not map to a registry, with `declared_unresolved` and `unknown` axis order.
+The syntax was already conforming; **GEO-020** ratifies the meaning: such an
+identifier names a CRS only inside the installation that wrote it, is never
+`resolved` (a field that says so is not conforming, `crs`), never compares
+across sources, and makes a computation undecidable (`crs`) whatever the
+component knows. The list of local authorities is closed (`POSTGIS`,
+`MYSQL`, `MARIADB`, `MSSQL`, `ORACLE`, `DB2`, `SQLITE`).
+
 ### Not ratified
 
 - **Rejecting `unknown` axis order for computation.** Options: (a) a rule in
@@ -138,7 +168,7 @@ definition and requires the refusal.
 - **Compatible:** yes: a new contract next to the existing ones; nothing
   published changes meaning.
 - **Schemas, examples and profiles:** new specification, new schema
-  `arrow-data-vector-v1`, two invalid examples, 42 vectors in
+  `arrow-data-vector-v1`, two invalid examples, 61 vectors in
   `vectors/arrow-data-v1`. No existing schema, catalog, binding, vector or
   profile changes.
 - **Adoption impact**, for a component that claims the contract:
@@ -153,4 +183,6 @@ definition and requires the refusal.
     geometry field is `unsupported`; check EWKB SRIDs when decoding.
   - database-tools: accept `wkb` with a declared SRID; accept a list of
     several types or reject it with `unsupported`; emit `field_id` and
-    `precision` on every geometry field it reads; an SRID mismatch is `crs`.
+    `precision` on every geometry field it reads; an SRID mismatch is `crs`;
+    a local catalog identifier (`POSTGIS:n`, `MYSQL:n`, ...) only with
+    `declared_unresolved` (GEO-020).
