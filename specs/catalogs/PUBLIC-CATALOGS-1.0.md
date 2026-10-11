@@ -11,6 +11,11 @@ The target catalogs are in [`catalogs`](../../catalogs/), named
 target; an earlier version stays as an available identity when a later one
 changes operations incompatibly.
 
+Informative: [Public Catalogs 2.0](PUBLIC-CATALOGS-2.0.md)
+(`plenora-public-catalog-v2`) governs the catalogs whose `contract` is
+`plenora-public-catalog-v2`; this text is unchanged and keeps governing the
+catalogs of version 1 ([COMPATIBILITY.md](../../COMPATIBILITY.md#public-catalogs-and-runtime-binding-10-to-20)).
+
 ## 1. Purpose
 
 A public catalog is the reviewed target boundary of one component. It states
