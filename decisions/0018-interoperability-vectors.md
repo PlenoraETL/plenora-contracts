@@ -146,6 +146,19 @@ it with the read request: the request now names that format, and the two
 source vectors state it. Two negative examples keep both checks from
 vanishing unnoticed.
 
+### Eighth reading (Codex)
+
+A `via: target` pair was checked on the catalog sides but not on the
+format: `io.write` with `geojson` followed by an `io.read` of the target as
+`arrow_ipc_stream` passed, and so did a format outside any list. The
+formats a step may name are now a closed list, a step whose input contract
+selects a format must name one of it, and the read of a target names the
+format of the write. The same class in the other step parameters: a
+`data.run` plan that is neither `identity` nor a registered kernel made the
+step carry instead of compute in silence, and is now refused; the limits are
+a list of known names. Two negative examples (another format, an unknown
+format) keep the check from vanishing unnoticed.
+
 ### What the vectors fix that the suite observed differently
 
 - database-tools reads geometry fields without `field_id` and `precision`:

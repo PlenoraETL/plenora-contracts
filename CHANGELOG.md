@@ -55,7 +55,9 @@ full commit SHA; a release tag names one of those commits.
   first step reads the input as Arrow IPC, the last delivers or writes a
   table, as the catalog declares the step: a `format` counts only where the
   input contract selects one), and a source's read request names the
-  document's format, with three negative examples. No catalog, binding,
+  document's format, a target is read in the format it was written from a
+  closed list of formats, a plan is `identity` or a registered kernel, with
+  five negative examples. No catalog, binding,
   profile or published vector changes. See
   [decision 0018](decisions/0018-interoperability-vectors.md).
 - REST-to-Arrow Adapter 1.0 (`plenora-rest-arrow-adapter-v1`): the adapter

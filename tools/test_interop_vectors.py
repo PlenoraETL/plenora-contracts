@@ -218,7 +218,8 @@ class HandoffTests(unittest.TestCase):
         unnamed = vector("handoff-io-data-io-points.json")
         unnamed["chain"][0]["params"].pop("format")
         self.assertEqual(errors_of("handoff-io-data-io-points.json", unnamed),
-                         ["the first step does not read the input table as Arrow IPC (INTEROP-002)"])
+                         ["step 1 names no format, which its input contract selects (INTEROP-002)",
+                          "the first step does not read the input table as Arrow IPC (INTEROP-002)"])
         # A write to another format is not the tabular output of the chain.
         gpkg = vector("handoff-io-data-io-points.json")
         gpkg["chain"][-1]["params"]["format"] = "gpkg"
@@ -244,6 +245,56 @@ class HandoffTests(unittest.TestCase):
         schemas = {name: validator.load_json(ROOT / "schemas" / name) for name in validator.EXPECTED_SCHEMAS}
         self.assertEqual(validator.validate_interop_violating(
             schemas, validator.schema_registry(schemas), validator.load_catalogs()), [])
+
+    def test_a_target_is_read_in_the_format_it_was_written(self):
+        """INTEROP-002: a `via: target` read names the format the write
+        wrote, and every format a step names is one of the closed list."""
+        base = vector("handoff-io-data-io-points.json")
+        reread = {"component": "plenora-io-tools", "operation": "io.read", "version": 2, "via": "target",
+                  "params": {"source": "output", "format": "arrow_ipc_file"}, "transformations": []}
+        same = copy.deepcopy(base)
+        same["chain"].append(copy.deepcopy(reread))
+        self.assertEqual(errors_of("handoff-io-data-io-points.json", same), [])
+        other = copy.deepcopy(base)
+        other["chain"][-1]["params"]["format"] = "geojson"
+        other["chain"].append(dict(copy.deepcopy(reread), params={"source": "output", "format": "arrow_ipc_stream"}))
+        self.assertEqual(errors_of("handoff-io-data-io-points.json", other),
+                         ["steps 3 -> 4 read the target in another format than the one written (INTEROP-002)"])
+        unknown = copy.deepcopy(base)
+        unknown["chain"][-1]["params"]["format"] = "not-a-format"
+        unknown["chain"].append(dict(copy.deepcopy(reread), params={"source": "output", "format": "not-a-format"}))
+        self.assertEqual(errors_of("handoff-io-data-io-points.json", unknown),
+                         ["step 3 names an unknown format (INTEROP-002)",
+                          "step 4 names an unknown format (INTEROP-002)"])
+        # A step whose input contract selects a format names one.
+        unnamed = copy.deepcopy(base)
+        unnamed["chain"][-1]["params"].pop("format")
+        unnamed["chain"].append(copy.deepcopy(reread))
+        self.assertIn("step 3 names no format, which its input contract selects (INTEROP-002)",
+                      errors_of("handoff-io-data-io-points.json", unnamed))
+        # A format of another JSON type is not a format either.
+        typed = copy.deepcopy(base)
+        typed["chain"][-1]["params"]["format"] = ["arrow_ipc_file"]
+        self.assertIn("step 3 names an unknown format (INTEROP-002)",
+                      errors_of("handoff-io-data-io-points.json", typed))
+
+    def test_limits_are_a_list_of_known_names(self):
+        for limits in ("one_geometry_field", [{"x": 1}], ["one_geometry_field", 1], ["nothing"]):
+            document = vector("handoff-data-io-profile-completion.json")
+            document["chain"][-1]["params"]["limits"] = limits
+            with self.subTest(limits=limits):
+                self.assertIn("a step names an unknown limit",
+                              errors_of("handoff-data-io-profile-completion.json", document))
+
+    def test_a_data_run_plan_is_identity_or_a_registered_kernel(self):
+        """The same class: a plan the validator does not know would make the
+        step carry instead of compute, in silence."""
+        for plan in ("geo.unknown_kernel", "", None, 1):
+            document = vector("handoff-io-data-io-points.json")
+            document["chain"][1]["params"]["plan"] = plan
+            with self.subTest(plan=plan):
+                self.assertIn("step 2 names a plan that is neither identity nor a registered kernel (INTEROP-002)",
+                              errors_of("handoff-io-data-io-points.json", document))
 
     def test_an_ipc_end_only_where_the_catalog_declares_a_format(self):
         """INTEROP-002: a `format` makes a read or a write an Arrow IPC end

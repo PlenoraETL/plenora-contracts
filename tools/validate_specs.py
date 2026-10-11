@@ -1892,6 +1892,8 @@ INTEROP_VIOLATING = {
     "examples/invalid/interop-vector-handoff-single-json-step.json": "INTEROP-002",
     "examples/invalid/interop-vector-handoff-database-write-as-ipc.json": "INTEROP-002",
     "examples/invalid/interop-vector-source-format-mismatch.json": "INTEROP-001",
+    "examples/invalid/interop-vector-handoff-target-read-in-another-format.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-unknown-format.json": "INTEROP-002",
 }
 
 

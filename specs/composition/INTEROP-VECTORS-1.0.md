@@ -56,13 +56,20 @@ selects a sink format, its catalog input carries that contract and its
 `plenora-io-read-input-v1` (source) and `plenora-io-write-input-v1` (sink);
 a step whose input contract selects none, such as `database.read` or
 `database.write`, whose catalog sides equal those of `io.read` and
-`io.write`, names no `format`, and a vector in which it does is refused. In
-a `via: target` pair the first step's catalog input and the second step's
-catalog output carry the Arrow interchange contract. A `rejection`
+`io.write`, names no `format`, and a vector in which it does is refused. A
+step whose input contract selects a format names one of the closed list
+`arrow_ipc_file`, `arrow_ipc_stream`, `gpkg`, `geojson` and `wkt_csv`. Both
+lists are closed: a new input contract that selects a format, or a new
+format, is added to them explicitly, in this specification and in the
+validator, never inferred. In a `via: target` pair the first step's catalog
+input and the second step's catalog output carry the Arrow interchange
+contract, and when either step's input contract selects a format the read
+names the format the write wrote. A `rejection`
 step reads the input table in the same way; a `source` step reads its
 source document instead. Step parameters such as a plan, a sink format or a read request are
-abstract: the harness maps them to each surface's spelling. A step MAY name
-the limits its component declares (`one_geometry_field`, GEO-012;
+abstract: the harness maps them to each surface's spelling. A `data.run`
+step names the plan `identity` or a registered kernel. A step MAY name, as
+a list, the limits its component declares (`one_geometry_field`, GEO-012;
 `one_geometry_type`, GEO-010).
 
 **INTEROP-003** — A step changes the table only through the transformations it

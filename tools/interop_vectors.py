@@ -48,6 +48,18 @@ IPC_FORMATS = {"arrow_ipc_file", "arrow_ipc_stream"}
 # contracts select no format.
 SOURCE_FORMAT_INPUTS = {"plenora-io-read-input-v1"}
 SINK_FORMAT_INPUTS = {"plenora-io-write-input-v1"}
+# INTEROP-002: the closed list of the abstract formats a step may name; a
+# new format, like a new input contract that selects one, is added here and
+# in the specification explicitly.
+FORMATS = IPC_FORMATS | {"gpkg", "geojson", "wkt_csv"}
+
+
+def _format(step: dict[str, Any]) -> Any:
+    return (step.get("params") or {}).get("format")
+
+
+def _known_format(value: Any) -> bool:
+    return isinstance(value, str) and value in FORMATS
 ARROW_INTERCHANGE = "plenora-arrow-interchange-v1"
 ARROW_MEDIA_TYPES = {"application/vnd.apache.arrow.stream", "application/vnd.apache.arrow.file"}
 NORTH_FIRST = {"lat_lon", "northing_easting"}
@@ -283,7 +295,7 @@ def decodes(step: dict[str, Any], kernels: set[str]) -> bool:
         return True
     if step["operation"] == "database.write":
         return True
-    return step["operation"] == "io.write" and (step.get("params") or {}).get("format") not in IPC_FORMATS
+    return step["operation"] == "io.write" and not _names_ipc_format(step)
 
 
 def _edges(field: dict[str, Any]) -> str | None:
@@ -379,16 +391,19 @@ def chain_errors(
         prefix = step.get("provider_prefix")
         if prefix is not None and prefix.startswith(RESERVED_PREFIXES):
             errors.append("a provider prefix is reserved for the shared vocabulary")
-        for limit in (step.get("params") or {}).get("limits") or []:
-            if limit not in LIMITS:
-                errors.append("a step names an unknown limit")
+        limits = (step.get("params") or {}).get("limits", [])
+        if not isinstance(limits, list) or not all(isinstance(limit, str) and limit in LIMITS for limit in limits):
+            errors.append("a step names an unknown limit")
         operation = operations.get(step_key(step))
-        if (
-            operation is not None
-            and "format" in (step.get("params") or {})
-            and operation["input"]["contract"] not in SOURCE_FORMAT_INPUTS | SINK_FORMAT_INPUTS
-        ):
-            errors.append(f"step {position} names a format its input contract does not select (INTEROP-002)")
+        names_format = "format" in (step.get("params") or {})
+        if operation is not None:
+            selects = operation["input"]["contract"] in SOURCE_FORMAT_INPUTS | SINK_FORMAT_INPUTS
+            if names_format and not selects:
+                errors.append(f"step {position} names a format its input contract does not select (INTEROP-002)")
+            elif selects and not names_format:
+                errors.append(f"step {position} names no format, which its input contract selects (INTEROP-002)")
+            elif names_format and not _known_format(_format(step)):
+                errors.append(f"step {position} names an unknown format (INTEROP-002)")
     if chain and chain[0].get("via") == "target":
         errors.append("the first step cannot read a target no step wrote")
     for position, (before, after) in enumerate(zip(chain, chain[1:]), start=1):
@@ -407,8 +422,37 @@ def chain_errors(
                 or not _arrow(reader["output"])
             ):
                 errors.append(f"steps {position} -> {position + 1} are not a write then a read of one component")
+            # The target is read in the format it was written: when either
+            # step selects a format, both name the same one.
+            elif (
+                writer["input"]["contract"] in SINK_FORMAT_INPUTS
+                or reader["input"]["contract"] in SOURCE_FORMAT_INPUTS
+            ):
+                # An unknown format is reported on its step.
+                written, read = _format(before), _format(after)
+                if not isinstance(written, str) or not isinstance(read, str) or written != read:
+                    errors.append(
+                        f"steps {position} -> {position + 1} read the target in another format "
+                        "than the one written (INTEROP-002)"
+                    )
         elif (step_key(before), step_key(after)) not in direct_edges:
             errors.append(f"steps {position} -> {position + 1} are not a direct edge of the matrix")
+    return errors
+
+
+def plan_errors(chain: list[dict[str, Any]], kernels: set[str]) -> list[str]:
+    """INTEROP-002: a `data.run` step names `identity` or a registered
+    kernel; any other plan would make it carry instead of compute, in
+    silence (INTEROP-004)."""
+    errors = []
+    for position, step in enumerate(chain, start=1):
+        if (step["component"], step["operation"]) != DATA_RUN:
+            continue
+        plan = (step.get("params") or {}).get("plan")
+        if not isinstance(plan, str) or (plan != "identity" and plan not in kernels):
+            errors.append(
+                f"step {position} names a plan that is neither identity nor a registered kernel (INTEROP-002)"
+            )
     return errors
 
 
@@ -420,7 +464,8 @@ def _arrow(side: dict[str, Any]) -> bool:
 
 
 def _names_ipc_format(step: dict[str, Any]) -> bool:
-    return (step.get("params") or {}).get("format") in IPC_FORMATS
+    value = _format(step)
+    return isinstance(value, str) and value in IPC_FORMATS
 
 
 def reads_arrow_ipc(step: dict[str, Any], operation: dict[str, Any]) -> bool:
@@ -577,7 +622,11 @@ def vector_errors(
     load: Callable[[Path], Any],
     kernels: set[str] = frozenset(),
 ) -> list[str]:
-    errors = chain_errors(vector["chain"], operations, direct_edges) + end_errors(vector, operations)
+    errors = (
+        chain_errors(vector["chain"], operations, direct_edges)
+        + plan_errors(vector["chain"], kernels)
+        + end_errors(vector, operations)
+    )
     if vector["kind"] == "source":
         return errors + source_errors(vector)
     input_path = (path.parent / vector["input"]).resolve()
