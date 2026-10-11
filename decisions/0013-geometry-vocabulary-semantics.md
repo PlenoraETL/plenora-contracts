@@ -148,6 +148,21 @@ JSON kind, and every WKT value another kind or a node, requiring the
 refusal. And the units of the base CRS's coordinate system in PROJJSON were
 not compared: every unit of every coordinate system is now compared.
 
+A fifth reading found that units were checked where present but not always
+required: a WKT 2 `PRIMEM` without its `ANGLEUNIT`, and a PROJJSON prime
+meridian with a bare or missing `longitude`, were verified, although GEO-017
+requires the unit there. Searching the same class over every unit and every
+part the comparison relies on found more: a WKT 2 coordinate system unit
+carried by one axis while the other had none, and no check of the
+coordinate system itself (a missing `CS` or `subtype`, three dimensions, a
+`Cartesian` geographic CRS, one axis). GEO-017 now states where each unit is
+required and that every CRS of the subset is two-dimensional, of the type of
+its kind, with exactly two axes; GEO-015 lists the coordinate system among
+the compared parts. A generative test removes every unit node and member
+from every accepted definition and requires the refusal, except where
+GEO-017 makes the unit implicit (an ellipsoid; a WKT 2 base CRS, which has
+no coordinate system of its own). The PROJ outputs keep their verdict.
+
 ### Local catalog authorities
 
 database-tools writes `POSTGIS:n` or `MYSQL:n` for an SRID its catalog does
@@ -178,7 +193,7 @@ component knows. The list of local authorities is closed (`POSTGIS`,
 - **Compatible:** yes: a new contract next to the existing ones; nothing
   published changes meaning.
 - **Schemas, examples and profiles:** new specification, new schema
-  `arrow-data-vector-v1`, two invalid examples, 61 vectors in
+  `arrow-data-vector-v1`, two invalid examples, 66 vectors in
   `vectors/arrow-data-v1`. No existing schema, catalog, binding, vector or
   profile changes.
 - **Adoption impact**, for a component that claims the contract:

@@ -3,6 +3,7 @@ validator derives for the data vectors, and the decoders behind them."""
 
 import copy
 import json
+import re
 import struct
 import unittest
 from decimal import Decimal
@@ -165,12 +166,15 @@ class DefinitionTests(unittest.TestCase):
             '{"type":"GeographicCRS","datum":{"ellipsoid":'
             '{"semi_major_axis":{"value":6378137,"unit":"metre"},"inverse_flattening":298.257223563}},'
             '"prime_meridian":{"longitude":{"value":0,"unit":"degree"}},'
-            '"coordinate_system":{"axis":[{"unit":{"name":"degree","conversion_factor":0.0174532925199433}}]}}',
+            '"coordinate_system":{"subtype":"ellipsoidal","axis":[{"unit":{"name":"degree","conversion_factor":0.0174532925199433}},{"unit":{"name":"degree","conversion_factor":0.0174532925199433}}]}}',
             "projjson",
         )
         self.assertEqual(projjson.ellipsoid, (Decimal("6378137"), Decimal("298.257223563")))
         self.assertEqual(data.definition_parts('{"type":"BoundCRS"}', "projjson").kind, "other")
-        good_cs = '"coordinate_system":{"axis":[{"unit":"metre"}]}'
+        good_cs = '"coordinate_system":{"subtype":"Cartesian","axis":[{"unit":"metre"},{"unit":"metre"}]}'
+        geo_cs = '"coordinate_system":{"subtype":"ellipsoidal","axis":[{"unit":"degree"},{"unit":"degree"}]}'
+        geo_axes = 'CS[ellipsoidal,2],AXIS["a",north],AXIS["b",east],'
+        projected_axes = 'CS[Cartesian,2],AXIS["E",east],AXIS["N",north],'
         tm = '"conversion":{"method":{"name":"Transverse Mercator"},"parameters":'
         datum = '"datum":{"ellipsoid":{"semi_major_axis":1,"inverse_flattening":1}}'
         undecidable = [
@@ -187,15 +191,15 @@ class DefinitionTests(unittest.TestCase):
             ('{"type":"ProjectedCRS","base_crs":{},' + tm + '[{"name":"False easting","value":1,"unit":3}]}}',
              "projjson"),
             ('{"type":"ProjectedCRS","base_crs":{},' + tm + '[]}}', "projjson"),
-            ('{"type":"GeographicCRS","coordinate_system":{"axis":[1]}}', "projjson"),
-            ('{"type":"GeographicCRS","coordinate_system":{"axis":[{"unit":"degree"}]}}', "projjson"),
-            ('{"type":"GeographicCRS","coordinate_system":{"axis":[{"unit":"degree"}]},'
+            ('{"type":"GeographicCRS","coordinate_system":{"subtype":"ellipsoidal","axis":[1,1]}}', "projjson"),
+            ('{"type":"GeographicCRS",' + geo_cs + '}', "projjson"),
+            ('{"type":"GeographicCRS",' + geo_cs + ','
              '"datum":{"ellipsoid":{"semi_major_axis":1,"semi_minor_axis":1}}}', "projjson"),
-            ('{"type":"GeographicCRS","coordinate_system":{"axis":[{"unit":"degree"}]},'
+            ('{"type":"GeographicCRS",' + geo_cs + ','
              '"datum":{"ellipsoid":{"semi_major_axis":"1","inverse_flattening":1}}}', "projjson"),
-            ('{"type":"GeographicCRS","coordinate_system":{"axis":[{"unit":"degree"}]},' + datum + ','
-             '"prime_meridian":{"longitude":2.3}}', "projjson"),
-            ('{"type":"ProjectedCRS","base_crs":{' + datum + '},' + tm + '[]},' + good_cs.replace("metre", "degree")
+            ('{"type":"GeographicCRS",' + geo_cs + ',' + datum + ','
+             '"prime_meridian":{"longitude":{"value":2.3,"unit":"degree"}}}', "projjson"),
+            ('{"type":"ProjectedCRS","base_crs":{' + datum + '},' + tm + '[]},' + good_cs.replace("metre", "degree", 1)
              + '}', "projjson"),
             ('GEOGCS["x",DATUM["d",SPHEROID["e",6378137]],UNIT["degree",0.0174532925199433],PRIMEM["G",0]]', "wkt"),
             ('GEOGCS["x",DATUM["d",SPHEROID["e","a","b"]],UNIT["degree",0.0174532925199433],PRIMEM["G",0]]', "wkt"),
@@ -208,19 +212,20 @@ class DefinitionTests(unittest.TestCase):
             ('PROJCS["x",GEOGCS["y"],PROJECTION["Transverse_Mercator"],PARAMETER["k"]]', "wkt"),
             ('PROJCS["x",GEOGCS["y"],PROJECTION["Transverse_Mercator"],PARAMETER["scale_factor",1],'
              'PARAMETER["scale_factor",1]]', "wkt"),
-            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1]],UNIT["degree",0.0174532925199433]]', "wkt2"),
-            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1]]]', "wkt2"),
-            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1]],ANGLEUNIT["degree",0.0174532925199433],'
+            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1]],' + geo_axes + 'UNIT["degree",0.0174532925199433]]', "wkt2"),
+            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1]],' + geo_axes[:-1] + ']', "wkt2"),
+            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1]],' + geo_axes + 'ANGLEUNIT["degree",0.0174532925199433],'
              'LENGTHUNIT["metre",1]]', "wkt2"),
-            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1,ANGLEUNIT["degree",1]]],'
+            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1,ANGLEUNIT["degree",1]]],' + geo_axes +
              'ANGLEUNIT["degree",0.0174532925199433]]', "wkt2"),
-            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1]],PRIMEM["G",0,LENGTHUNIT["metre",1]],'
+            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1]],PRIMEM["G",0,LENGTHUNIT["metre",1]],' + geo_axes +
              'ANGLEUNIT["degree",0.0174532925199433]]', "wkt2"),
             ('PROJCRS["x",BASEGEOGCRS["y",DATUM["d",ELLIPSOID["e",1,1]]],CONVERSION["c",METHOD["Transverse Mercator"],'
-             'PARAMETER["False easting",1]],LENGTHUNIT["metre",1]]', "wkt2"),
+             'PARAMETER["False easting",1]],' + projected_axes + 'LENGTHUNIT["metre",1]]', "wkt2"),
             ('PROJCRS["x",BASEGEOGCRS["y",DATUM["d",ELLIPSOID["e",1,1]]],CONVERSION["c",METHOD["Transverse Mercator"],'
-             'PARAMETER["False easting",1,ANGLEUNIT["degree",0.0174532925199433]]],LENGTHUNIT["metre",1]]', "wkt2"),
-            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1]],NAMELESS[1],ANGLEUNIT["x",1]]', "wkt2"),
+             'PARAMETER["False easting",1,ANGLEUNIT["degree",0.0174532925199433]]],' + projected_axes
+             + 'LENGTHUNIT["metre",1]]', "wkt2"),
+            ('GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1]],' + geo_axes + 'NAMELESS[1],ANGLEUNIT["x",1]]', "wkt2"),
             ('GEOGCRS["x",METHOD[1]]', "wkt2"),
         ]
         for text, kind in undecidable:
@@ -384,7 +389,7 @@ class ComputationTests(unittest.TestCase):
                  'PARAMETER["Scale factor at natural origin",0.9996,SCALEUNIT["unity",1]],'
                  'PARAMETER["False easting",500000,LENGTHUNIT["metre",1]],'
                  'PARAMETER["False northing",0,LENGTHUNIT["metre",1]]],'
-                 'CS[Cartesian,2],LENGTHUNIT["metre",1],ID["EPSG",32632]]')
+                 'CS[Cartesian,2],AXIS["E",east],AXIS["N",north],LENGTHUNIT["metre",1],ID["EPSG",32632]]')
 
         def utm(text):
             return geometry_field(crs_id="EPSG:32632", crs_definition=text, crs_definition_format="wkt2",
@@ -398,11 +403,13 @@ class ComputationTests(unittest.TestCase):
         self.assertEqual(data.computation_verdict(utm(utm32.replace(',ID["EPSG",4326]]', ',ID["EPSG",4258]]'))),
                          data.Verdict("crs", "GEO-015"))
         feet = ('GEOGCRS["x",DATUM["d",ELLIPSOID["WGS 84",6378137,298.257223563,'
-                'LENGTHUNIT["US survey foot",0.304800609601219]]],ANGLEUNIT["degree",0.0174532925199433],'
+                'LENGTHUNIT["US survey foot",0.304800609601219]]],CS[ellipsoidal,2],AXIS["a",north],AXIS["b",east],'
+                'ANGLEUNIT["degree",0.0174532925199433],'
                 'ID["EPSG",4326]]')
         paris = ('GEOGCRS["x",DATUM["d",ELLIPSOID["WGS 84",6378137,298.257223563]],'
                  'PRIMEM["Paris",2.5969213,ANGLEUNIT["grad",0.015707963267949]],'
-                 'ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",4326]]')
+                 'CS[ellipsoidal,2],AXIS["a",north],AXIS["b",east],ANGLEUNIT["degree",0.0174532925199433],'
+                 'ID["EPSG",4326]]')
         for text in (feet, paris):
             with self.subTest(text):
                 self.assertEqual(
@@ -852,6 +859,153 @@ class ClosedGrammarTests(unittest.TestCase):
             mutated["metadata"]["plenora.geometry.crs_definition"] = json.dumps(variant)
             self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-019"))
 
+
+class RequiredPartsTests(unittest.TestCase):
+    """GEO-017: a unit or a coordinate system part the rules require, when
+    missing, makes the definition undecidable; it is never assumed."""
+
+    def field(self, name):
+        return json.loads((VECTORS / name).read_text(encoding="utf-8"))["fields"][1]
+
+    def verdict_of(self, field, text):
+        mutated = copy.deepcopy(field)
+        mutated["metadata"]["plenora.geometry.crs_definition"] = text
+        return data.computation_verdict(mutated)
+
+    def assertUndecidable(self, field, text):
+        self.assertEqual(self.verdict_of(field, text), data.Verdict("crs", "GEO-015"))
+
+    def test_the_wkt2_prime_meridian_carries_its_unit(self):
+        for name in ("crs-proj-epsg-4326-wkt2.json", "crs-proj-epsg-3003-wkt2.json"):
+            field = self.field(name)
+            text = field["metadata"]["plenora.geometry.crs_definition"]
+            found = re.search(r'PRIMEM\["Greenwich",0,\s*ANGLEUNIT\["degree",0\.0174532925199433\]\]', text)
+            self.assertIsNotNone(found, name)
+            with self.subTest(name):
+                self.assertUndecidable(field, text.replace(found.group(0), 'PRIMEM["Greenwich",0]'))
+
+    def test_the_projjson_prime_meridian_carries_its_unit(self):
+        field = self.field("crs-proj-epsg-3003-projjson.json")
+        root = json.loads(field["metadata"]["plenora.geometry.crs_definition"])
+        for meridian in ({"name": "Greenwich", "longitude": 0}, {"name": "Greenwich"}):
+            variant = copy.deepcopy(root)
+            variant["base_crs"]["datum"]["prime_meridian"] = meridian
+            with self.subTest(meridian):
+                self.assertUndecidable(field, json.dumps(variant))
+        variant = copy.deepcopy(root)
+        variant["base_crs"]["datum"]["prime_meridian"] = {
+            "name": "Greenwich", "longitude": {"value": 0, "unit": "degree"}}
+        self.assertIsNone(self.verdict_of(field, json.dumps(variant)))
+
+    def test_every_unit_removed_from_a_verified_definition(self):
+        """Generatively: removing any unit node or member from a verified
+        definition makes it undecidable, except where GEO-017 states the
+        unit implicitly (an ellipsoid in metres; a WKT 2 base CRS, which has
+        no coordinate system of its own)."""
+        implicit = ("ELLIPSOID", "BASEGEOGCRS")
+        count = 0
+        for name, field in ClosedGrammarTests().accepted():
+            text = field["metadata"]["plenora.geometry.crs_definition"]
+            if field["metadata"]["plenora.geometry.crs_definition_format"] == "projjson":
+                root = json.loads(text)
+                for path in _unit_paths(root):
+                    variant = copy.deepcopy(root)
+                    holder = variant
+                    for key in path[:-1]:
+                        holder = holder[key]
+                    del holder[path[-1]]
+                    count += 1
+                    with self.subTest(name=name, path=path):
+                        self.assertUndecidable(field, json.dumps(variant))
+                continue
+            for start, end, parent in _wkt_unit_nodes(text):
+                if parent in implicit:
+                    continue
+                count += 1
+                with self.subTest(name=name, at=start):
+                    self.assertUndecidable(field, text[:start] + text[end:])
+        self.assertGreater(count, 20)
+
+    def test_the_coordinate_system_is_two_dimensional_and_complete(self):
+        field = self.field("crs-id-with-consistent-definition.json")
+        text = field["metadata"]["plenora.geometry.crs_definition"]
+        deg = 'ANGLEUNIT["degree",0.0174532925199433]'
+        self.assertIsNone(self.verdict_of(field, text))
+        lon = ',AXIS["geodetic longitude (Lon)",east]'
+        variants = {
+            # The unit on one axis only: the other axis has none.
+            "axis without unit": text.replace(lon, "").replace("," + deg + ",ID", ",ID").replace(
+                "north]", "north," + deg + "]"),
+            "three dimensions": text.replace("ellipsoidal,2", "ellipsoidal,3"),
+            "one axis": text.replace(lon, ""),
+            "no axes": text.replace(lon, "").replace(',AXIS["geodetic latitude (Lat)",north]', ""),
+            "no coordinate system": text.replace(",CS[ellipsoidal,2]", ""),
+            "Cartesian": text.replace("ellipsoidal,2", "Cartesian,2"),
+        }
+        for label, variant in variants.items():
+            self.assertNotEqual(variant, text, label)
+            with self.subTest(label):
+                self.assertUndecidable(field, variant)
+        wkt1 = self.field("crs-id-with-consistent-wkt1-definition.json")
+        wtext = wkt1["metadata"]["plenora.geometry.crs_definition"]
+        self.assertIsNone(self.verdict_of(wkt1, wtext))
+        no_axes = wtext.replace(',AXIS["Latitude",NORTH],AXIS["Longitude",EAST]', "")
+        self.assertNotEqual(no_axes, wtext)
+        self.assertIsNone(self.verdict_of(wkt1, no_axes))
+        for label, variant in {
+            "one axis": wtext.replace(',AXIS["Longitude",EAST]', ""),
+            "three axes": wtext.replace('EAST]', 'EAST],AXIS["h",UP]'),
+        }.items():
+            self.assertNotEqual(variant, wtext, label)
+            with self.subTest(label):
+                self.assertUndecidable(wkt1, variant)
+        projjson = self.field("crs-proj-epsg-3003-projjson.json")
+        root = json.loads(projjson["metadata"]["plenora.geometry.crs_definition"])
+        mutations = {
+            "projected ellipsoidal": lambda r: r["coordinate_system"].__setitem__("subtype", "ellipsoidal"),
+            "no subtype": lambda r: r["coordinate_system"].pop("subtype"),
+            "one axis": lambda r: r["coordinate_system"]["axis"].pop(),
+            "base Cartesian": lambda r: r["base_crs"]["coordinate_system"].__setitem__("subtype", "Cartesian"),
+            "base one axis": lambda r: r["base_crs"]["coordinate_system"]["axis"].pop(),
+        }
+        for label, mutate in mutations.items():
+            variant = copy.deepcopy(root)
+            mutate(variant)
+            with self.subTest(label):
+                self.assertUndecidable(projjson, json.dumps(variant))
+
+
+def _unit_paths(value, path=()):
+    """Every `unit` member of a PROJJSON document."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "unit":
+                yield path + (key,)
+            yield from _unit_paths(item, path + (key,))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            yield from _unit_paths(item, path + (index,))
+
+
+def _wkt_unit_nodes(text):
+    """The span of every unit node of a WKT text, with its leading comma,
+    and the keyword of the node that holds it."""
+    stack = []
+    for found in re.finditer(r'[A-Za-z][A-Za-z0-9_]*\[|\]|"(?:[^"]|"")*"', text):
+        token = found.group(0)
+        if token.startswith('"'):
+            continue
+        if token == "]":
+            keyword, start = stack.pop()
+            if keyword in ("ANGLEUNIT", "LENGTHUNIT", "SCALEUNIT", "UNIT"):
+                begin = start
+                while text[begin - 1] in " \n":
+                    begin -= 1
+                if text[begin - 1] == ",":
+                    begin -= 1
+                yield begin, found.end(), stack[-1][0]
+            continue
+        stack.append((token[:-1].upper(), found.start()))
 
 if __name__ == "__main__":
     unittest.main()

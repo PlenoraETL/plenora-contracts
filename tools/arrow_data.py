@@ -572,8 +572,9 @@ def _prime_meridian_zero(geographic: _Node, wkt2: bool) -> None:
     for meridian in meridians:
         if len(meridian.items) < 2 or _decimal(meridian.items[1]) != 0:
             raise Undecidable("prime meridian other than Greenwich")
-        for unit in _children(meridian, "ANGLEUNIT"):
-            _wkt_unit(unit, "angle")
+        if wkt2:
+            # GEO-017: in WKT 2 the prime meridian carries its unit.
+            _wkt_unit(_one(_children(meridian, "ANGLEUNIT"), "prime meridian unit"), "angle")
         if _children(meridian, "UNIT", "LENGTHUNIT", "SCALEUNIT"):
             raise Undecidable("prime meridian unit of another quantity")
 
@@ -597,6 +598,31 @@ def _wkt_conversion(holder: _Node, wkt2: bool) -> tuple[str, dict[str, Decimal]]
             _wkt_unit(unit, PARAMETER_QUANTITY[key])
         parameters[key] = _decimal(parameter.items[1])
     return name, parameters
+
+
+# GEO-017: the coordinate system of every CRS of the subset is
+# two-dimensional, of the type its kind requires.
+CS_TYPES = {"angle": "ellipsoidal", "length": "cartesian"}
+
+
+def _wkt_axes(crs: _Node, wkt2: bool, quantity: str) -> None:
+    """WKT 2: one `CS` of the type of the kind, dimension 2, and exactly two
+    `AXIS`. WKT 1, which has no `CS`: no `AXIS` or exactly two."""
+    axes = _children(crs, "AXIS")
+    if not wkt2:
+        if len(axes) not in (0, 2):
+            raise Undecidable("WKT 1 axes other than two")
+        return
+    system = _one(_children(crs, "CS"), "coordinate system")
+    if (
+        len(system.items) != 2
+        or not isinstance(system.items[0], tuple)
+        or system.items[0][0] != "word"
+        or system.items[0][1].lower() != CS_TYPES[quantity]
+        or _decimal(system.items[1]) != 2
+        or len(axes) != 2
+    ):
+        raise Undecidable("coordinate system other than two-dimensional of its kind")
 
 
 def _wkt2_cs_unit(crs: _Node, quantity: str) -> None:
@@ -636,15 +662,19 @@ def _wkt_parts(root: _Node, wkt2: bool) -> Parts:
         bases = wkt_identifiers(geographic, identifier)
         if wkt2:
             conversion = _wkt_conversion(_one(_children(root, "CONVERSION"), "conversion"), True)
+            _wkt_axes(root, True, "length")
             _wkt2_cs_unit(root, "length")
             for unit in _children(geographic, "ANGLEUNIT"):
                 _wkt_unit(unit, "angle")
         else:
             conversion = _wkt_conversion(root, False)
+            _wkt_axes(root, False, "length")
+            _wkt_axes(geographic, False, "angle")
             _wkt_unit(_one(_children(root, "UNIT"), "linear unit"), "length")
             _wkt_unit(_one(_children(geographic, "UNIT"), "angular unit"), "angle")
     else:
         geographic = root
+        _wkt_axes(root, wkt2, "angle")
         if wkt2:
             _wkt2_cs_unit(root, "angle")
         else:
@@ -690,6 +720,11 @@ def _projjson_unit(unit: Any, quantity: str) -> None:
 def _projjson_system_units(system: Any, quantity: str) -> None:
     if not isinstance(system, dict) or not isinstance(system.get("axis"), list) or not system["axis"]:
         raise Undecidable("PROJJSON without its coordinate system")
+    # GEO-017: two-dimensional, of the type of the kind; the subtype is
+    # required, never inferred.
+    subtype = system.get("subtype")
+    if not isinstance(subtype, str) or subtype.lower() != CS_TYPES[quantity] or len(system["axis"]) != 2:
+        raise Undecidable("coordinate system other than two-dimensional of its kind")
     for axis in system["axis"]:
         if not isinstance(axis, dict):
             raise Undecidable("axis not readable")
@@ -759,7 +794,11 @@ def _projjson_parts(root: dict[str, Any]) -> Parts:
     for meridian in (datum.get("prime_meridian"), geographic.get("prime_meridian")):
         if meridian is None:
             continue
-        if not isinstance(meridian, dict) or _json_value(meridian.get("longitude", 0), "angle") != 0:
+        # GEO-017: the longitude carries its unit; a bare number or a
+        # missing longitude is undecidable, never taken as Greenwich.
+        if not isinstance(meridian, dict) or not isinstance(meridian.get("longitude"), dict):
+            raise Undecidable("prime meridian without its longitude and unit")
+        if _json_value(meridian["longitude"], "angle") != 0:
             raise Undecidable("prime meridian other than Greenwich")
     return Parts(kind, bases, datums, names, axes, False, conversion)
 
