@@ -28,6 +28,10 @@ schema. Provider or dependency exception names are not public categories.
 `unsupported` or a more precise validation category. They MUST NOT be silently
 ignored or emulated with different semantics.
 
+For an invalid Arrow input, the components that claim Arrow Geometry
+Semantics 1.0 report the category of each class in the order it fixes
+(REJ-001 to REJ-004); this is informative here.
+
 ## 3. Phase
 
 **ERR-003** — `phase` identifies the last externally meaningful phase known to
