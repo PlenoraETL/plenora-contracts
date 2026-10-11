@@ -247,6 +247,8 @@ there is one:
    - the prime meridian, wherever the format places it (in PROJJSON, in the
      datum or datum ensemble);
    - every unit, each for the quantity it measures (GEO-017);
+   - the coordinate system: two-dimensional, of the type of the kind
+     (GEO-017);
    - for a projected CRS, the conversion method and every parameter value;
    - the absence of a datum shift (`TOWGS84`, `BOUNDCRS`) that the CRS of
      `crs_id` does not have.
@@ -302,9 +304,24 @@ whether a definition is verified:
   `UNIT` of the `GEOGCS` for angles, of the `PROJCS` for lengths, metres for
   the `SPHEROID`); in WKT 2 and PROJJSON a coordinate system, a prime
   meridian and every parameter carry their unit (in WKT 2, the coordinate
-  system's unit as a child of the CRS or of every axis), and an ellipsoid
-  without unit is in metres. A unit that is missing where these rules
-  require one is undecidable;
+  system's unit as a child of the CRS or of every axis, and the `ANGLEUNIT`
+  of the `PRIMEM`; in PROJJSON, the `unit` of every axis and parameter, and
+  the `longitude` of a prime meridian as an object with `value` and
+  `unit`), and an ellipsoid without unit is in metres. A WKT 2
+  `BASEGEOGCRS` has no coordinate system of its own: its `ANGLEUNIT`, like
+  the `coordinate_system` of a PROJJSON base CRS, is compared when present
+  and not required. A unit that is missing where these rules require one is
+  undecidable, never assumed, a bare number or a missing `longitude` of a
+  PROJJSON prime meridian included;
+- **coordinate system**: every CRS of the subset is two-dimensional. In
+  WKT 2 the CRS has exactly one `CS`, of type `ellipsoidal` for a
+  geographic CRS and `Cartesian` for a projected one, with dimension `2`,
+  and exactly two `AXIS`; in PROJJSON the `coordinate_system` of the CRS,
+  and that of the base CRS when present, has the `subtype` of its kind
+  (`ellipsoidal` for the base CRS) and exactly two axes; in WKT 1, which
+  has no `CS`, a `GEOGCS` or `PROJCS` has no `AXIS` or exactly two. A
+  missing `CS` or `subtype`, another type, another dimension and another
+  number of axes are undecidable;
 - **ellipsoid**: the semi-major axis and the inverse flattening. A
   definition that gives the semi-minor axis instead of the inverse
   flattening is undecidable;
