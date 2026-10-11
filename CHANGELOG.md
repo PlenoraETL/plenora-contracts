@@ -8,6 +8,18 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- Catalogs and profiles of Public Catalogs 2.0 for the components whose
+  profiles stated the runtime as required: `database-tools-v2.json`,
+  `data-tools-v3.json` and `io-tools-v3.json`, each with the operation
+  identities of the previous version unchanged, and profiles
+  `database-tools-v2`, `data-tools-v3` and `io-tools-v3` with the runtime
+  `conditional` (CAT-001, CAT-002), the intentional absences DB-ABS-001 to
+  DB-ABS-003, DT-ABS-001 and DT-ABS-002 (CAT-003, checked by the validator),
+  and for database-tools the runtime payload of `database.write` (DB-RT-002)
+  and the bound of a `database.query` result (DB-RT-003, RT-024). No
+  restriction is added to `database.query` version 1. The previous catalogs
+  and profiles are unchanged and remain available. See
+  [decision 0015](decisions/0015-intentional-absences-and-planned-surfaces.md).
 - Public Catalogs 2.0 (`plenora-public-catalog-v2`, schema
   `public-catalog-v2`) and Runtime Binding 2.0 (`plenora-runtime-binding-v2`)
   next to their 1.0 versions, which are unchanged except an informative

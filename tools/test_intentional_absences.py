@@ -203,9 +203,59 @@ class IntentionalAbsenceTests(unittest.TestCase):
     def test_an_absence_named_only_by_a_catalog_of_version_1_is_unknown(self):
         """The operation must be listed by a catalog of version 2: a catalog of
         version 1 is outside CAT-003, so it cannot satisfy the declaration."""
-        errors = self.errors(versions(with_v2=False))
+        by_version = {
+            component: {
+                version: catalog for version, catalog in catalogs.items()
+                if catalog["contract"] != validator.CATALOG_V2
+            }
+            for component, catalogs in versions(with_v2=False).items()
+        }
+        errors = self.errors(by_version)
         self.assertEqual(len(errors), 2)
         self.assertTrue(all(error.startswith("declared absence for unknown operation") for error in errors))
+
+
+class PublishedAbsenceTests(unittest.TestCase):
+    """The absences the profiles of version 2 declare (decision 0015), on the
+    catalogs as published."""
+
+    EXPECTED = {
+        (DATABASE, "database.transaction.begin", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+        (DATABASE, "database.transaction.commit", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+        (DATABASE, "database.transaction.rollback", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+        (DATABASE, "database.transaction.savepoint", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+        (DATABASE, "database.execute", 1): ({"runtime"}, "DB-ABS-002"),
+        (validator.DATA_COMPONENT, "data.run", 3): ({"cli", "python_sdk"}, "DT-ABS-001"),
+        (validator.DATA_COMPONENT, "data.run", 2): ({"runtime"}, "DT-ABS-002"),
+    }
+
+    def test_the_declared_absences(self):
+        self.assertEqual(validator.INTENTIONAL_ABSENCES, self.EXPECTED)
+        self.assertEqual(validator.intentional_absence_errors(versions(with_v2=False)), [])
+
+    def test_the_current_catalogs_are_of_version_2(self):
+        catalogs = validator.load_catalogs()
+        for component in (DATABASE, validator.DATA_COMPONENT, "plenora-io-tools"):
+            with self.subTest(component):
+                self.assertEqual(catalogs[component]["contract"], validator.CATALOG_V2)
+
+    def test_adding_an_absent_surface_is_refused(self):
+        for (component, identifier, version), (absent, rule) in self.EXPECTED.items():
+            for surface in sorted(absent):
+                by_version = versions(with_v2=False)
+                operation(by_version[component][latest_v2(by_version, component)], identifier, version)[
+                    "surfaces"
+                ].append(surface)
+                with self.subTest(identifier=identifier, surface=surface):
+                    errors = validator.intentional_absence_errors(by_version)
+                    self.assertEqual(len(errors), 1)
+                    self.assertIn(rule, errors[0])
+
+    def test_the_catalog_gate_runs_the_check(self):
+        catalogs = copy.deepcopy(validator.load_catalogs())
+        operation(catalogs[DATABASE], "database.execute", 1)["surfaces"].append("runtime")
+        errors = validator.validate_catalog_semantics(catalogs)
+        self.assertTrue(any("DB-ABS-002" in error for error in errors), errors)
 
 
 class CatalogVersionTests(unittest.TestCase):

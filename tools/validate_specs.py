@@ -737,7 +737,15 @@ def runtime_vector_paths() -> list[Path]:
 # reason. No catalog of version 2 may list them for that operation identity,
 # so no binding map can bind them either. Catalogs of version 1 keep Public
 # Catalogs 1.0, which has no such rule.
-INTENTIONAL_ABSENCES: dict[tuple[str, str, int], tuple[set[str], str]] = {}
+INTENTIONAL_ABSENCES: dict[tuple[str, str, int], tuple[set[str], str]] = {
+    (DATABASE_COMPONENT, "database.transaction.begin", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.commit", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.rollback", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.savepoint", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.execute", 1): ({"runtime"}, "DB-ABS-002"),
+    (DATA_COMPONENT, "data.run", 3): ({"cli", "python_sdk"}, "DT-ABS-001"),
+    (DATA_COMPONENT, "data.run", 2): ({"runtime"}, "DT-ABS-002"),
+}
 
 
 # CAT-003: the characters Unicode gives the White_Space property.
@@ -1197,6 +1205,10 @@ DATA_OPERATION_VERSIONS = {
     ],
 }
 
+# The operation versions each data-tools catalog version carries: version 3
+# (Public Catalogs 2.0) lists those of version 2 unchanged (decision 0015).
+DATA_CATALOG_GENERATION = {1: 1, 2: 2, 3: 2}
+
 
 def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     """Each data-tools catalog version against its own expectations.
@@ -1208,10 +1220,13 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     files and is not bound on the runtime surface.
     """
     failures: list[str] = []
+    generation = DATA_CATALOG_GENERATION.get(version)
+    if generation is None:
+        return [f"data-tools v{version} has no stated operation versions"]
     # Every lookup names the operation version: catalog v2 carries `data.run`
     # 2 and 3, and an order or a lookup by identifier alone would check the
     # wrong one.
-    expected = DATA_OPERATION_VERSIONS[version]
+    expected = DATA_OPERATION_VERSIONS[generation]
     found = sorted((item["id"], item["version"]) for item in catalog["operations"])
     if found != sorted(expected):
         return [f"data-tools v{version} must declare exactly {sorted(expected)}"]
@@ -1219,8 +1234,8 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     # operation version N (DATA_OPERATION_VERSIONS); data.run 3 has its own
     # rule below. Each lookup names the version.
     by_identity = {(item["id"], item["version"]): item for item in catalog["operations"]}
-    catalog_operation = by_identity[("data.catalog", version)]
-    run = by_identity[("data.run", version)]
+    catalog_operation = by_identity[("data.catalog", generation)]
+    run = by_identity[("data.run", generation)]
     attributes = catalog_operation.get("attributes")
     if not isinstance(attributes, dict):
         return [f"data-tools v{version} data.catalog attributes are not an object"]
@@ -1229,18 +1244,18 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     if registry_path is None or not registry_path.is_file():
         return [f"data-tools v{version} data.catalog does not name an existing kernel registry"]
     registry_id = load_json(registry_path)["registry"]
-    if version == 1:
+    if generation == 1:
         if catalog_operation["output"]["contract"] != registry_id:
             failures.append("data-tools v1 data.catalog output contract differs from its registry")
         if member(run.get("attributes"), "kernel_registry") != registry_id:
             failures.append("data-tools v1 data.run names a different kernel registry")
         return failures
-    if catalog_operation["output"]["contract"] != DATA_CATALOG_RESULT.get(version):
+    if catalog_operation["output"]["contract"] != DATA_CATALOG_RESULT.get(generation):
         failures.append(f"data-tools v{version} data.catalog has the wrong result contract")
     if attributes.get("kernel_registry") != registry_id:
         failures.append(f"data-tools v{version} data.catalog names a different kernel registry")
     for operation_id in ("data.validate", "data.run"):
-        operation_attributes = by_identity[(operation_id, version)].get("attributes")
+        operation_attributes = by_identity[(operation_id, generation)].get("attributes")
         if member(operation_attributes, "kernel_registry") != registry_id:
             failures.append(f"data-tools v{version} {operation_id} names a different kernel registry")
         if member(operation_attributes, "plan_contract") != DATA_PLAN_CONTRACT:
@@ -1284,7 +1299,7 @@ def data_run_3_errors(catalog: dict[str, Any], version: int, registry_id: str) -
         item for item in catalog["operations"]
         if item["id"] == "data.run" and item["version"] == 3
     ]
-    if version < 2:
+    if DATA_CATALOG_GENERATION.get(version, version) < 2:
         return ["data-tools v1 cannot declare data.run 3"] if entries else []
     if len(entries) != 1:
         return [f"data-tools v{version} must declare data.run 3 once"]
