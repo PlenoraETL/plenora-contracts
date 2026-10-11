@@ -116,6 +116,71 @@ system. It rejects removed documents, changed assertions and identities, and reu
 identifiers. The guard treats only schema annotations as editable prose; a
 property or literal named `description` remains part of the validation rules.
 
+## Contract version transitions
+
+A new version of a contract is a new document and a new identifier next to
+the previous ones; the previous text is never edited to carry the new
+obligations, and receives at most an informative pointer.
+
+### Public Catalogs and Runtime Binding 1.0 to 2.0
+
+[Public Catalogs 2.0](specs/catalogs/PUBLIC-CATALOGS-2.0.md)
+(`plenora-public-catalog-v2`) and
+[Runtime Binding 2.0](specs/runtime/RUNTIME-BINDING-2.0.md)
+(`plenora-runtime-binding-v2`) add obligations to the 1.0 texts, which stay
+unchanged ([decision 0015](decisions/0015-intentional-absences-and-planned-surfaces.md)).
+
+**What changes.**
+
+- Public Catalogs 2.0: catalog surfaces are the target, never availability,
+  and a consumer selects surfaces only from the artifact's capability
+  document (CAT-001); a surface is never removed and never marked planned,
+  and an omitted `conditional` surface needs no deviation (CAT-002); a
+  surface a profile declares intentionally absent is never added to that
+  operation identity, with a reason of fixed grammar the validator checks
+  (CAT-003). Its schema `public-catalog-v2` differs from version 1 only in
+  the `contract` value.
+- Runtime Binding 2.0: a result beyond a bound of the transport or of the
+  component fails with `resource_limit`, never with a truncated success
+  (RT-024). RT-025 replaces RT-002: `plenora.capability.version` stays `1`
+  and names the wire format, which 2.0 keeps byte for byte; the contract
+  version is the `runtime` interface of the capability document (CAP-003).
+  Fixtures of RT-024 are in `vectors/runtime-v2`.
+
+**Who adopts.**
+
+- A component whose current catalog declares `plenora-public-catalog-v2`
+  follows Public Catalogs 2.0 for it: it keeps the absences its profile
+  declares and records a deviation only for an omitted `required` surface.
+  Its earlier catalogs of version 1 keep Public Catalogs 1.0.
+- A consumer that reads a catalog of version 2 selects operations and
+  surfaces only from capability documents (CAT-001).
+- A runtime artifact that advertises `plenora-runtime-binding-v2` follows
+  RT-024 and RT-025, declares its bounds where its profile says, and
+  exercises `vectors/runtime-v2` in addition to `vectors/runtime-v1`.
+- runtime-tools, for a claim of Runtime Binding 2.0, declares its transport
+  bound in its adoption manifest and exercises both vector sets
+  ([runtime-tools profile](profiles/runtime-tools.md)).
+
+**Coexistence.** The two versions are valid at the same time. A component
+may publish catalogs of both versions, each with its profile; the
+operation identities they share keep one meaning. An artifact states which
+runtime binding it follows in its capability document; because the wire
+format is the same, runtime-tools routes requests of both versions with
+capability version `1`, and an artifact of 2.0 also satisfies every rule of
+1.0. An adoption manifest declares each contract identifier it claims
+(`plenora-public-catalog-v1` or `-v2`, `plenora-runtime-binding-v1` or
+`-v2`), with its own verification.
+
+**Exit of 1.0.** No 1.0 document, schema, catalog or vector is ever removed
+or changed: a pin to a revision that adopts 1.0 stays valid. Version 1.0
+stops being a target once every domain component's current catalog
+declares `plenora-public-catalog-v2` and the adoption manifests of the five
+domain components and of runtime-tools, at their latest pinned revisions,
+declare the 2.0 identifiers. From then on new operations and surfaces are
+added only to catalogs of version 2, the profiles stop listing the 1.0
+texts as applicable, and the CHANGELOG records 1.0 as superseded.
+
 ## Repository releases
 
 A repository release is an annotated Git tag `vMAJOR.MINOR.PATCH` on a commit

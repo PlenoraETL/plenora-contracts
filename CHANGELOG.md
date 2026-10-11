@@ -8,26 +8,24 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
-- Catalog surfaces are the target, never availability (Public Catalogs 1.0,
-  CAT-001 to CAT-003): a consumer selects surfaces from the artifact's
-  capability document, and a cataloged surface it does not list is planned
-  for that artifact; no surface is removed and no marker added; a surface a
-  profile declares intentionally absent is never added to that operation
-  identity, which the validator checks. The reasons of the intentional
-  absences are in the profiles: DB-ABS-001 (transactions without CLI and
-  runtime), DB-ABS-002 (`database.execute` without runtime), DB-ABS-003
-  (handle and savepoint contracts as logical shapes, never serialized),
-  DT-ABS-001 (`data.run` version 3 without CLI and Python SDK), DT-ABS-002
-  (`data.run` version 2 without runtime). On the runtime, `database.query`
-  returns its complete result as JSON (DB-RT-001) and `database.write`
-  receives its rows by artifact reference (DB-RT-002); a result beyond a
-  bound of the transport or of the component fails with `resource_limit`,
-  never a truncated success (Runtime Binding 1.0 RT-024, DB-RT-003, two
-  runtime error vectors). The runtime of IO-tools, database-tools and
-  data-tools version 1 is stated `conditional`, as their catalogs select it.
-  The requirement of at most one start per request for mutating runtime
-  operations without idempotency key is recorded for the runtime-tools
-  profile (issue #35). No schema, catalog or binding changes. See
+- Public Catalogs 2.0 (`plenora-public-catalog-v2`, schema
+  `public-catalog-v2`) and Runtime Binding 2.0 (`plenora-runtime-binding-v2`)
+  next to their 1.0 versions, which are unchanged except an informative
+  pointer. Catalog surfaces are the target, never availability: a consumer
+  selects surfaces from the artifact's capability document, a cataloged
+  surface it does not list is planned for that artifact, no surface is
+  removed and no marker added, and a surface the profile of a catalog of
+  version 2 declares intentionally absent is never added to that operation
+  identity, with a reason the validator checks (CAT-001 to CAT-003). A
+  runtime result beyond a bound of the transport or of the component fails
+  with `resource_limit`, never a truncated success (RT-024), with two error
+  vectors in `vectors/runtime-v2`; RT-025 replaces RT-002 and keeps the wire
+  of 1.0 (capability version `1`). COMPATIBILITY.md states the transition
+  (what changes, who adopts, coexistence, exit of 1.0); the runtime-tools
+  profile and ADOPTION.md name the claims of 2.0. The requirement of at most
+  one start per request for mutating runtime operations without idempotency
+  key is recorded for the runtime-tools profile (issue #35). No published
+  text, schema, catalog, binding or vector changes. See
   [decision 0015](decisions/0015-intentional-absences-and-planned-surfaces.md).
 - Runtime vector `database-write-commit-timeout-error.json` (an elapsed
   deadline after the commit was sent: `timeout`, `unknown`,

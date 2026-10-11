@@ -11,6 +11,11 @@ The target catalogs are in [`catalogs`](../../catalogs/), named
 target; an earlier version stays as an available identity when a later one
 changes operations incompatibly.
 
+Informative: [Public Catalogs 2.0](PUBLIC-CATALOGS-2.0.md)
+(`plenora-public-catalog-v2`) governs the catalogs whose `contract` is
+`plenora-public-catalog-v2`; this text is unchanged and keeps governing the
+catalogs of version 1 ([COMPATIBILITY.md](../../COMPATIBILITY.md#public-catalogs-and-runtime-binding-10-to-20)).
+
 ## 1. Purpose
 
 A public catalog is the reviewed target boundary of one component. It states
@@ -77,53 +82,6 @@ An operation's `surfaces` array is the target binding set. An adopter MUST:
    surfaces;
 4. record temporary deviations in its adoption manifest rather than editing
    the common catalog to match an incomplete implementation.
-
-**CAT-001** — An operation's `surfaces` and a catalog's `target_surfaces`
-state the target, never availability. A consumer selects an operation and a
-surface only from the capability document of the artifact it calls (CAP-004,
-CAP-007, CAP-008, SURF-016) and MUST NOT invoke an operation on a surface that
-this document does not list, whatever the catalog lists. A surface that the
-catalog lists and an artifact's capability document does not is **planned**
-for that artifact: the catalog and the binding maps name the spelling it will
-have, not a surface that exists.
-
-**CAT-002** — A published surface is never removed from a catalog or a
-binding map (COMPATIBILITY.md), and neither carries a "planned" marker:
-availability belongs to an artifact, and only capability discovery reports
-it. An artifact that does not implement a target surface omits it from its
-capability document. When that surface's target applicability is `required`,
-the artifact also records a deviation in its adoption manifest; a
-`conditional` surface that an artifact does not implement needs none.
-
-**CAT-003** — A surface that a profile declares intentionally absent for an
-operation, with its reason, is never added to that operation identity: a
-binding on it needs a new operation version whose contract removes the
-reason. The validator checks every catalog version and binding map against
-the absences the profiles declare (DB-ABS-001, DB-ABS-002, DT-ABS-001,
-DT-ABS-002), and that each profile states the rule with its reason. The
-reason has this exact shape: the bold identifier (`**DB-ABS-001**`), one
-space, an em dash (U+2014), one space, then the reason text, which runs to
-the first blank line or to the end of the file. The profile is read as
-written, in strict UTF-8 and without translating line terminators:
-
-- a line ends with LF or CR LF, and with nothing else. A CR that does not
-  precede an LF, a vertical tab, a form feed, NEL (U+0085), and the line and
-  paragraph separators (U+2028, U+2029) are refused with an explicit error,
-  wherever they are in the profile;
-- a byte order mark (U+FEFF), at the start or anywhere else, is refused
-  with an explicit error, never removed;
-- a blank line is a line that is empty once its ASCII spaces (U+0020) and
-  tabs (U+0009) are removed. A line of the reason made only of other white
-  space (any character with the Unicode White_Space property, such as a
-  no-break space U+00A0) is refused with an explicit error: it is neither a
-  blank line nor text. Inside a line with other characters, such white space
-  is an ordinary character.
-
-The text contains at least one ASCII letter and ends with a period whose
-preceding character is neither a period nor white space (the Unicode
-White_Space property). It
-checks the coherence of the documents, not what any artifact exposes:
-availability is reported only by capability discovery (CAP-004, CAP-008).
 
 The exact CLI, Python and runtime spellings are defined by
 [Surface Bindings 1.0](../surfaces/SURFACE-BINDINGS-1.0.md).

@@ -281,7 +281,9 @@ def document_changes(relative: str, previous: Any, current: Any) -> list[str]:
         return [] if assertions(previous) == assertions(current) else ["assertions changed"]
     if isinstance(previous, dict) and isinstance(current, dict):
         contract = previous.get("contract")
-        if relative.startswith("catalogs/") and contract == "plenora-public-catalog-v1":
+        # Both contract versions share the rules of COMPATIBILITY.md for a
+        # published catalog (Public Catalogs 2.0 section 8).
+        if relative.startswith("catalogs/") and contract in ("plenora-public-catalog-v1", "plenora-public-catalog-v2"):
             return catalog_changes(previous, current)
         if relative.startswith("catalogs/") and contract == "plenora-operation-registry-v1":
             return registry_changes(previous, current)

@@ -2,7 +2,7 @@
 
 Status: accepted
 
-Date: 2026-10-10
+Date: 2026-10-10; revised 2026-10-11 (versions 2.0 of the contracts)
 
 ## Context
 
@@ -32,32 +32,51 @@ take them for available.
 
 ## What the specifications already allow
 
-Asked whether to remove those surfaces or mark them "planned", the rules
-answer:
-
 - **Removal is forbidden.** COMPATIBILITY.md fixes every field of a published
   operation identity except the additions it lists, and surfaces may only
   grow; `repeated_identity_errors` and the immutability gate enforce it.
-  Public Catalogs 1.0 section 5 item 4 adds that a catalog is not edited to
-  match an incomplete implementation.
-- **A "planned" marker has no place.** The catalog schema is closed
-  (`additionalProperties: false`) and an operation's `attributes` are fixed
-  once published; a marker would need `public-catalog-v2` and would describe
-  an artifact in a document that describes a target, against Public Catalogs
-  1.0 section 1 and the profile index ("do not report current
-  implementation status").
-- **The prescribed mechanism exists.** Section 1 of Public Catalogs 1.0 says
-  the catalog does not claim that an artifact conforms; Capability Discovery
-  2.0 (CAP-004, CAP-008) and SURF-016 make the capability document the only
-  statement of what an artifact exposes; `runtime` is `conditional` in both
-  catalogs, so an artifact without it is conforming and needs no deviation.
+- **A "planned" marker has no place.** The catalog schema is closed and a
+  marker would describe an artifact in a document that describes a target.
+- **Capability discovery is authoritative.** Capability Discovery 2.0
+  (CAP-004, CAP-008) and SURF-016 make the capability document the only
+  statement of what an artifact exposes.
 
-What was missing is a rule that says so to the consumer, and a guard that
-keeps the intentional absences.
+What was missing is a rule that says so to the consumer, a guard that keeps
+the intentional absences, and the outcome of a result beyond a bound.
+
+## Why versions 2.0, not an edit of 1.0
+
+The first form of this decision wrote CAT-001 to CAT-003 into Public
+Catalogs 1.0, RT-024 into Runtime Binding 1.0, the absences and the runtime
+content types into the published profiles, and restricted
+`database.query` version 1 to JSON on the runtime (DB-RT-001). Each changes
+the obligations of a published text: a component pinned to 1.0 that
+re-pinned a later revision would have found new rules under the same
+identifier. COMPATIBILITY.md defines no minor version of a contract: an
+identifier carries only its major version, is immutable and is never
+reused with another meaning, and a change of observable meaning needs a new
+contract version. The repository owner chose that route (2026-10-11):
+
+- **Public Catalogs 2.0** (`plenora-public-catalog-v2`, schema
+  `public-catalog-v2`, the same shape as version 1 but the `contract`
+  value) carries CAT-001 to CAT-003 and the grammar of a stated reason;
+- **Runtime Binding 2.0** (`plenora-runtime-binding-v2`) carries RT-024,
+  with its illustrative vectors in `vectors/runtime-v2`, and RT-025, which
+  replaces RT-002 so that a request of 2.0 is byte for byte one of 1.0;
+- the 1.0 texts are unchanged except an informative pointer;
+- COMPATIBILITY.md states the transition: what changes, who adopts, how the
+  versions coexist and when 1.0 stops being a target;
+- the published profiles are unchanged; the absences and the runtime
+  content types belong to new catalog and profile versions of the
+  components whose runtime the profiles stated as required, bound to the
+  contracts 2.0 (stacked change: data-tools version 3, IO-tools version 3,
+  database-tools version 2);
+- DB-RT-001 is withdrawn: `database.query` version 1 keeps on the runtime
+  the content types its catalog declares, as Runtime Binding selects them.
 
 ## Decision
 
-Public Catalogs 1.0, section 5:
+Public Catalogs 2.0, section 5:
 
 - **CAT-001** — catalog surfaces are the target, never availability; a
   consumer selects surfaces only from the artifact's capability document; a
@@ -66,86 +85,78 @@ Public Catalogs 1.0, section 5:
 - **CAT-002** — no surface is removed and no marker is added; an artifact
   omits a surface it does not implement, with a deviation only when the
   target applicability is `required`.
-- **CAT-003** — a surface a profile declares intentionally absent is never
-  added to that operation identity; a binding needs a new operation version
-  whose contract removes the reason. The validator checks every catalog
-  version against the absences and that each profile states the rule
-  (`INTENTIONAL_ABSENCES`, `intentional_absence_errors`).
+- **CAT-003** — a surface the profile of a catalog of version 2 declares
+  intentionally absent is never added to that operation identity; a binding
+  needs a new operation version whose contract removes the reason. The
+  validator checks every catalog of version 2 against the absences its
+  profile declares, and that the profile states each rule with a reason of
+  the exact grammar (`INTENTIONAL_ABSENCES`, `intentional_absence_errors`).
+  Catalogs of version 1 are outside it.
 
-Profiles:
+Runtime Binding 2.0:
 
-- database-tools: **DB-ABS-001** (transactions: no CLI, because a handle does
-  not survive the process and CLI 2.0 is one invocation, one envelope; no
-  runtime, because messages are independent and a transaction across them
-  needs affinity, lease and orphan recovery that no contract defines),
-  **DB-ABS-002** (`database.execute`: no runtime, because Runtime Binding 1.0
-  does not promise at-most-once delivery and the operation accepts no
-  idempotency key, so a redelivered request could execute an arbitrary
-  statement twice), **DB-ABS-003** (handle and savepoint contracts are
-  logical shapes, never serialized; `application/json` names a
-  representation no surface has).
-- data-tools version 2: **DT-ABS-001** (`data.run` version 3: no CLI or
-  Python SDK, because it needs the application's artifact resolver and
-  version 2 already serves the local case with the same semantics),
-  **DT-ABS-002** (`data.run` version 2: no runtime, one payload per
-  response), and the runtime entries of the other operations are planned
-  until an artifact advertises them.
-- The profile index defines `conditional` with CAT-001; the profiles of
-  IO-tools (versions 1 and 2), database-tools and data-tools version 1 say
-  `conditional` for the runtime instead of "required for every operation
-  selected for orchestration", which the catalogs never said.
+- **RT-024** — a result beyond a bound of the transport or of the component
+  fails with `resource_limit`, never with a truncated success (SURF-014);
+  the phase follows ERR-003 and the remote effect ERR-004. The component
+  declares its limits where its profile says; the transport in its adoption
+  manifest.
+- **RT-025** — capability version `1` names the wire format, which 2.0 keeps;
+  the contract version is the `runtime` interface of the capability
+  document (CAP-003). Introducing a capability version `2` for an unchanged
+  wire would have made every request of 2.0 unsupported by every 1.0
+  artifact and duplicated every runtime vector, for no change of bytes.
 
-### Results beyond a bound (second reading)
+The absences the profiles of version 2 declare: **DB-ABS-001**
+(transactions: no CLI, because a handle does not survive the process and
+CLI 2.0 is one invocation, one envelope; no runtime, because messages are
+independent and a transaction across them needs affinity, lease and orphan
+recovery that no contract defines), **DB-ABS-002** (`database.execute`: no
+runtime, because Runtime Binding does not promise at-most-once delivery and
+the operation accepts no idempotency key), **DB-ABS-003** (handle and
+savepoint contracts are logical shapes, never serialized), **DT-ABS-001**
+(`data.run` version 3: no CLI or Python SDK, because it needs the
+application's artifact resolver and version 2 serves the local case),
+**DT-ABS-002** (`data.run` version 2: no runtime, one payload per response).
 
-A runtime result can meet a bound: the payload limit of the transport or the
-component's materialization limit. **RT-024** makes either a typed
-`resource_limit` error and forbids a truncated success (SURF-014);
-**DB-RT-003** applies it to `database.query`, says where database-tools
-declares its bound, and two illustrative runtime vectors show both errors.
-Further readings fixed the axes: RT-024 fixes the category, the remote
-effect and the ban on a truncated success, and leaves the phase to ERR-003
-(`read`, `finalize`, or the phase of a publication already made). CAT-003
-states the exact syntax of a reason that the validator checks. A fourth reading
-found that the file was read with newline translation, so a lone CR
-changed meaning between the file and the grammar: the profile is now read
-as written, LF and CR LF are the only terminators, and a lone CR, a byte
-order mark, other line breaks and a line made only of non-ASCII white space
-are explicit errors, each with its test.
+### Readings of the first form
+
+Further readings of the first form fixed the axes of RT-024 (category,
+remote effect and the ban on a truncated success; the phase left to
+ERR-003) and the exact syntax of a reason: the profile is read as written,
+LF and CR LF are the only terminators, and a lone CR, a byte order mark,
+other line breaks and a line made only of non-ASCII white space are
+explicit errors, each with its test. The fifth reading (Codex) found that
+the first form changed published obligations in place, which this revision
+corrects.
 
 ### Content types on the runtime (database-tools)
 
-database-tools asked how the runtime carries the content types its catalog
-declares, which Runtime Binding 1.0 cannot select:
-
 - **`database.query`**: the catalog declares `application/json` and the Arrow
   stream for the result, and the closed input contract cannot ask for one.
-  Two options: (a) JSON only on the runtime for version 1; (b) a selection
-  member in a new input contract, which is a new operation version, not a
-  minor change, because `plenora-database-query-input-v1` is closed.
-  Decided (a), as **DB-RT-001**, with the condition that the JSON is the
-  complete result and not a summary (RT-008, Arrow Interchange 1.0 section
-  7); (b) is the route when a pipeline needs Arrow from the runtime, with an
-  artifact sink rather than inline bytes, as `data.run` version 3.
-- **`database.write`**: the envelope is `application/json` and the Arrow
-  rows arrive by artifact reference; **DB-RT-002** states it, without
-  changing the catalog, whose content types describe the operation.
-- **`database.query` in the Python SDK**: no binding returns Arrow. The
-  result may be the structured JSON form, but Python SDK 1.0 section 3
-  says a tabular SDK SHOULD use PyArrow or Arrow IPC at the boundary, and
-  without it `database.query` enters no Python pipeline. This is a gap to
-  close, not an intentional absence: a PyArrow (or `__arrow_c_stream__`)
-  result for `Session.select`.
+  The first form restricted version 1 to JSON on the runtime (DB-RT-001), a
+  restriction added afterwards to a published operation: withdrawn. When a
+  pipeline needs a chosen representation on the runtime, the route is a new
+  operation version whose input names it, with an artifact sink rather than
+  inline bytes, as `data.run` version 3.
+- **`database.write`**: on the runtime the envelope is `application/json`
+  and the Arrow rows arrive by artifact reference; the database-tools
+  profile of version 2 states it (DB-RT-002) without changing the catalog,
+  whose content types describe the operation.
+- **A result beyond a bound**: the database-tools profile of version 2
+  applies RT-024 to `database.query` and says where the bound is declared
+  (DB-RT-003).
+- **`database.query` in the Python SDK**: a gap to close, not an absence: a
+  PyArrow (or `__arrow_c_stream__`) result for `Session.select`.
 
 ### Open point: mutating runtime operations without an idempotency key
 
 DB-ABS-002 belongs to a class. On the runtime, with `side_effect: remote` and
-no idempotency key, the catalogs also bind `database.write` (append mode
-repeated adds rows), `data.run` version 3 (an `overwrite: true` sink is
-replaced again; `false` fails with `conflict`) and `storage.put`,
-`storage.copy`, `storage.delete`. Those surfaces are published and cannot be
-removed (CAT-002). The safe rule is one the transport keeps. Recorded here as
-a **requirement for the runtime-tools profile** (second reading, Codex), to
-be ratified there:
+no idempotency key, the catalogs also bind `database.write`, `data.run`
+version 3 and `storage.put`, `storage.copy`, `storage.delete`. Those surfaces
+are published and cannot be removed (CAT-002). The safe rule is one the
+transport keeps, recorded as a requirement for the runtime-tools profile, to
+be ratified there (issue
+[plenora-contracts#35](https://github.com/PlenoraETL/plenora-contracts/issues/35)):
 
 1. at most one start of the operation per request, across workers and after
    a crash: the request identity is recorded durably before the invocation;
@@ -156,38 +167,26 @@ be ratified there:
    any effect;
 4. later, new versions of these operations with a mandatory idempotency key.
 
-The ratification belongs to a separate change of the runtime-tools profile,
-tracked by issue
-[plenora-contracts#35](https://github.com/PlenoraETL/plenora-contracts/issues/35).
-
 ## Change statement
 
-- **Consumers affected:** every consumer that reads a catalog to choose a
-  surface; maintainers of the catalogs.
+- **Consumers affected:** every consumer that reads a catalog of version 2
+  to choose a surface; runtime consumers of artifacts that advertise
+  Runtime Binding 2.0; runtime-tools for a claim of 2.0; maintainers of
+  catalogs.
 - **Before:** catalog surfaces could be read as availability; four absences
-  had no stated reason; the handle contracts declared a JSON form that no
-  surface has.
-- **After:** CAT-001 to CAT-003, DB-ABS-001 to DB-ABS-003, DB-RT-001 to
-  DB-RT-003, RT-024, DT-ABS-001, DT-ABS-002 and the validator guard, which
-  checks that each absence carries a reason.
-- **Compatible:** yes: no catalog, binding or schema changes; the rules
-  restate what Capability Discovery 2.0 already makes authoritative, forbid
-  only additions that no published document contains, and RT-024 restates
-  SURF-014 for bounded results.
-- **Schemas, examples and profiles:** profiles of database-tools, data-tools
-  (versions 1 and 2), IO-tools (versions 1 and 2) and the profile index;
-  Runtime Binding 1.0 (RT-024); two runtime error vectors for
-  `database.query` beyond a bound.
-- **Adoption impact:**
-  - IO-tools: no change while its capability document omits `runtime`
-    (it does: `capability.rs` lists Rust and CLI); PR #27 adds it when it
-    lands.
-  - data-tools: no change while its capability document lists only the
-    surface that answers (`crates/plenora-cli/src/capacita.rs`), as it does;
-    no deviation is needed, the surface is conditional.
-  - database-tools: write the reasons of DB-ABS-001 and DB-ABS-002 in its
-    documentation and keep the handles out of every serialized surface;
-    return the complete query result as JSON on the runtime (DB-RT-001) or
-    record a deviation while the runtime returns a summary; accept the
-    Arrow of `database.write` on the runtime only by artifact reference
-    (DB-RT-002); give `Session.select` an Arrow result.
+  had no stated reason; a result beyond a bound had no stated outcome.
+- **After:** Public Catalogs 2.0 (CAT-001 to CAT-003) and Runtime Binding
+  2.0 (RT-024, RT-025), with the transition in COMPATIBILITY.md; 1.0
+  unchanged.
+- **Compatible:** yes for every existing document: two new contract
+  versions, a new schema and two vectors next to the existing ones; no
+  published text, schema, catalog, binding or vector changes meaning.
+- **Schemas, examples and profiles:** new `public-catalog-v2.schema.json`;
+  `vectors/runtime-v2` with two error vectors; the profile index and the
+  runtime-tools profile name the 2.0 versions where they apply, without
+  changing a 1.0 claim; the validator checks catalogs against the schema of
+  their contract, CAT-003 on catalogs of version 2, and `vectors/runtime-v2`
+  like `vectors/runtime-v1`.
+- **Adoption impact:** none until a component publishes a catalog of
+  version 2 or an artifact claims Runtime Binding 2.0; the stacked change
+  lists the impact for database-tools, data-tools and IO-tools.

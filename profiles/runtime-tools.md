@@ -12,7 +12,9 @@ schemas, capability truth, domain errors or business semantics.
 
 ## Applicable contracts
 
-- [Runtime Binding 1.0](../specs/runtime/RUNTIME-BINDING-1.0.md)
+- [Runtime Binding 1.0](../specs/runtime/RUNTIME-BINDING-1.0.md), or
+  [Runtime Binding 2.0](../specs/runtime/RUNTIME-BINDING-2.0.md) for a claim
+  of that version (section "Runtime Binding 2.0" below)
 - [Runtime Conformance Vectors 1.0](../specs/runtime/RUNTIME-VECTORS-1.0.md)
 - [Typed Errors 1.0](../specs/errors/ERRORS-1.0.md), for serialized public failures
 - [Public Security 1.0](../specs/security/PUBLIC-SECURITY-1.0.md)
@@ -53,6 +55,21 @@ black-box verification commands in adoption manifest v4. It MUST NOT mark
 Runtime Binding 1.0 conforming while request, success or terminal-error vector
 coverage is incomplete. Temporary gaps are documented as deviations and do not
 count as conformance.
+
+## Runtime Binding 2.0
+
+A claim of Runtime Binding 2.0 (`plenora-runtime-binding-v2`) is separate
+from a claim of 1.0 and adds, for runtime-tools:
+
+- requests and results of both versions are routed alike: the wire format
+  is the same and carries capability version `1` (RT-025);
+- a result the transport cannot carry whole fails with `resource_limit` and
+  is never delivered truncated as a success (RT-024); the transport's bound
+  is declared in its adoption manifest;
+- the vectors of [`vectors/runtime-v2`](../vectors/runtime-v2/) are
+  exercised in addition to those of `vectors/runtime-v1`.
+
+A claim of 1.0 alone keeps the obligations above this section.
 
 ## Not specified here
 

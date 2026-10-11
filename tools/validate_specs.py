@@ -54,6 +54,7 @@ EXPECTED_SCHEMAS = {
     "operation-registry-v1.schema.json",
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
+    "public-catalog-v2.schema.json",
     "row-diagnostics-v1.schema.json",
     "runtime-probe-v1.schema.json",
     "runtime-vector-v1.schema.json",
@@ -560,10 +561,15 @@ def validate_error_bound_vectors(
 def validate_machine_documents(
     schemas: dict[str, dict[str, Any]], registry: Registry
 ) -> list[str]:
-    groups = {
-        "public-catalog-v1.schema.json": sorted(
-            (ROOT / "catalogs").glob("*-tools-v*.json")
-        ),
+    groups: dict[str, list[Path]] = {
+        "public-catalog-v1.schema.json": [],
+        "public-catalog-v2.schema.json": [],
+    }
+    # Each catalog against the schema of the contract version it declares
+    # (Public Catalogs 1.0 or 2.0).
+    for path in sorted((ROOT / "catalogs").glob("*-tools-v*.json")):
+        groups[catalog_schema_name(load_json(path))].append(path)
+    groups.update({
         "operation-registry-v1.schema.json": sorted(
             (ROOT / "catalogs").glob("data-kernels-v*.json")
         ),
@@ -572,13 +578,11 @@ def validate_machine_documents(
         "arrow-metadata-vector-v1.schema.json": sorted(
             (ROOT / "vectors/arrow-v1").glob("*.json")
         ),
-        "runtime-vector-v1.schema.json": sorted(
-            (ROOT / "vectors/runtime-v1").glob("*.json")
-        ),
+        "runtime-vector-v1.schema.json": runtime_vector_paths(),
         "runtime-probe-v1.schema.json": sorted(
             (ROOT / "vectors/runtime-probes-v1").glob("*.json")
         ),
-    }
+    })
     failures: list[str] = []
     for schema_name, paths in groups.items():
         for path in paths:
@@ -705,18 +709,35 @@ def repeated_identity_errors(
     return failures
 
 
-# Public Catalogs 1.0 CAT-003: surfaces a profile declares intentionally
-# absent, with the rule that gives the reason. No catalog version may list
-# them for that operation identity, so no binding map can bind them either.
-INTENTIONAL_ABSENCES = {
-    (DATABASE_COMPONENT, "database.transaction.begin", 1): ({"cli", "runtime"}, "DB-ABS-001"),
-    (DATABASE_COMPONENT, "database.transaction.commit", 1): ({"cli", "runtime"}, "DB-ABS-001"),
-    (DATABASE_COMPONENT, "database.transaction.rollback", 1): ({"cli", "runtime"}, "DB-ABS-001"),
-    (DATABASE_COMPONENT, "database.transaction.savepoint", 1): ({"cli", "runtime"}, "DB-ABS-001"),
-    (DATABASE_COMPONENT, "database.execute", 1): ({"runtime"}, "DB-ABS-002"),
-    (DATA_COMPONENT, "data.run", 3): ({"cli", "python_sdk"}, "DT-ABS-001"),
-    (DATA_COMPONENT, "data.run", 2): ({"runtime"}, "DT-ABS-002"),
+CATALOG_V2 = "plenora-public-catalog-v2"
+CATALOG_SCHEMAS = {
+    "plenora-public-catalog-v1": "public-catalog-v1.schema.json",
+    CATALOG_V2: "public-catalog-v2.schema.json",
 }
+# Runtime Binding 2.0 section 10: the fixtures of a rule of 2.0 only, same
+# shape and same checks as those of Runtime Vectors 1.0.
+RUNTIME_VECTOR_DIRECTORIES = ("vectors/runtime-v1", "vectors/runtime-v2")
+
+
+def catalog_schema_name(document: Any) -> str:
+    """The schema of the contract version a catalog declares; an unknown one
+    gets version 1, whose `const` refuses it."""
+    contract = document.get("contract") if isinstance(document, dict) else None
+    return CATALOG_SCHEMAS.get(contract, "public-catalog-v1.schema.json")
+
+
+def runtime_vector_paths() -> list[Path]:
+    return sorted(
+        path for directory in RUNTIME_VECTOR_DIRECTORIES for path in (ROOT / directory).glob("*.json")
+    )
+
+
+# Public Catalogs 2.0 CAT-003: surfaces the profile of a catalog of contract
+# version 2 declares intentionally absent, with the rule that gives the
+# reason. No catalog of version 2 may list them for that operation identity,
+# so no binding map can bind them either. Catalogs of version 1 keep Public
+# Catalogs 1.0, which has no such rule.
+INTENTIONAL_ABSENCES: dict[tuple[str, str, int], tuple[set[str], str]] = {}
 
 
 # CAT-003: the characters Unicode gives the White_Space property.
@@ -799,12 +820,15 @@ def reason_is_stated(profile: str, rule: str) -> bool:
 def intentional_absence_errors(
     versions: dict[str, dict[int, dict[str, Any]]],
 ) -> list[str]:
-    """CAT-003: a declared absence holds in every catalog version, and the
-    profile of each catalog that lists the operation states its rule."""
+    """CAT-003: a declared absence holds in every catalog of contract version
+    2, and the profile of each such catalog that lists the operation states
+    its rule."""
     failures: list[str] = []
     found: set[tuple[str, str, int]] = set()
     for component, by_version in versions.items():
         for version, catalog in sorted(by_version.items()):
+            if catalog.get("contract") != CATALOG_V2:
+                continue
             profile: str | bool | None = None
             for operation in catalog["operations"]:
                 key = (component, operation["id"], operation["version"])
@@ -2148,7 +2172,7 @@ def validate_runtime_vectors(
     storage_coverage = set()
     data_run_3_coverage: set[str] = set()
     data_run_3_vectors: list[dict[str, Any]] = []
-    for path in sorted((ROOT / "vectors/runtime-v1").glob("*.json")):
+    for path in runtime_vector_paths():
         vector = load_json(path)
         metadata = vector["metadata"]
         operation_id = metadata.get("plenora.capability.operation")
