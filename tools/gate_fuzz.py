@@ -98,6 +98,9 @@ class Gate:
         self.parsed: dict[str, Any] = {}
         self.shared: set[int] = set()
         self.verdicts: dict[Any, list[str]] = {}
+        # A registry's content, by the registry kept alive: an `id` alone
+        # could be reused by the registry of a later run.
+        self.registries: dict[int, tuple[Any, Any]] = {}
         self.checked: set[int] = set()
         self.target_texts: set[str] = set()
         self.resolved: dict[str, Path | None] = {}
@@ -163,7 +166,9 @@ class Gate:
 
     def _loads(self, text: str) -> Any:
         """Unchanged texts parse to one shared object, which the gate must
-        not mutate (`check_unmutated`)."""
+        not mutate (`check_unmutated`). The complete run parses every text."""
+        if not self.memo:
+            return self._real_loads(text)
         if text in self.parsed:
             return self.parsed[text]
         document = self._real_loads(text)
@@ -172,16 +177,36 @@ class Gate:
             self.shared.add(id(document))
         return document
 
+    def _content(self, document: Any) -> Any:
+        """A key for a document: its identity when it is shared (unchanged,
+        never mutated), otherwise its whole text."""
+        if id(document) in self.shared:
+            return ("shared", id(document))
+        return ("text", json.dumps(document, sort_keys=True))
+
+    def _registry_key(self, registry: Any) -> Any:
+        """Every schema a `$ref` can reach: a mutation of a referenced schema
+        changes the verdict of a schema that refers to it."""
+        entry = self.registries.get(id(registry))
+        if entry is None or entry[0] is not registry:
+            key = tuple(sorted((uri, self._content(registry[uri].contents)) for uri in registry))
+            entry = (registry, key)
+            self.registries[id(registry)] = entry
+        return entry[1]
+
     def _instance_errors(self, schema: Any, instance: Any, registry: Any) -> list[str]:
-        if id(schema) in self.shared and id(instance) in self.shared:
-            key: Any = (id(schema), id(instance))
-        else:
-            key = (json.dumps(schema, sort_keys=True), json.dumps(instance, sort_keys=True))
+        if not self.memo:
+            # The oracle of the memoized path computes every verdict.
+            return self._real_instance_errors(schema, instance, registry)
+        key = (self._content(schema), self._content(instance), self._registry_key(registry))
         if key not in self.verdicts:
             self.verdicts[key] = self._real_instance_errors(schema, instance, registry)
         return list(self.verdicts[key])
 
     def _check_schema(self, schema: Any, *args: Any, **kwargs: Any) -> None:
+        if not self.memo:
+            self._real_check_schema(schema, *args, **kwargs)
+            return
         if id(schema) in self.shared and id(schema) in self.checked:
             return
         self._real_check_schema(schema, *args, **kwargs)
@@ -280,7 +305,10 @@ class Gate:
         return status, out.getvalue() + err.getvalue()
 
     def run_complete(self, target: tuple[Path, bytes] | None) -> tuple[Any, str]:
-        """The same run with every validator executed."""
+        """The same run with every validator executed and without the caches
+        of parses, verdicts and schema checks: an independent oracle. Only
+        the listings and the existence of files are reused, which a mutation
+        never changes."""
         self.memo = False
         try:
             return self.run(target)
