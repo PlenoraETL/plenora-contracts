@@ -58,11 +58,25 @@ full commit SHA; a release tag names one of those commits.
   document's format, with three negative examples. No catalog, binding,
   profile or published vector changes. See
   [decision 0018](decisions/0018-interoperability-vectors.md).
+- REST-to-Arrow Adapter 1.0 (`plenora-rest-arrow-adapter-v1`): the adapter
+  of the `rest.enrich` to `data.run` edges belongs to the application, and
+  an adapter claiming the contract declares fields (name, identity, RFC 6901
+  pointer, `bool`/`int64`/`float64`/`utf8`, nullability), accepted REST
+  statuses, per-record error policy and undeclared members; converts in
+  record order without inference or coercion; fails with `data_mapping`
+  naming record, field and cause, or excludes records with row diagnostics;
+  reports the REST status next to the table (RA-001 to RA-010). New schemas
+  `rest-arrow-adapter-v1` and `rest-arrow-adapter-vector-v1`, 29 vectors
+  whose outcomes a reference adapter in the validator derives. Composition
+  1.0 points to it; the edges stay `adapter_required`. See
+  [decision 0017](decisions/0017-rest-arrow-adapter.md).
 - Runtime vector `database-write-commit-timeout-error.json` (an elapsed
   deadline after the commit was sent: `timeout`, `unknown`,
   `requires_recovery`), and a validator check that every runtime error
-  vector with an unknown commit outcome names its cause and has the category
-  ERR-016 gives it. See
+  vector with an unknown commit outcome and a mapped code (lost
+  confirmation, elapsed deadline, defect of the component) has the category
+  ERR-016 gives that cause; any other code, such as a cancellation, is
+  checked only for its retry (ERR-006). See
   [decision 0020](decisions/0020-cause-of-an-unknown-commit-in-the-vectors.md).
 
 - ERR-016 (Typed Errors 1.0, a clarification): an unknown outcome does not
