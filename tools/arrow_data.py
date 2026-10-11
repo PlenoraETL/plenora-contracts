@@ -705,12 +705,22 @@ def _json_value(value: Any, quantity: str) -> Decimal:
     return Decimal(value)
 
 
+# GEO-017: a PROJJSON unit object states its quantity with `type`. A unit
+# without it, or of the generic `Unit`, measures no stated quantity and is
+# undecidable, whatever its name and factor; the word form (`degree`,
+# `metre`, `unity`) states it with its name.
+PROJJSON_UNIT_QUANTITY = {"AngularUnit": "angle", "LinearUnit": "length", "ScaleUnit": "scale"}
+
+
 def _projjson_unit(unit: Any, quantity: str) -> None:
     if isinstance(unit, str):
         if unit.lower() not in UNIT_NAMES[quantity]:
             raise Undecidable("PROJJSON unit not decided")
         return
     if isinstance(unit, dict):
+        unit_type = unit.get("type")
+        if not isinstance(unit_type, str) or PROJJSON_UNIT_QUANTITY.get(unit_type) != quantity:
+            raise Undecidable("PROJJSON unit of another quantity")
         factor = unit.get("conversion_factor")
         if isinstance(factor, int) and not isinstance(factor, bool):
             factor = Decimal(factor)
