@@ -1,0 +1,22 @@
+{
+  "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-runtime-negotiation-vector-v1",
+  "description": "A client requires 2.0 and cannot read the destination's capability document: refused before sending, even with a declared downgrade (RT-026 item 3).",
+  "sender": {
+    "kind": "client",
+    "requires": "plenora-runtime-binding-v2",
+    "accepts_downgrade": true
+  },
+  "destination": {
+    "interface": null
+  },
+  "request": "../runtime-v1/database-read-request.json",
+  "expect": {
+    "decision": "refuse",
+    "category": "unsupported",
+    "phase": "validate",
+    "remote_effect": "none",
+    "retry": "never"
+  }
+}

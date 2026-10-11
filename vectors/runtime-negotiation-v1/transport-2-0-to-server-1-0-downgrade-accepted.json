@@ -2,11 +2,12 @@
   "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
   "schema_version": 1,
   "contract": "plenora-runtime-negotiation-vector-v1",
-  "description": "A transport routes a request meant for 2.0; the selected destination advertises only 1.0. The request is the same bytes under both versions, so only this selection detects it: refused before sending (RT-026 item 3).",
+  "description": "A transport routing for its sender, with the negotiation context preserved (RT-027), requires 2.0 and the sender has declared that it accepts the downgrade; the destination advertises only 1.0: sent, governed by 1.0, without RT-024 (RT-026 item 2).",
   "sender": {
     "kind": "transport",
     "requires": "plenora-runtime-binding-v2",
-    "accepts_downgrade": false
+    "accepts_downgrade": true,
+    "context": "preserved"
   },
   "destination": {
     "interface": {
@@ -17,10 +18,7 @@
   },
   "request": "../runtime-v1/database-read-request.json",
   "expect": {
-    "decision": "refuse",
-    "category": "unsupported",
-    "phase": "validate",
-    "remote_effect": "none",
-    "retry": "never"
+    "decision": "send",
+    "governed_by": "plenora-runtime-binding-v1"
   }
 }

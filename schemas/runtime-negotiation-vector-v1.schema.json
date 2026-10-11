@@ -25,8 +25,15 @@
       "properties": {
         "kind": {"enum": ["client", "transport"]},
         "requires": {"enum": ["plenora-runtime-binding-v1", "plenora-runtime-binding-v2"]},
-        "accepts_downgrade": {"type": "boolean"}
-      }
+        "accepts_downgrade": {"type": "boolean"},
+        "context": {
+          "description": "For a transport: whether the negotiation context of the sender reached the hop that selects the destination (RT-027).",
+          "enum": ["preserved", "lost"]
+        }
+      },
+      "if": {"properties": {"kind": {"const": "transport"}}},
+      "then": {"required": ["context"]},
+      "else": {"not": {"required": ["context"]}}
     },
     "destination": {
       "type": "object",

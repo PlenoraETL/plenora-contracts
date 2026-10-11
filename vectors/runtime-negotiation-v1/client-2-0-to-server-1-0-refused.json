@@ -2,7 +2,7 @@
   "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
   "schema_version": 1,
   "contract": "plenora-runtime-negotiation-vector-v1",
-  "description": "A client that requires 2.0 and a destination that advertises only 1.0, without a declared downgrade: refused before sending, never downgraded implicitly (RT-026 item 2).",
+  "description": "A client requires 2.0 without a declared downgrade; the destination advertises only 1.0. The request is the same bytes under both versions, so only this selection detects it: refused before sending, never downgraded implicitly (RT-026 items 2 and 3).",
   "sender": {
     "kind": "client",
     "requires": "plenora-runtime-binding-v2",

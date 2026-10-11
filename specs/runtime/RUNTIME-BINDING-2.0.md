@@ -301,10 +301,39 @@ destination's capability document (CAP-003) and decides:
 3. a request meant for 2.0 that reaches a destination of 1.0 is detectable
    only by this selection, never by the destination: a transport that
    routes requests meant for 2.0 applies 2. to each destination it selects,
-   and refuses when it cannot read the destination's capability document;
+   with the negotiation context of RT-027, and refuses when it cannot read
+   the destination's capability document;
 4. a destination whose runtime interface names another contract, or a
    version that is not that of its contract (`1` for `-v1`, `2` for `-v2`),
    is refused before sending.
+
+**RT-027** — The **negotiation context** of a request is the contract its
+sender requires and whether the sender accepts the downgrade to 1.0. It
+reaches the hop that selects the effective destination unchanged, through
+every forwarding:
+
+1. *Where it is.* Outside the runtime envelope, in the transport metadata
+   of each hop (message attributes, headers, or a durable record bound to
+   `plenora.message.id`), as two values: `plenora.negotiation.requires`
+   (`plenora-runtime-binding-v1` or `plenora-runtime-binding-v2`) and
+   `plenora.negotiation.accepts_downgrade` (`true` or `false`). It is never
+   written into the reserved metadata or the payload of the request, so the
+   wire format of RT-025 does not change, and the destination neither reads
+   nor needs it.
+2. *Who sets it.* The sender states it to the transport. The ingress, the
+   hop that receives the request from a sender it is configured to serve,
+   attaches it; for a sender that states none, a sender of 1.0, it attaches
+   `plenora-runtime-binding-v1` without downgrade. Only an ingress may
+   supply that default.
+3. *Who keeps it.* Every intermediary that forwards the request, a queue, a
+   router or a relay, carries the context unchanged with the request to the
+   next hop, and never forwards the request without it. An intermediary
+   that cannot carry it refuses the request when it receives it.
+4. *Who applies it.* The hop that selects the effective destination applies
+   RT-026 with the context. A hop that receives the request from another
+   hop of the route, not from a sender it serves, and finds no context
+   refuses before sending: the context was lost, and the same bytes would
+   otherwise be routed as a request of 1.0.
 
 A refusal before sending is a typed error of the sender: `unsupported`,
 `phase: validate`, `remote_effect: none`, `retry.kind: never`. A sender
@@ -327,4 +356,7 @@ state each decision, which the validator derives from this rule.
   and never the contract version, which RT-026 negotiates before sending.
 - RT-026 is new: the selection of the destination decides which contract
   governs an exchange, and a downgrade from 2.0 to 1.0 is explicit.
+- RT-027 is new: the negotiation context travels outside the envelope from
+  the ingress to the hop that selects the destination, and a hop that
+  finds it lost refuses.
 - Every other rule, key, grammar and vector of 1.0 applies unchanged.

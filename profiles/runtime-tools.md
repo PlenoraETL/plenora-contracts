@@ -61,11 +61,20 @@ count as conformance.
 A claim of Runtime Binding 2.0 (`plenora-runtime-binding-v2`) is separate
 from a claim of 1.0 and adds, for runtime-tools:
 
-- requests and results of both versions carry wire version `1` (RT-025);
-  a request meant for 2.0 is routed only to a destination whose capability
+- requests and results of both versions use the wire format of version 1;
+  the value `1` is carried only by the request, in
+  `plenora.capability.version` (RT-025), and a result carries no wire
+  version;
+- a request meant for 2.0 is routed only to a destination whose capability
   document advertises `plenora-runtime-binding-v2`, or to one of 1.0 after
   the sender's explicit downgrade, and refused before sending when the
   destination's capability document cannot be read (RT-026);
+- as ingress, runtime-tools attaches the negotiation context the sender
+  states, or the default of 1.0 for a sender that states none; as
+  intermediary, it carries the context unchanged outside the envelope and
+  never forwards a request without it; as the hop that selects the
+  destination, it refuses a request from another hop whose context is
+  missing (RT-027);
 - a result the transport cannot carry whole fails with `resource_limit` and
   is never delivered truncated as a success (RT-024); the transport's bound
   is declared in its adoption manifest;

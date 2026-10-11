@@ -124,6 +124,14 @@ Runtime Binding 2.0:
   1.0 only after declaring that it accepts the downgrade, and otherwise
   refuses before sending; a request meant for 2.0 that reaches a destination
   of 1.0 is detectable only there, because the request is the same bytes.
+- **RT-027** — the negotiation context (required contract, consent to the
+  downgrade) travels outside the envelope, in the transport metadata of
+  each hop: the ingress attaches it (the default of 1.0 only for a sender
+  that states none), every intermediary carries it unchanged and never
+  forwards without it, and the hop that selects the destination applies
+  RT-026 with it and refuses when it was lost. Without it, an intermediary
+  that queues only the envelope would let a second router route a request
+  meant for 2.0 as one of 1.0 (eighth reading, Codex).
   `vectors/runtime-negotiation-v1` states each case and the validator
   derives the decision.
 
