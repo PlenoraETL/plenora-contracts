@@ -7,7 +7,7 @@ JSON documents satisfy the immutable schemas.
 from pathlib import Path
 from typing import Any, Iterable
 
-from json_values import same_document
+from json_values import same_value
 
 
 def capability_errors(document: dict[str, Any]) -> list[str]:
@@ -61,7 +61,8 @@ def adoption_errors(document: dict[str, Any]) -> list[str]:
     for artifact in document["artifacts"]:
         previous = artifacts.get(artifact["name"])
         identity = {key: value for key, value in artifact.items() if key != "verification"}
-        if previous is not None and not same_document(identity, {
+        # VALUE: two declarations of one artifact in one manifest.
+        if previous is not None and not same_value(identity, {
             key: value for key, value in previous.items() if key != "verification"
         }):
             errors.append("ambiguous artifact name in adoption manifest")

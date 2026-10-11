@@ -13,9 +13,10 @@ from uuid import UUID
 import arrow_data
 import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
-from json_values import JsonInteger, document_key, loads, number_text, same_document
+from json_values import JsonInteger, document_key, loads, number_text, same_document, same_value
 from messages import contract_name, differing_members
 
+import jsonschema.exceptions
 import jsonschema.validators
 from jsonschema import Draft202012Validator
 import referencing.exceptions
@@ -375,6 +376,20 @@ def _evolve(self: Any, **changes: Any) -> Any:
 
 
 InstanceValidator.evolve = _evolve
+
+
+def _check_schema(cls: Any, schema: Any) -> None:
+    """A schema against the 2020-12 metaschema with the same exact-number
+    type checker (and jsonschema's format checker, as `check_schema` uses):
+    `{"minItems": 1.0}` is an integer there as on main, where the parser
+    gave a float. jsonschema's own `check_schema` would pick the plain
+    Draft 2020-12 class from the metaschema's `$schema`."""
+    validator = cls(schema=cls.META_SCHEMA, format_checker=Draft202012Validator.FORMAT_CHECKER)
+    for error in validator.iter_errors(schema):
+        raise jsonschema.exceptions.SchemaError.create_from(error)
+
+
+InstanceValidator.check_schema = classmethod(_check_schema)
 
 
 def load_json(path: Path) -> Any:
@@ -765,6 +780,8 @@ def repeated_identity_errors(
         for version in sorted(by_version):
             for operation in by_version[version]["operations"]:
                 key = (operation["id"], operation["version"])
+                # DOCUMENT: a published catalog's identity and fields, compared
+                # with an earlier version's by the exact text of each number.
                 typed = document_key(key)
                 if typed not in seen:
                     seen[typed] = (version, operation)
@@ -1025,7 +1042,8 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
                 failures.append(
                     f"{named} must not imply an unreviewed interchange contract"
                 )
-        if not same_document(operation["controls"], {
+        # VALUE: a field against the value the rule requires.
+        if not same_value(operation["controls"], {
             "cancellation": True,
             "deadline": True,
             "idempotency_key": False,
@@ -1138,7 +1156,8 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     # wrong one.
     expected = DATA_OPERATION_VERSIONS[version]
     found = sorted(((item["id"], item["version"]) for item in catalog["operations"]), key=repr)
-    if not same_document(found, sorted(expected, key=repr)):
+    # VALUE: the identities against those the rule requires.
+    if not same_value(found, sorted(expected, key=repr)):
         return [f"data-tools v{version} must declare exactly {sorted(expected)}"]
     # Catalog version N checks data.catalog, data.validate and data.run at
     # operation version N (DATA_OPERATION_VERSIONS); data.run 3 has its own
@@ -1217,7 +1236,8 @@ def data_run_3_errors(catalog: dict[str, Any], version: int, registry_id: str) -
     failures = [
         f"data-tools v{version} data.run 3 has the wrong {field}"
         for field, expected in DATA_RUN_3.items()
-        if not same_document(run.get(field), expected)
+        # VALUE: each field against the value DATA_RUN_3 requires.
+        if not same_value(run.get(field), expected)
     ]
     attributes = run.get("attributes")
     if not isinstance(attributes, dict):
@@ -1558,6 +1578,7 @@ def rest_capability_errors(
             errors.append(
                 f"{named} side-effect class differs from the REST catalog"
             )
+        # DOCUMENT: two published catalogs' fields, one against the other.
         if not same_document(operation["controls"], target["controls"]):
             errors.append(f"{named} controls differ from the REST catalog")
     return errors
@@ -2098,7 +2119,8 @@ def storage_vector_errors(
         if isinstance(artifact, dict) and isinstance(checksum, dict):
             if artifact.get("sha256") != checksum.get("value"):
                 errors.append("storage transfer artifact SHA-256 conflicts with checksum")
-            if not same_document(artifact.get("size"), payload.get("bytes_transferred")):
+            # VALUE: two fields of one vector, as numbers (`-0` is 0).
+            if not same_value(artifact.get("size"), payload.get("bytes_transferred")):
                 errors.append("storage transfer artifact size conflicts with byte count")
     if vector["kind"] == "success" and operation_id == "storage.list":
         cursor = payload.get("next_cursor")
@@ -2505,7 +2527,8 @@ def runtime_probe_errors(
         del metadata[key]
     else:
         ((key, value),) = mutation["set"].items()
-        if key in metadata and same_document(metadata[key], value):
+        # VALUE: the mutation against the value the base carries.
+        if key in metadata and same_value(metadata[key], value):
             return ["sets a key to the value the base already carries"]
         metadata[key] = value
     try:
@@ -2524,14 +2547,16 @@ def runtime_probe_errors(
     )
     if schema_errors:
         errors.append(f"expected error is not a plenora-error-v1 value: {schema_errors[0]}")
-    if not same_document(declared_error, expected_error):
+    # VALUE: the declared expectation against what RT-016 computes.
+    if not same_value(declared_error, expected_error):
         errors.append(
             f"expects an error that RT-016 and {rule} do not give "
             f"(members {differing_members(declared_error, expected_error, ERROR_AXES)})"
         )
     if probe["rule"] != rule:
         errors.append(f"names another rule, but the rejection follows {rule}")
-    if not same_document(probe["expected"]["metadata"], expected_metadata):
+    # VALUE: as above, for RT-019.
+    if not same_value(probe["expected"]["metadata"], expected_metadata):
         errors.append(
             "expects result metadata that RT-019 does not give (members "
             f"{differing_members(probe['expected']['metadata'], expected_metadata, RESERVED_METADATA)})"
@@ -2652,12 +2677,13 @@ def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
             (member(item, "name"), member(item, "reference"), member(member(item, "artifact"), "content_type"))
             for item in outputs
         ]
-        if not same_document(found, expected):
+        # VALUE: a manifest against its request (DT-RUN-005).
+        if not same_value(found, expected):
             failures.append(
                 "a data.run 3 manifest differs from the plan outputs and sinks of its request (DT-RUN-005)"
             )
         steps = [(member(item, "out"), member(item, "op")) for item in result_steps]
-        if not same_document(steps, [(member(step, "out"), member(step, "op")) for step in plan_steps]):
+        if not same_value(steps, [(member(step, "out"), member(step, "op")) for step in plan_steps]):
             failures.append(
                 "a data.run 3 manifest differs from the plan steps of its request (DT-RUN-005)"
             )
@@ -3005,7 +3031,7 @@ def run_gate() -> int:
 
     for name, schema in schemas.items():
         try:
-            Draft202012Validator.check_schema(schema)
+            InstanceValidator.check_schema(schema)
         except Exception as error:
             print(f"invalid schema {name}: {schema_error(error)}", file=sys.stderr)
             return 1

@@ -15,7 +15,7 @@ import re
 from decimal import Decimal
 from typing import Any
 
-from json_values import same_document
+from json_values import same_value
 
 INT64 = 2**63
 # Matched with `fullmatch`: `$` would admit a final line feed.
@@ -239,7 +239,9 @@ def adapt(declaration: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
 def _same(left: Any, right: Any) -> bool:
     """Equality that tells 1 from 1.0, True from 1 and 0.0 from -0.0, by type
     and value at every depth, walked without recursion (`json_values`)."""
-    return same_document(left, right)
+    # VALUE: the outcome against the vector's expectation; a float by
+    # `repr`, so the sign of a zero counts (RA-003), `-0` is the integer 0.
+    return same_value(left, right)
 
 
 def vector_errors(vector: dict[str, Any]) -> list[str]:

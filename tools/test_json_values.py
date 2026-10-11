@@ -280,6 +280,60 @@ class IntegerLiteralTests(unittest.TestCase):
         self.assertIsNone(arrow_data._cell(0, {"type": "int64", "nullable": False}, validator.loads_json("-0")))
 
 
+class ValueContextTests(unittest.TestCase):
+    """Outside the comparison of published documents the validator compares
+    values: `-0` is the integer 0, an integral decimal is an integer for
+    JSON Schema (metaschemas included), as on main."""
+
+    def test_storage_size_and_byte_count_by_value(self):
+        operations = validator.operation_index(validator.load_catalogs())
+        for name in ("put-success", "get-success"):
+            text = (ROOT / "vectors/runtime-v1" / f"storage-{name}.json").read_text(encoding="utf-8")
+            vector = validator.loads_json(text)
+            payload = vector["payload"]
+            payload["artifact"]["size"] = validator.loads_json("-0")
+            payload["bytes_transferred"] = 0
+            operation = next(item for key, item in operations.items()
+                             if key[1] == vector["metadata"]["plenora.capability.operation"])
+            with self.subTest(name):
+                self.assertNotIn("storage transfer artifact size conflicts with byte count",
+                                 validator.storage_vector_errors(vector, operation))
+                payload["bytes_transferred"] = 1
+                self.assertIn("storage transfer artifact size conflicts with byte count",
+                              validator.storage_vector_errors(vector, operation))
+
+    def test_metaschemas_accept_integral_decimals(self):
+        for text in ('{"type": "array", "minItems": 1.0}', '{"type": "string", "minLength": 0e0}',
+                     '{"type": "string", "maxLength": -0}'):
+            with self.subTest(text):
+                validator.InstanceValidator.check_schema(validator.loads_json(text))
+        for text in ('{"minItems": 1.5}', '{"minLength": -1}'):
+            with self.subTest(text), self.assertRaises(Exception):
+                validator.InstanceValidator.check_schema(validator.loads_json(text))
+
+    def test_the_gate_with_a_respelled_rest_schema(self):
+        """The REST schema with `minItems` and `minLength` written as integral
+        decimals passes its metaschema, as on main."""
+        import re as regex
+        from unittest.mock import patch
+        name = next(n for n in sorted(validator.EXPECTED_SCHEMAS) if n.startswith("rest-") and "minItems" in
+                    (ROOT / "schemas" / n).read_text(encoding="utf-8"))
+        text = (ROOT / "schemas" / name).read_text(encoding="utf-8")
+        respelled = regex.sub(r'"(minItems|minLength)": ([0-9]+)', r'"\1": \2.0', text)
+        self.assertNotEqual(respelled, text)
+        target = (ROOT / "schemas" / name).resolve()
+        original = validator.Path.read_text
+
+        def read(path, *args, **kwargs):
+            if validator.Path(path).resolve() == target:
+                return respelled
+            return original(path, *args, **kwargs)
+
+        with patch.object(validator.Path, "read_text", read):
+            schema = validator.load_json(ROOT / "schemas" / name)
+            validator.InstanceValidator.check_schema(schema)
+
+
 class CatalogVersionsTests(unittest.TestCase):
     """The validator parses numbers exactly, and a repeated identity is
     compared with the version just before it."""

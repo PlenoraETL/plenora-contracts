@@ -79,8 +79,12 @@ full commit SHA; a release tag names one of those commits.
   comparisons walk the data with an explicit stack, in linear time, so a
   deeply nested document is compared like a flat one. Every JSON the tools
   read keeps each number exactly as written (a decimal, never a binary
-  float; JSON Schema's `integer` still admits an integral decimal), and
-  `NaN` and `Infinity` are refused. The immutability guard compares a
+  float; JSON Schema's `integer`, in instances and in the metaschema, still
+  admits an integral decimal, as on main), and `NaN` and `Infinity` are
+  refused. The exact text of a number is compared only between published
+  documents (immutability, catalog identities and fields, digests); every
+  other check compares values (`-0` is the integer 0, integer and decimal
+  kept apart, a float's sign kept). The immutability guard compares a
   published normative vector by its bytes (line ends
   normalized as `.gitattributes` stores them): no spelling is tolerated
   (`-0e-1` for `-0.0`, `10e-1` for `1.0`); catalogs, registries and binding

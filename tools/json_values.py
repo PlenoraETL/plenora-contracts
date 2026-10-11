@@ -108,10 +108,21 @@ class _Member:
         self.name = name
 
 
-def _scalar(value: Any, by_value: bool) -> tuple[str, Any] | None:
+DOCUMENT, SCHEMA, VALUE = "document", "schema", "value"
+
+
+def _scalar(value: Any, mode: str) -> tuple[str, Any] | None:
     """The typed image of a scalar in its context, None for an array or an
     object; anything that is not JSON data raises `TypeError`: comparing it
-    would guess."""
+    would guess. A number's image:
+
+    - DOCUMENT: its exact text (`-0` against `0`, `1.0` against `1.00`
+      differ); a binary float by `repr`;
+    - SCHEMA: its exact value, integer and decimal kept apart (`1.0 ==
+      1.00`, `-0 == 0`, `-0.0 == 0.0`; `1` against `1.0` differ);
+    - VALUE: as SCHEMA, but a binary float by `repr`, so the sign of a zero
+      the validator computed (RA-003) and its exact binary value count.
+    """
     if value is None:
         return ("null", None)
     kind = type(value)
@@ -120,17 +131,16 @@ def _scalar(value: Any, by_value: bool) -> tuple[str, Any] | None:
     if kind is int:
         return ("integer", value)
     if kind is JsonInteger:
-        # `-0`: the integer 0 by value, its own text in a document.
-        return ("integer", int(value)) if by_value else ("integer-text", value.text)
+        # `-0`: the integer 0 as a value, its own text in a document.
+        return ("integer-text", value.text) if mode == DOCUMENT else ("integer", int(value))
     if kind is float:
-        if by_value:
+        if mode == SCHEMA:
             # -0.0 == 0.0 (and they hash alike); a NaN is the same as itself.
             return ("float", value if value == value else "nan")
         # `repr` tells -0.0 from 0.0; a NaN is the same as itself.
         return ("float", repr(value))
     if kind is Decimal or kind is JsonNumber:
-        # A document's number by its exact text; an assertion's by value.
-        return ("decimal", decimal_value(value) if by_value else number_text(value))
+        return ("decimal", number_text(value) if mode == DOCUMENT else decimal_value(value))
     if kind is str:
         return ("string", value)
     if kind in (list, tuple, dict):
@@ -229,18 +239,18 @@ def _names(value: dict) -> list[str]:
     return list(value)
 
 
-def _same(left: Any, right: Any, by_value: bool) -> bool:
+def _same(left: Any, right: Any, mode: str) -> bool:
     stack = [(left, right)]
     while stack:
         one, other = stack.pop()
-        image = _scalar(one, by_value)
+        image = _scalar(one, mode)
         if image is not None:
-            if image != _scalar(other, by_value):
+            if image != _scalar(other, mode):
                 return False
             continue
         if type(one) is dict:
             if type(other) is not dict or len(one) != len(other):
-                _scalar(other, by_value)
+                _scalar(other, mode)
                 return False
             _names(other)
             for name in _names(one):
@@ -251,7 +261,7 @@ def _same(left: Any, right: Any, by_value: bool) -> bool:
                 stack.append((one[name], other[name]))
             continue
         if type(other) not in (list, tuple):
-            _scalar(other, by_value)
+            _scalar(other, mode)
             return False
         if len(one) != len(other):
             return False
@@ -259,7 +269,7 @@ def _same(left: Any, right: Any, by_value: bool) -> bool:
     return True
 
 
-def _key(value: Any, by_value: bool) -> tuple:
+def _key(value: Any, mode: str) -> tuple:
     tokens: list[tuple] = []
     stack: list[Any] = [value]
     while stack:
@@ -267,7 +277,7 @@ def _key(value: Any, by_value: bool) -> tuple:
         if type(item) is _Member:
             tokens.append(("name", item.name))
             continue
-        image = _scalar(item, by_value)
+        image = _scalar(item, mode)
         if image is not None:
             tokens.append(image)
         elif type(item) is dict:
@@ -286,23 +296,32 @@ def same_document(left: Any, right: Any) -> bool:
     """The same published data: same types at every depth and every number
     with its exact representation. The members of an object compare
     whatever their order, as in JSON; an array and a tuple are both arrays."""
-    return _same(left, right, False)
+    return _same(left, right, DOCUMENT)
 
 
 def document_key(value: Any) -> tuple:
     """A hashable image of published data: the same image only when
     `same_document` holds. Flat (every array and object states its size),
     so hashing it never recurses."""
-    return _key(value, False)
+    return _key(value, DOCUMENT)
 
 
 def same_schema_value(left: Any, right: Any) -> bool:
     """The same schema assertions: as `same_document`, but every number by
     its exact value (`1.0 == 1.00 == 1e0`, `0.0 == -0.0`)."""
-    return _same(left, right, True)
+    return _same(left, right, SCHEMA)
 
 
 def schema_value_key(value: Any) -> tuple:
     """A hashable image of schema assertions: the same image only when
     `same_schema_value` holds."""
-    return _key(value, True)
+    return _key(value, SCHEMA)
+
+
+def same_value(left: Any, right: Any) -> bool:
+    """The same values, outside the comparison of published documents (a
+    vector's fields against each other, an expectation against what a rule
+    computes): numbers by exact value with integer and decimal kept apart
+    (`-0` is the integer 0), a binary float by `repr` (the sign of a zero
+    counts); members whatever their order."""
+    return _same(left, right, VALUE)

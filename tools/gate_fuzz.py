@@ -256,7 +256,7 @@ class Gate:
         self._real_open = builtins.open
         self._real_loads = validator.loads_json
         self._real_instance_errors = validator.instance_errors
-        self._real_check_schema = validator.Draft202012Validator.check_schema
+        self._real_check_schema = validator.InstanceValidator.check_schema
         stack = contextlib.ExitStack()
         stack.enter_context(patch.object(builtins, "open", self._open))
         stack.enter_context(patch.object(io, "open", self._open))
@@ -291,7 +291,7 @@ class Gate:
         stack.enter_context(patch.object(Path, "exists", exists))
         stack.enter_context(patch.object(validator, "loads_json", self._loads))
         stack.enter_context(patch.object(validator, "instance_errors", self._instance_errors))
-        stack.enter_context(patch.object(validator.Draft202012Validator, "check_schema",
+        stack.enter_context(patch.object(validator.InstanceValidator, "check_schema",
                                          staticmethod(self._check_schema)))
         for name in validator.run_gate.__code__.co_names:
             function = getattr(validator, name, None)
