@@ -46,6 +46,16 @@ full commit SHA; a release tag names one of those commits.
 
 ### Changed
 
+- The gate's messages carry no data: only fixed text, rule identifiers,
+  repository paths, positions, names the validator's code defines and names
+  of contract documents quoted between « and »; schema errors name the
+  keyword and anonymous paths instead of quoting the instance. A sentinel
+  test mutates every input the gate reads (vectors, examples, schemas,
+  catalogs, bindings, composition, Markdown), at every value, key, number
+  and array element, and requires that the gate never prints a value of a
+  vector or an example, nor a contract name outside its quotes; the null
+  fuzz covers every JSON input the same way. No contract document changes. See
+  [decision 0021](decisions/0021-messages-without-data.md).
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
   universal from Python 3.10: `rpds-py` keeps 0.30.0, its last release for
   Python 3.10, under `python_full_version < '3.11'` and 2026.9.1 above; the
