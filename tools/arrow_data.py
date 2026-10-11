@@ -373,6 +373,17 @@ def definition_identifiers(text: str, definition_format: str) -> list[tuple[str,
     return wkt_identifiers(parse_definition(text, definition_format), keyword)
 
 
+# GEO-020: the authorities of a database's own spatial reference catalog. Their
+# codes identify a CRS only inside the installation that wrote them.
+LOCAL_AUTHORITIES = frozenset({"POSTGIS", "MYSQL", "MARIADB", "MSSQL", "ORACLE", "DB2", "SQLITE"})
+
+
+def is_local_authority(crs_id: str) -> bool:
+    """GEO-020: `crs_id` names a local catalog authority (ASCII case-insensitive)."""
+    authority, separator, _ = crs_id.partition(":")
+    return bool(separator) and authority.upper() in LOCAL_AUTHORITIES
+
+
 def _same(pair: tuple[str, str], crs_id: str) -> bool:
     authority, _, code = crs_id.partition(":")
     return pair[0].upper() == authority.upper() and pair[1] == code
@@ -427,6 +438,19 @@ REFERENCE_CRS = {
                            transverse_mercator("9", "1500000")),
     "EPSG:32632": Reference("projected", "EPSG:4326", "EPSG:6326", WGS84, transverse_mercator("9", "500000")),
     "EPSG:32633": Reference("projected", "EPSG:4326", "EPSG:6326", WGS84, transverse_mercator("15", "500000")),
+    "EPSG:3857": Reference("projected", "EPSG:4326", "EPSG:6326", WGS84, ("popular_visualisation_pseudo_mercator", {
+        "latitude_of_origin": Decimal("0"),
+        "central_meridian": Decimal("0"),
+        "false_easting": Decimal("0"),
+        "false_northing": Decimal("0"),
+    })),
+}
+# GEO-015, GEO-017: the names of a datum without identifier, compared ASCII
+# case-insensitively; a datum ensemble is identified by its reference table
+# (crs_grammar.REFERENCE_ENSEMBLES, GEO-019).
+DATUM_NAMES = {
+    "EPSG:6326": {"world geodetic system 1984", "wgs_1984"},
+    "EPSG:6265": {"monte mario", "monte_mario"},
 }
 # GEO-017: the closed alias lists, compared ASCII case-insensitively.
 PARAMETER_NAMES = {
@@ -448,7 +472,12 @@ PARAMETER_QUANTITY = {
     "false_easting": "length",
     "false_northing": "length",
 }
-METHOD_NAMES = {"transverse_mercator": "transverse_mercator", "transverse mercator": "transverse_mercator"}
+METHOD_NAMES = {
+    "transverse_mercator": "transverse_mercator",
+    "transverse mercator": "transverse_mercator",
+    "popular_visualisation_pseudo_mercator": "popular_visualisation_pseudo_mercator",
+    "popular visualisation pseudo mercator": "popular_visualisation_pseudo_mercator",
+}
 # GEO-017: the decided units. The degree has two exact spellings.
 UNIT_NAMES = {"angle": {"degree"}, "length": {"metre", "meter"}, "scale": {"unity"}}
 DEGREE_FACTORS = (Decimal("0.0174532925199433"), Decimal("0.017453292519943295"))
@@ -473,6 +502,7 @@ class Parts(NamedTuple):
     kind: str
     bases: list[tuple[str, str]]
     datums: list[tuple[str, str]]
+    datum_names: list[str]
     ellipsoid: tuple[Decimal, Decimal] | None
     datum_shift: bool
     conversion: tuple[str, dict[str, Decimal]] | None
@@ -559,7 +589,8 @@ def _wkt_conversion(holder: _Node, wkt2: bool) -> tuple[str, dict[str, Decimal]]
         if key is None or key in parameters or len(parameter.items) < 2:
             raise Undecidable("parameter outside the subset or repeated")
         if wkt2:
-            units = [item for item in parameter.items[2:] if isinstance(item, _Node)]
+            # The identifiers of a parameter are not its unit.
+            units = [item for item in parameter.items[2:] if isinstance(item, _Node) and item.keyword.upper() != "ID"]
             unit = _one(units, "parameter unit")
             if WKT2_UNIT_QUANTITY.get(unit.keyword.upper()) != PARAMETER_QUANTITY[key]:
                 raise Undecidable("parameter unit of another quantity")
@@ -574,13 +605,11 @@ def _wkt2_cs_unit(crs: _Node, quantity: str) -> None:
         raise Undecidable("generic WKT 2 unit")
     direct = _children(crs, keyword)
     axes = _children(crs, "AXIS")
-    if direct:
-        _wkt_unit(_one(direct, "coordinate system unit"), quantity)
-    elif axes and all(_children(axis, keyword) for axis in axes):
-        for axis in axes:
-            _wkt_unit(_one(_children(axis, keyword), "axis unit"), quantity)
-    else:
+    if len(direct) > 1 or not (direct or (axes and all(_children(axis, keyword) for axis in axes))):
         raise Undecidable("coordinate system without its unit")
+    # Every unit present is checked, the CRS's and every axis's.
+    for unit in direct + [found for axis in axes for found in _children(axis, keyword)]:
+        _wkt_unit(unit, quantity)
     other = {"ANGLEUNIT": "LENGTHUNIT", "LENGTHUNIT": "ANGLEUNIT"}[keyword]
     if _children(crs, other) or any(_children(axis, other) for axis in axes):
         raise Undecidable("coordinate system unit of another quantity")
@@ -597,7 +626,7 @@ def _wkt_parts(root: _Node, wkt2: bool) -> Parts:
     kind = WKT_KINDS.get(keyword, "other")
     shift = keyword == "BOUNDCRS" or _anywhere(root, "TOWGS84", "BOUNDCRS", "ABRIDGEDTRANSFORMATION")
     if kind == "other" or shift:
-        return Parts(kind, [], [], None, shift, None)
+        return Parts(kind, [], [], [], None, shift, None)
     identifier = "ID" if wkt2 else "AUTHORITY"
     bases: list[tuple[str, str]] = []
     conversion = None
@@ -622,9 +651,16 @@ def _wkt_parts(root: _Node, wkt2: bool) -> Parts:
             _wkt_unit(_one(_children(root, "UNIT"), "angular unit"), "angle")
     datum = _one(_children(geographic, "DATUM", "GEODETICDATUM", "TRF", "ENSEMBLE"), "datum")
     _prime_meridian_zero(geographic, wkt2)
-    return Parts(
-        kind, bases, wkt_identifiers(datum, identifier), _ellipsoid(datum, wkt2), False, conversion,
-    )
+    names: list[str] = []
+    if datum.keyword.upper() == "ENSEMBLE":
+        try:
+            datums = [crs_grammar.wkt_ensemble(datum).identifier]
+        except crs_grammar.Outside as error:
+            raise Undecidable("datum ensemble other than a reference one") from error
+    else:
+        datums = wkt_identifiers(datum, identifier)
+        names = [_name(datum)]
+    return Parts(kind, bases, datums, names, _ellipsoid(datum, wkt2), False, conversion)
 
 
 def _json_value(value: Any, quantity: str) -> Decimal:
@@ -655,7 +691,7 @@ def _projjson_parts(root: dict[str, Any]) -> Parts:
     kinds = {"GeographicCRS": "geographic", "ProjectedCRS": "projected"}
     kind = kinds.get(root.get("type"), "other")
     if root.get("type") == "BoundCRS" or kind == "other":
-        return Parts(kind, [], [], None, root.get("type") == "BoundCRS", None)
+        return Parts(kind, [], [], [], None, root.get("type") == "BoundCRS", None)
     geographic = root
     bases: list[tuple[str, str]] = []
     conversion = None
@@ -689,9 +725,21 @@ def _projjson_parts(root: dict[str, Any]) -> Parts:
         if not isinstance(axis, dict):
             raise Undecidable("axis not readable")
         _projjson_unit(axis.get("unit"), quantity)
+    if "datum" in geographic and "datum_ensemble" in geographic:
+        raise Undecidable("PROJJSON with a datum and a datum ensemble")
     datum = geographic.get("datum", geographic.get("datum_ensemble"))
     if not isinstance(datum, dict) or not isinstance(datum.get("ellipsoid"), dict):
         raise Undecidable("PROJJSON without its datum and ellipsoid")
+    names: list[str] = []
+    if "datum_ensemble" in geographic:
+        try:
+            datums = [crs_grammar.projjson_ensemble(datum).identifier]
+        except crs_grammar.Outside as error:
+            raise Undecidable("datum ensemble other than a reference one") from error
+    else:
+        datums = projjson_identifiers(datum)
+        if isinstance(datum.get("name"), str):
+            names = [datum["name"].lower()]
     ellipsoid = datum["ellipsoid"]
     if "inverse_flattening" not in ellipsoid:
         raise Undecidable("ellipsoid without inverse flattening")
@@ -706,7 +754,7 @@ def _projjson_parts(root: dict[str, Any]) -> Parts:
             continue
         if not isinstance(meridian, dict) or _json_value(meridian.get("longitude", 0), "angle") != 0:
             raise Undecidable("prime meridian other than Greenwich")
-    return Parts(kind, bases, projjson_identifiers(datum), axes, False, conversion)
+    return Parts(kind, bases, datums, names, axes, False, conversion)
 
 
 def definition_parts(text: str, definition_format: str) -> Parts:
@@ -720,6 +768,9 @@ def computation_verdict(field: dict[str, Any]) -> Verdict | None:
     metadata = field["metadata"]
     definition = metadata.get("plenora.geometry.crs_definition")
     crs_id = metadata.get("plenora.geometry.crs_id")
+    if crs_id is not None and is_local_authority(crs_id):
+        # GEO-020: undecidable whatever the component knows of that catalog.
+        return Verdict("crs", "GEO-020")
     if definition is None:
         return None if crs_id in REFERENCE_CRS else Verdict("crs", "GEO-015")
     if crs_id is None:
@@ -754,9 +805,14 @@ def computation_verdict(field: dict[str, Any]) -> Verdict | None:
         return Verdict("crs", "GEO-015")
     if parts.bases and not any(_same(pair, reference.base or "") for pair in parts.bases):
         return Verdict("crs", "GEO-015")
-    # GEO-015: the datum is identified only by its identifier; an identity
-    # that the definition does not state is not inferred from the ellipsoid.
-    if not any(_same(pair, reference.datum) for pair in parts.datums):
+    # GEO-015: the datum is identified by its identifier when the definition
+    # states one, otherwise by its name from the closed list of GEO-017; it is
+    # never inferred from the ellipsoid. A reference datum ensemble stands for
+    # its identifier (GEO-019).
+    if parts.datums:
+        if not any(_same(pair, reference.datum) for pair in parts.datums):
+            return Verdict("crs", "GEO-015")
+    elif not set(parts.datum_names) & DATUM_NAMES.get(reference.datum, set()):
         return Verdict("crs", "GEO-015")
     return None
 
@@ -880,6 +936,8 @@ def _crs(fields: list[dict[str, Any]]) -> Verdict | None:
             return Verdict("crs", VOCABULARY)
         if axis is None:
             return Verdict("crs", VOCABULARY)
+        if resolution == "resolved" and crs_id is not None and is_local_authority(crs_id):
+            return Verdict("crs", "GEO-020")
         if definition is not None:
             try:
                 if crs_id is not None and definition_contradicts(crs_id, definition, definition_format):
@@ -973,19 +1031,25 @@ def verdict(vector: dict[str, Any]) -> Verdict | None:
 
 
 def computation_errors(vector: dict[str, Any]) -> list[str]:
-    """A valid vector with a CRS definition states the verdict of a consumer
-    that computes with the coordinates (GEO-015); one without states none."""
+    """A valid vector with a CRS definition or a local catalog identifier
+    states the verdict of a consumer that computes with the coordinates
+    (GEO-015, GEO-020); one without states none."""
     with_definition = [
         field for field in vector["fields"]
-        if is_geometry(field) and "plenora.geometry.crs_definition" in field["metadata"]
+        if is_geometry(field) and (
+            "plenora.geometry.crs_definition" in field["metadata"]
+            or is_local_authority(field["metadata"].get("plenora.geometry.crs_id", ""))
+        )
     ]
     stated = vector.get("computation")
     if not with_definition:
-        return [] if stated is None else ["states a computation verdict without a CRS definition"]
+        if stated is None:
+            return []
+        return ["states a computation verdict without a CRS definition or a local catalog identifier"]
     if stated is None and all(
         "plenora.geometry.crs_id" in field["metadata"] for field in with_definition
     ):
-        return ["carries a CRS definition and states no computation verdict"]
+        return ["carries a CRS definition or a local catalog identifier and states no computation verdict"]
     if stated is None:
         return []
     try:

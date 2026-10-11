@@ -162,7 +162,7 @@ class DefinitionTests(unittest.TestCase):
         self.assertTrue(data.definition_parts('BOUNDCRS[SOURCECRS[GEOGCRS["x"]]]', "wkt2").datum_shift)
         self.assertEqual(data.definition_parts('VERTCRS["x"]', "wkt2").kind, "other")
         projjson = data.definition_parts(
-            '{"type":"GeographicCRS","datum_ensemble":{"ellipsoid":'
+            '{"type":"GeographicCRS","datum":{"ellipsoid":'
             '{"semi_major_axis":{"value":6378137,"unit":"metre"},"inverse_flattening":298.257223563}},'
             '"prime_meridian":{"longitude":{"value":0,"unit":"degree"}},'
             '"coordinate_system":{"axis":[{"unit":{"name":"degree","conversion_factor":0.0174532925199433}}]}}',
@@ -491,6 +491,45 @@ class VectorErrorTests(unittest.TestCase):
             validator.ROOT = original
 
 
+class LocalAuthorityTests(unittest.TestCase):
+    """GEO-020: a local catalog identifier is never resolved and never
+    computed with."""
+
+    def field(self, crs_id, resolution, **extra):
+        vector = json.loads((VECTORS / "crs-local-authority-postgis.json").read_text(encoding="utf-8"))
+        field = vector["fields"][1]
+        field["metadata"]["plenora.geometry.crs_id"] = crs_id
+        field["metadata"]["plenora.geometry.crs_resolution"] = resolution
+        field["metadata"].update(extra)
+        return field
+
+    def test_the_closed_list(self):
+        for crs_id in ("POSTGIS:1", "postgis:1", "MySQL:4326", "MARIADB:1", "MSSQL:1", "ORACLE:1", "DB2:1",
+                       "SQLITE:1"):
+            with self.subTest(crs_id):
+                self.assertTrue(data.is_local_authority(crs_id))
+        for crs_id in ("EPSG:4326", "POSTGISX:1", "XPOSTGIS:1", "ESRI:102100", "OGC:CRS84", "POSTGIS"):
+            with self.subTest(crs_id):
+                self.assertFalse(data.is_local_authority(crs_id))
+
+    def test_never_resolved(self):
+        self.assertIsNone(data._crs([self.field("POSTGIS:4326", "declared_unresolved")]))
+        self.assertEqual(data._crs([self.field("PostGIS:4326", "resolved")]), data.Verdict("crs", "GEO-020"))
+        self.assertIsNone(data._crs([self.field("EPSG:4326", "resolved")]))
+
+    def test_never_computed_with(self):
+        self.assertEqual(data.computation_verdict(self.field("MYSQL:4326", "declared_unresolved")),
+                         data.Verdict("crs", "GEO-020"))
+        # Not even with a definition the component would verify.
+        definition = json.loads((VECTORS / "crs-proj-epsg-4326-wkt1.json").read_text(encoding="utf-8"))
+        metadata = definition["fields"][1]["metadata"]
+        field = self.field("POSTGIS:4326", "declared_unresolved", **{
+            key: metadata[key] for key in ("plenora.geometry.crs_definition", "plenora.geometry.crs_definition_format")
+        })
+        self.assertEqual(data.computation_verdict(field), data.Verdict("crs", "GEO-020"))
+        self.assertIsNone(data.computation_verdict(self.field("EPSG:4326", "resolved")))
+
+
 class ClosedGrammarTests(unittest.TestCase):
     """GEO-019, generatively: an unknown node or member anywhere in a verified
     definition makes it undecidable."""
@@ -557,19 +596,104 @@ class ClosedGrammarTests(unittest.TestCase):
                 count += 1
         self.assertGreater(count, 10)
 
+    def test_only_the_reference_ensemble(self):
+        vector = json.loads((VECTORS / "crs-proj-epsg-4326-projjson.json").read_text(encoding="utf-8"))
+        field = vector["fields"][1]
+        root = json.loads(field["metadata"]["plenora.geometry.crs_definition"])
+
+        def verdict(change):
+            variant = copy.deepcopy(root)
+            change(variant["datum_ensemble"])
+            mutated = copy.deepcopy(field)
+            mutated["metadata"]["plenora.geometry.crs_definition"] = json.dumps(variant)
+            return data.computation_verdict(mutated)
+
+        self.assertIsNone(verdict(lambda ensemble: None))
+        changes = {
+            "member identifier": lambda e: e["members"][0]["id"].update(code=1),
+            "member name": lambda e: e["members"][0].update(name="World Geodetic System 1984 (G9999)"),
+            "member added": lambda e: e["members"].append({"name": "World Geodetic System 1984 (G9999)"}),
+            "members reordered": lambda e: e["members"].reverse(),
+            "ensemble identifier": lambda e: e["id"].update(code=6258),
+            "ensemble name": lambda e: e.update(name="European Terrestrial Reference System 1989 ensemble"),
+            "accuracy as a number": lambda e: e.update(accuracy=2.0),
+            "accuracy missing": lambda e: e.pop("accuracy"),
+            "ensemble type": lambda e: e.update(type="DynamicGeodeticReferenceFrame"),
+        }
+        for name, change in changes.items():
+            with self.subTest(name):
+                self.assertEqual(verdict(change), data.Verdict("crs", "GEO-019"))
+        # Without member identifiers, as WKT 2 writes them, and with the
+        # accuracy spelled otherwise, it is the same ensemble.
+        def strip(ensemble):
+            for member in ensemble["members"]:
+                member.pop("id")
+            ensemble["accuracy"] = "2"
+        self.assertIsNone(verdict(strip))
+        both = copy.deepcopy(root)
+        both["datum"] = {"name": "World Geodetic System 1984", "ellipsoid": both["datum_ensemble"]["ellipsoid"]}
+        mutated = copy.deepcopy(field)
+        mutated["metadata"]["plenora.geometry.crs_definition"] = json.dumps(both)
+        self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-019"))
+
+    def test_a_datum_without_identifier_by_its_name(self):
+        vector = json.loads((VECTORS / "crs-proj-epsg-3003-projjson.json").read_text(encoding="utf-8"))
+        field = vector["fields"][1]
+        root = json.loads(field["metadata"]["plenora.geometry.crs_definition"])
+        for name, expected in (("Monte_Mario", None), ("MONTE MARIO", None),
+                               ("European Datum 1950", data.Verdict("crs", "GEO-015"))):
+            variant = copy.deepcopy(root)
+            variant["base_crs"]["datum"]["name"] = name
+            mutated = copy.deepcopy(field)
+            mutated["metadata"]["plenora.geometry.crs_definition"] = json.dumps(variant)
+            with self.subTest(name):
+                self.assertEqual(data.computation_verdict(mutated), expected)
+        nameless = copy.deepcopy(root)
+        del nameless["base_crs"]["datum"]["name"]
+        mutated = copy.deepcopy(field)
+        mutated["metadata"]["plenora.geometry.crs_definition"] = json.dumps(nameless)
+        self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-015"))
+
     def test_the_reported_extensions(self):
         wkt2 = json.loads((VECTORS / "crs-id-with-consistent-definition.json").read_text(encoding="utf-8"))
         field = wkt2["fields"][1]
         text = field["metadata"]["plenora.geometry.crs_definition"]
-        for extension in ("DYNAMIC[FRAMEEPOCH[2020]],", 'USAGE[SCOPE["x"],AREA["y"],BBOX[0,0,1,1]],', 'REMARK["r"],'):
+        undecidable = (
+            "DYNAMIC[FRAMEEPOCH[2020]],",
+            'USAGE[SCOPE["x"],AREA["y"],BBOX[0,0,1,1],VERTICALEXTENT[0,1]],',
+            'USAGE[SCOPE["x"],SCOPE["y"]],',
+            'USAGE[SCOPE[1]],',
+            'USAGE[BBOX[0,0,1]],',
+            'USAGE["x"],',
+            'REMARK["r",1],',
+            'REMARK[ID["EPSG",1]],',
+        )
+        for extension in undecidable:
             mutated = copy.deepcopy(field)
             mutated["metadata"]["plenora.geometry.crs_definition"] = text.replace("DATUM[", extension + "DATUM[", 1)
             with self.subTest(extension):
                 self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-019"))
+        # Usage metadata is ignorable: it never changes the verdict.
+        ignorable = (
+            'USAGE[SCOPE["x"],AREA["y"],BBOX[0,0,1,1],ID["EPSG",1]],USAGE[SCOPE["z"]],',
+            'SCOPE["x"],AREA["y"],BBOX[-90,-180,90,180],REMARK["r"],',
+        )
+        for extension in ignorable:
+            mutated = copy.deepcopy(field)
+            mutated["metadata"]["plenora.geometry.crs_definition"] = text.replace("DATUM[", extension + "DATUM[", 1)
+            with self.subTest(extension):
+                self.assertIsNone(data.computation_verdict(mutated))
+        # An axis unit is admitted and then compared: a grad is not decided.
         axis_unit = copy.deepcopy(field)
         axis_unit["metadata"]["plenora.geometry.crs_definition"] = text.replace(
             "north]", 'north,ANGLEUNIT["grad",0.015707963267948967]]', 1)
-        self.assertEqual(data.computation_verdict(axis_unit), data.Verdict("crs", "GEO-019"))
+        self.assertEqual(data.computation_verdict(axis_unit), data.Verdict("crs", "GEO-015"))
+        for order in ('north,ORDER[2]]', 'north,ORDER[1]]'):
+            reordered = copy.deepcopy(field)
+            reordered["metadata"]["plenora.geometry.crs_definition"] = text.replace("north]", order, 1)
+            with self.subTest(order):
+                # An order on one axis only, or one that reorders, is outside.
+                self.assertEqual(data.computation_verdict(reordered), data.Verdict("crs", "GEO-019"))
         projjson = json.loads((VECTORS / "crs-projjson-consistent-32632.json").read_text(encoding="utf-8"))
         pfield = projjson["fields"][1]
         root = json.loads(pfield["metadata"]["plenora.geometry.crs_definition"])
