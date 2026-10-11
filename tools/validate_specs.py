@@ -668,31 +668,81 @@ INTENTIONAL_ABSENCES = {
 }
 
 
-# CAT-003: at least one ASCII letter, a final period that follows neither a
-# period nor white space.
-REASON = re.compile(r"(?=[^\n]*[A-Za-z]|.*[A-Za-z]).*[^.\s]\.", re.S)
+# CAT-003: the characters Unicode gives the White_Space property.
+WHITE_SPACE = frozenset(
+    "\t\n\x0b\x0c\r \x85\xa0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006"
+    "\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
+)
+# CAT-003: characters a profile never contains: the byte order mark (also
+# as a zero-width no-break space) and every line break other than LF and
+# CR LF. A CR that does not precede an LF is checked separately.
+FORBIDDEN_IN_PROFILE = {
+    "\ufeff": "byte order mark",
+    "\x0b": "vertical tab",
+    "\x0c": "form feed",
+    "\x85": "next line",
+    "\u2028": "line separator",
+    "\u2029": "paragraph separator",
+}
+
+
+class ProfileTextError(ValueError):
+    """A profile outside the text rules of CAT-003. The message names the
+    kind of defect, never the text."""
+
+
+def profile_lines(profile: str) -> list[str]:
+    """The lines of a profile (CAT-003): LF and CR LF end a line; a CR alone,
+    a byte order mark and any other line break are refused."""
+    for character, name in FORBIDDEN_IN_PROFILE.items():
+        if character in profile:
+            raise ProfileTextError(f"the profile contains a {name}")
+    if "\r" in profile.replace("\r\n", ""):
+        raise ProfileTextError("the profile contains a CR that does not end a line")
+    return profile.replace("\r\n", "\n").split("\n")
+
+
+def read_profile(path: Path) -> str:
+    """A profile file as written, line terminators included: no newline
+    translation, strict UTF-8."""
+    try:
+        return path.read_bytes().decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ProfileTextError("the profile is not UTF-8") from error
 
 
 def stated_reason(profile: str, rule: str) -> str:
     """The text after `**RULE** — ` up to the first blank line or the end of
-    the file (CAT-003); empty when the marker or the dash is missing."""
+    the file (CAT-003); empty when the marker or the dash is missing. Raises
+    `ProfileTextError` for a profile outside the text rules."""
+    lines = profile_lines(profile)
     marker = f"**{rule}** \u2014 "
-    start = profile.find(marker)
+    text = "\n".join(lines)
+    start = text.find(marker)
     if start < 0:
         return ""
-    lines = profile[start + len(marker):].replace("\r\n", "\n").split("\n")
     reason = []
-    for line in lines:
+    for line in text[start + len(marker):].split("\n"):
         # CAT-003: a blank line is empty once ASCII spaces and tabs go.
         if not line.strip(" \t"):
             break
+        if all(character in WHITE_SPACE for character in line):
+            raise ProfileTextError("a line of the reason is only white space other than spaces and tabs")
         reason.append(line)
     return "\n".join(reason)
 
 
 def reason_is_stated(profile: str, rule: str) -> bool:
+    """CAT-003: at least one ASCII letter, and a final period whose preceding
+    character is neither a period nor white space."""
     text = stated_reason(profile, rule)
-    return bool(REASON.fullmatch(text)) and re.search(r"[A-Za-z]", text) is not None
+    return (
+        len(text) >= 2
+        and text[-1] == "."
+        and text[-2] != "."
+        and text[-2] not in WHITE_SPACE
+        and any("A" <= character <= "Z" or "a" <= character <= "z" for character in text)
+    )
 
 
 def intentional_absence_errors(
@@ -704,7 +754,7 @@ def intentional_absence_errors(
     found: set[tuple[str, str, int]] = set()
     for component, by_version in versions.items():
         for version, catalog in sorted(by_version.items()):
-            profile = None
+            profile: str | bool | None = None
             for operation in catalog["operations"]:
                 key = (component, operation["id"], operation["version"])
                 if key not in INTENTIONAL_ABSENCES:
@@ -719,13 +769,27 @@ def intentional_absence_errors(
                     )
                 if profile is None:
                     path = profile_path(component, catalog["profile"])
-                    profile = path.read_text(encoding="utf-8") if path.exists() else ""
+                    try:
+                        profile = read_profile(path) if path.exists() else ""
+                        profile_lines(profile)
+                    except ProfileTextError as error:
+                        # Reported once per profile; its rules are not read.
+                        failures.append(f"{component} profile v{version}: {error} (CAT-003)")
+                        profile = False
+                if profile is False:
+                    continue
                 if f"**{rule}**" not in profile:
                     failures.append(
                         f"{component} profile v{version} does not state {rule} "
                         f"for {key[1]}@{key[2]}"
                     )
-                elif not reason_is_stated(profile, rule):
+                    continue
+                try:
+                    stated = reason_is_stated(profile, rule)
+                except ProfileTextError as error:
+                    failures.append(f"{component} profile v{version}: {error} (CAT-003)")
+                    continue
+                if not stated:
                     failures.append(
                         f"{component} profile v{version} states {rule} without a reason"
                     )

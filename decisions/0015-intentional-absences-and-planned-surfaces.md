@@ -105,7 +105,12 @@ declares its bound, and two illustrative runtime vectors show both errors.
 Further readings fixed the axes: RT-024 fixes the category, the remote
 effect and the ban on a truncated success, and leaves the phase to ERR-003
 (`read`, `finalize`, or the phase of a publication already made). CAT-003
-states the exact syntax of a reason that the validator checks.
+states the exact syntax of a reason that the validator checks. A fourth reading
+found that the file was read with newline translation, so a lone CR
+changed meaning between the file and the grammar: the profile is now read
+as written, LF and CR LF are the only terminators, and a lone CR, a byte
+order mark, other line breaks and a line made only of non-ASCII white space
+are explicit errors, each with its test.
 
 ### Content types on the runtime (database-tools)
 

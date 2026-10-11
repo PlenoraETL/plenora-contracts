@@ -66,6 +66,49 @@ class IntentionalAbsenceTests(unittest.TestCase):
         self.assertEqual(len(errors), 5)
         self.assertTrue(all("does not state" in error for error in errors))
 
+    def test_the_file_is_read_as_written(self):
+        """CAT-003: the reading keeps the terminators, so a CR alone fails in
+        the file as it fails in the text; a BOM and invalid UTF-8 fail too."""
+        original = validator.profile_path
+        for name, content in {
+            "isolated CR": "**DB-ABS-001** — a reason.\r\rnext\n**DB-ABS-002** — a reason.\n".encode("utf-8"),
+            "BOM": "\ufeff**DB-ABS-001** — a reason.\n\n**DB-ABS-002** — a reason.\n".encode("utf-8"),
+            "not UTF-8": b"**DB-ABS-001** \xe2\x80 a reason.\n",
+        }.items():
+            def written(component, profile, content=content):
+                path = original(component, profile)
+                if component != validator.DATABASE_COMPONENT:
+                    return path
+                target = Path(tempfile.mkdtemp()) / "database-tools.md"
+                target.write_bytes(f"Profile identifier: `{profile}`\n\n".encode("utf-8") + content)
+                return target
+
+            validator.profile_path = written
+            try:
+                errors = validator.intentional_absence_errors(versions())
+            finally:
+                validator.profile_path = original
+            with self.subTest(name):
+                self.assertTrue(errors)
+                self.assertTrue(all("(CAT-003)" in error for error in errors), errors)
+                # One failure per catalog version, never one per rule.
+                self.assertEqual(len(errors), len(errors and set(errors)))
+        crlf = "**DB-ABS-001** — a reason.\r\n\r\n**DB-ABS-002** — a reason.\r\n".encode("utf-8")
+
+        def windows(component, profile):
+            path = original(component, profile)
+            if component != validator.DATABASE_COMPONENT:
+                return path
+            target = Path(tempfile.mkdtemp()) / "database-tools.md"
+            target.write_bytes(f"Profile identifier: `{profile}`\r\n\r\n".encode("utf-8") + crlf)
+            return target
+
+        validator.profile_path = windows
+        try:
+            self.assertEqual(validator.intentional_absence_errors(versions()), [])
+        finally:
+            validator.profile_path = original
+
     def test_the_rule_needs_a_reason(self):
         cases = {
             "x **DB-ABS-002** — a reason.": True,
@@ -90,6 +133,29 @@ class IntentionalAbsenceTests(unittest.TestCase):
         for text, expected in cases.items():
             with self.subTest(text):
                 self.assertEqual(validator.reason_is_stated(text, "DB-ABS-002"), expected)
+        # CAT-003: other white space is not a blank line, and a line made
+        # only of it is refused; inside the text it is an ordinary character.
+        self.assertTrue(validator.reason_is_stated("**DB-ABS-002** — a\u00a0reason.", "DB-ABS-002"))
+        self.assertFalse(validator.reason_is_stated("**DB-ABS-002** — a reason\u00a0.", "DB-ABS-002"))
+        self.assertFalse(validator.reason_is_stated("**DB-ABS-002** — a reason\u3000.", "DB-ABS-002"))
+        refused = {
+            "isolated CR": "**DB-ABS-002** — a reason.\r\rnext without period",
+            "CR at the end": "**DB-ABS-002** — a reason.\r",
+            "CR elsewhere in the profile": "intro\rmore\n**DB-ABS-002** — a reason.",
+            "BOM at the start": "\ufeff**DB-ABS-002** — a reason.",
+            "BOM inside": "**DB-ABS-002** — a\ufeff reason.",
+            "BOM-only line": "**DB-ABS-002** — a reason.\n\ufeff\nnext without period",
+            "NBSP-only line": "**DB-ABS-002** — a reason.\n\u00a0\nnext without period",
+            "ideographic space line": "**DB-ABS-002** — a reason.\n\u3000 \t\nnext without period",
+            "vertical tab": "**DB-ABS-002** — a reason.\x0b",
+            "form feed": "**DB-ABS-002** — a reason.\x0c",
+            "next line": "**DB-ABS-002** — a reason.\x85next",
+            "line separator": "**DB-ABS-002** — a reason.\u2028next",
+            "paragraph separator": "**DB-ABS-002** — a reason.\u2029next",
+        }
+        for name, text in refused.items():
+            with self.subTest(name), self.assertRaises(validator.ProfileTextError):
+                validator.reason_is_stated(text, "DB-ABS-002")
         self.assertEqual(validator.stated_reason("**DB-ABS-002** — \n\nnext", "DB-ABS-002"), "")
         self.assertEqual(validator.stated_reason("nothing", "DB-ABS-002"), "")
         original = validator.profile_path

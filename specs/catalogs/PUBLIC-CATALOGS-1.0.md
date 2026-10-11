@@ -103,11 +103,25 @@ the absences the profiles declare (DB-ABS-001, DB-ABS-002, DT-ABS-001,
 DT-ABS-002), and that each profile states the rule with its reason. The
 reason has this exact shape: the bold identifier (`**DB-ABS-001**`), one
 space, an em dash (U+2014), one space, then the reason text, which runs to
-the first blank line or to the end of the file. Lines end with LF or CR LF;
-a blank line is a line that is empty once its ASCII spaces (U+0020) and
-tabs (U+0009) are removed. The text contains at least
-one ASCII letter and ends with a period whose preceding character is
-neither a period nor white space. It
+the first blank line or to the end of the file. The profile is read as
+written, in strict UTF-8 and without translating line terminators:
+
+- a line ends with LF or CR LF, and with nothing else. A CR that does not
+  precede an LF, a vertical tab, a form feed, NEL (U+0085), and the line and
+  paragraph separators (U+2028, U+2029) are refused with an explicit error,
+  wherever they are in the profile;
+- a byte order mark (U+FEFF), at the start or anywhere else, is refused
+  with an explicit error, never removed;
+- a blank line is a line that is empty once its ASCII spaces (U+0020) and
+  tabs (U+0009) are removed. A line of the reason made only of other white
+  space (any character with the Unicode White_Space property, such as a
+  no-break space U+00A0) is refused with an explicit error: it is neither a
+  blank line nor text. Inside a line with other characters, such white space
+  is an ordinary character.
+
+The text contains at least one ASCII letter and ends with a period whose
+preceding character is neither a period nor white space (the Unicode
+White_Space property). It
 checks the coherence of the documents, not what any artifact exposes:
 availability is reported only by capability discovery (CAP-004, CAP-008).
 
