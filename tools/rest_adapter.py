@@ -118,10 +118,30 @@ def declaration_errors(declaration: dict[str, Any]) -> list[str]:
     if len(identities) != len(set(identities)):
         errors.append("repeated field identifier")
     for position, field in enumerate(fields):
+        # RA-003: an integer literal. JSON Schema's `integer` also admits
+        # `123.0` and `1.23e2`, which are not decimal integers as text
+        # (ARROW-003) and which an int64 value refuses too (RA-005).
+        identity = field["field_id"]
+        if not _integer_literal(identity) or identity < 0:
+            errors.append(f"field identifier of field #{position} is not a non-negative integer")
         if not POINTER.fullmatch(field["pointer"]):
             # By position: a field name is the declaration's data (ERR-010).
             errors.append(f"pointer of field #{position} is not RFC 6901")
     return errors
+
+
+def _integer_literal(value: Any) -> bool:
+    """A JSON number written without fraction or exponent: the parser gives
+    an `int` exactly then (and `bool` is not one)."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def field_id_text(value: Any) -> str:
+    """ARROW-003: the decimal text of an identity, never `str` of a JSON
+    number, which writes `123.0` for a float."""
+    if not _integer_literal(value) or value < 0:
+        raise ValueError("a field identity is a non-negative integer")
+    return str(value)
 
 
 def arrow_schema(declaration: dict[str, Any]) -> dict[str, Any]:
@@ -133,7 +153,7 @@ def arrow_schema(declaration: dict[str, Any]) -> dict[str, Any]:
                 "name": field["name"],
                 "type": field["type"],
                 "nullable": field["nullable"],
-                "metadata": {"plenora.field_id": str(field["field_id"])},
+                "metadata": {"plenora.field_id": field_id_text(field["field_id"])},
             }
             for field in declaration["fields"]
         ],

@@ -45,7 +45,7 @@ contract is verifiable.
   schema, with `plenora.contract.version=1` and the declared identities.
 
 Two schemas (`rest-arrow-adapter-v1` for the declaration,
-`rest-arrow-adapter-vector-v1` for the vectors), 28 vectors in
+`rest-arrow-adapter-vector-v1` for the vectors), 29 vectors in
 `vectors/rest-arrow-adapter-v1`, a reference adapter in the validator
 (`tools/rest_adapter.py`) that derives every outcome. Composition 1.0
 section 4 points to the contract; the edges stay `adapter_required`.
@@ -86,6 +86,22 @@ them source values and keys: it now reports only the path of the first
 difference; the other validators of the repository were checked for the same
 class (their messages carry rules, field names and paths).
 
+A fifth reading (Codex) found that the declaration schema's `integer`
+admits `field_id: 123.0`, which the reference adapter wrote as
+`plenora.field_id = "123.0"`, not the decimal integer of Arrow Vocabulary
+1.0 (ARROW-003, RA-010). RA-003 now requires an integer literal and refuses
+one with a fraction or an exponent with `invalid_configuration`, as RA-005
+refuses them for an `int64` value: typed parsers (`u64` in Rust, `int` in Go)
+refuse `123.0` too, so normalizing it would have made the reference accept
+what components refuse. The identity is written through one function that
+accepts only a non-negative integer, with a vector. The same class, `str`
+of a JSON number, was searched in every tool: the catalog gate now refuses
+an operation version written `2.0`, whose text the runtime vectors and
+probes compare with `"2"`; the PROJJSON identifier codes of the CRS grammar
+of Arrow Geometry Semantics 1.0 are handled with decision 0013, which
+introduces it; the other conversions apply to integers the tools compute or to texts already
+matched by a decimal grammar.
+
 ### Scope left out of version 1
 
 - Types beyond the four JSON scalars (decimals, dates, timestamps,
@@ -112,7 +128,7 @@ class (their messages carry rules, field names and paths).
 - **Before:** an adapter with no stated behavior.
 - **After:** REST-to-Arrow Adapter 1.0, optional to claim.
 - **Compatible:** yes; nothing existing changes meaning.
-- **Schemas, examples and profiles:** two schemas, two invalid examples, 28
+- **Schemas, examples and profiles:** two schemas, two invalid examples, 29
   vectors, a new normative specification listed in the README; Composition
   1.0 section 4 gains a paragraph. No catalog, binding or profile changes.
 - **Adoption impact:** none for the five libraries. The suite replaces its

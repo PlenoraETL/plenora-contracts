@@ -42,9 +42,12 @@ to its table, so the partial outcome is never read as complete (SURF-014).
 name, a unique `plenora.field_id`, an RFC 6901 JSON Pointer into a record,
 an Arrow type among `bool`, `int64`, `float64` and `utf8`, and a
 nullability. It also states `accept_status`, `on_record_error` (`fail` or
-`exclude`) and `undeclared_members` (`ignore` or `reject`). A declaration
-with a repeated name or identifier, a field named `@undeclared` (reserved
-by RA-006), or a pointer that is not a non-empty
+`exclude`) and `undeclared_members` (`ignore` or `reject`). The identifier is
+a JSON integer literal, digits without fraction or exponent, which RA-010
+writes as its decimal text (ARROW-003). A declaration
+with a repeated name or identifier, an identifier written with a fraction
+or an exponent (`123.0`, `1.23e2`, which JSON Schema's `integer` admits), a
+field named `@undeclared` (reserved by RA-006), or a pointer that is not a non-empty
 RFC 6901 pointer (it starts with `/`, and every `~` is followed by `0` or
 `1`), fails with `invalid_configuration` before any record is read.
 

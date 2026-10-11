@@ -80,6 +80,38 @@ class ConversionTests(unittest.TestCase):
             with self.subTest(pointer):
                 self.assertEqual(len(adapter.declaration_errors(bad)), 1)
 
+    def test_the_field_identity_is_an_integer_literal(self):
+        """RA-003, RA-010: `plenora.field_id` is a non-negative decimal
+        integer (ARROW-003). A JSON Schema `integer` admits `123.0` and
+        `1.23e2`; written as text they would be `123.0` and `123.0`, never
+        an identity. A literal with a fraction or an exponent is refused
+        before any record is read, like an int64 value (RA-005)."""
+        records = result({"a": 1})
+        for text in ("123.0", "1.23e2", "1E2", "0.0", "-0"):
+            literal = json.loads(text)
+            bad = declaration(("a", "/a", "int64", True))
+            bad["fields"][0]["field_id"] = literal
+            with self.subTest(text):
+                if isinstance(literal, int):
+                    # -0 is the integer 0: the literal is an integer.
+                    self.assertEqual(adapter.adapt(bad, records)["schema"]["fields"][0]["metadata"],
+                                     {"plenora.field_id": "0"})
+                    continue
+                self.assertEqual(adapter.declaration_errors(bad), ["field identifier of field #0 is not a non-negative integer"])
+                self.assertEqual(adapter.adapt(bad, records)["category"], "invalid_configuration")
+        negative = declaration(("a", "/a", "int64", True))
+        negative["fields"][0]["field_id"] = -1
+        self.assertEqual(adapter.adapt(negative, records)["category"], "invalid_configuration")
+        with self.assertRaises(ValueError):
+            adapter.field_id_text(123.0)
+        good = declaration(("a", "/a", "int64", True))
+        good["fields"][0]["field_id"] = 9007199254740991
+        self.assertEqual(adapter.adapt(good, records)["schema"]["fields"][0]["metadata"],
+                         {"plenora.field_id": "9007199254740991"})
+        published = vector("error-field-identifier-not-an-integer-literal.json")
+        self.assertIsInstance(published["declaration"]["fields"][0]["field_id"], float)
+        self.assertEqual(adapter.vector_errors(published), [])
+
 
 class AdaptTests(unittest.TestCase):
     def test_error_outcomes_name_record_field_and_cause(self):

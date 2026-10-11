@@ -792,6 +792,11 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
         identities = [(item["id"], item["version"]) for item in catalog["operations"]]
         if len(identities) != len(set(identities)):
             failures.append(f"{component} has duplicate operation identities")
+        # JSON Schema's integer admits 2.0, whose text is not the decimal
+        # version that runtime metadata and probes compare (decision 0017).
+        for position, item in enumerate(catalog["operations"]):
+            if not isinstance(item["version"], int) or isinstance(item["version"], bool):
+                failures.append(f"{component} v{version} operation #{position} version is not an integer literal")
 
         required = {
             item["id"]
