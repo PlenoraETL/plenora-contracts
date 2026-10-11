@@ -11,8 +11,10 @@ full commit SHA; a release tag names one of those commits.
 - Runtime vector `database-write-commit-timeout-error.json` (an elapsed
   deadline after the commit was sent: `timeout`, `unknown`,
   `requires_recovery`), and a validator check that every runtime error
-  vector with an unknown commit outcome names its cause and has the category
-  ERR-016 gives it. See
+  vector with an unknown commit outcome and a mapped code (lost
+  confirmation, elapsed deadline, defect of the component) has the category
+  ERR-016 gives that cause; any other code, such as a cancellation, is
+  checked only for its retry (ERR-006). See
   [decision 0020](decisions/0020-cause-of-an-unknown-commit-in-the-vectors.md).
 
 - ERR-016 (Typed Errors 1.0, a clarification): an unknown outcome does not
