@@ -435,9 +435,14 @@ class ComputationTests(unittest.TestCase):
     def test_kind_and_unreadable_parts(self):
         projected = geometry_field(crs_definition='PROJCRS["x",ID["EPSG",4326]]', crs_definition_format="wkt2")
         self.assertEqual(data.computation_verdict(projected), data.Verdict("crs", "GEO-015"))
+        # An ellipsoid with one value is outside the grammar (GEO-019); one
+        # in the grammar without a coordinate system unit is undecidable.
         unreadable = geometry_field(crs_definition='GEOGCRS["x",DATUM["d",ELLIPSOID["e",1]],ID["EPSG",4326]]',
                                     crs_definition_format="wkt2")
-        self.assertEqual(data.computation_verdict(unreadable), data.Verdict("crs", "GEO-015"))
+        self.assertEqual(data.computation_verdict(unreadable), data.Verdict("crs", "GEO-019"))
+        unitless = geometry_field(crs_definition='GEOGCRS["x",DATUM["d",ELLIPSOID["e",1,1]],ID["EPSG",4326]]',
+                                  crs_definition_format="wkt2")
+        self.assertEqual(data.computation_verdict(unitless), data.Verdict("crs", "GEO-015"))
 
 
 class VectorErrorTests(unittest.TestCase):
@@ -721,6 +726,147 @@ class ClosedGrammarTests(unittest.TestCase):
         mutated = copy.deepcopy(field)
         mutated["metadata"]["plenora.geometry.crs_definition"] = json.dumps(nameless)
         self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-015"))
+
+    def expect_outside(self, field, text, where):
+        mutated = copy.deepcopy(field)
+        mutated["metadata"]["plenora.geometry.crs_definition"] = text
+        with self.subTest(where=where):
+            at_input = data._crs([mutated])
+            if at_input is not None:
+                # In a root identifier: not even a conforming input.
+                self.assertEqual(at_input, data.Verdict("crs", "GEO-005"))
+            else:
+                self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-019"))
+
+    def test_every_projjson_value_of_another_kind(self):
+        """GEO-019 closes the values too: every member, at any depth, given
+        a value of another JSON kind is outside the grammar. A code is a
+        number or a string, so that swap alone is admitted."""
+        others = {"string": "x", "number": 1, "true": True, "null": None, "object": {}, "array": []}
+
+        def kind(value):
+            if value is None:
+                return "null"
+            if isinstance(value, bool):
+                return "true"
+            if isinstance(value, str):
+                return "string"
+            if isinstance(value, (int, float)):
+                return "number"
+            return "object" if isinstance(value, dict) else "array"
+
+        def places(value, trail=()):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    yield trail + (key,)
+                    yield from places(child, trail + (key,))
+            elif isinstance(value, list):
+                for index, child in enumerate(value):
+                    yield trail + (index,)
+                    yield from places(child, trail + (index,))
+
+        count = 0
+        for name, field in self.accepted():
+            if field["metadata"]["plenora.geometry.crs_definition_format"] != "projjson":
+                continue
+            root = json.loads(field["metadata"]["plenora.geometry.crs_definition"])
+            for trail in list(places(root)):
+                parent = root
+                for step in trail[:-1]:
+                    parent = parent[step]
+                current = parent[trail[-1]]
+                for other, replacement in others.items():
+                    if other == kind(current):
+                        continue
+                    if trail[-1] == "code" and {other, kind(current)} == {"string", "number"}:
+                        continue
+                    mutated_root = copy.deepcopy(root)
+                    target = mutated_root
+                    for step in trail[:-1]:
+                        target = target[step]
+                    target[trail[-1]] = replacement
+                    self.expect_outside(field, json.dumps(mutated_root), (name, trail, other))
+                    count += 1
+        self.assertGreater(count, 1000)
+
+    def test_every_wkt_value_of_another_kind(self):
+        """GEO-019 in WKT: every value given another kind (a text for a
+        number or a word, a number for a text) or replaced by a node is
+        outside the grammar; an identifier code is a number or a text."""
+
+        def text(node):
+            items = []
+            for item in node.items:
+                if isinstance(item, data._Node):
+                    items.append(text(item))
+                elif item[0] == "string":
+                    items.append('"' + item[1].replace('"', '""') + '"')
+                else:
+                    items.append(item[1])
+            return node.keyword + "[" + ",".join(items) + "]"
+
+        def scalars(node, trail=()):
+            for index, item in enumerate(node.items):
+                if isinstance(item, data._Node):
+                    yield from scalars(item, trail + (index,))
+                else:
+                    yield trail + (index,), node.keyword.upper(), item[0]
+
+        count = 0
+        for name, field in self.accepted():
+            definition_format = field["metadata"]["plenora.geometry.crs_definition_format"]
+            if definition_format == "projjson":
+                continue
+            root = data.parse_wkt(field["metadata"]["plenora.geometry.crs_definition"])
+            self.assertEqual(data.parse_wkt(text(root)), root)
+            for trail, keyword, current in list(scalars(root)):
+                replacements = {"string": ("number", "1"), "number": ("string", "x"), "word": ("string", "x")}
+                for replacement in (replacements[current], "node"):
+                    if keyword in ("ID", "AUTHORITY") and trail[-1] == 1 and replacement != "node":
+                        continue
+                    mutated = copy.deepcopy(root)
+                    parent = mutated
+                    for step in trail[:-1]:
+                        parent = parent.items[step]
+                    parent.items[trail[-1]] = (
+                        data._Node("ZZ", [("number", "1")]) if replacement == "node" else replacement
+                    )
+                    self.expect_outside(field, text(mutated), (name, trail, replacement))
+                    count += 1
+        self.assertGreater(count, 500)
+
+    def test_every_unit_of_every_coordinate_system(self):
+        """The base CRS's units are compared too (GEO-015): a radian on the
+        base geographic CRS is not decided."""
+        radian = {"type": "AngularUnit", "name": "radian", "conversion_factor": 1}
+        vector = json.loads((VECTORS / "crs-proj-epsg-32632-projjson.json").read_text(encoding="utf-8"))
+        field = vector["fields"][1]
+        root = json.loads(field["metadata"]["plenora.geometry.crs_definition"])
+        for index in range(len(root["base_crs"]["coordinate_system"]["axis"])):
+            variant = copy.deepcopy(root)
+            variant["base_crs"]["coordinate_system"]["axis"][index]["unit"] = radian
+            mutated = copy.deepcopy(field)
+            mutated["metadata"]["plenora.geometry.crs_definition"] = json.dumps(variant)
+            with self.subTest(index):
+                self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-015"))
+        broken = copy.deepcopy(root)
+        broken["base_crs"]["coordinate_system"]["axis"] = []
+        mutated = copy.deepcopy(field)
+        mutated["metadata"]["plenora.geometry.crs_definition"] = json.dumps(broken)
+        self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-015"))
+        wkt = json.loads((VECTORS / "crs-proj-epsg-3003-wkt2.json").read_text(encoding="utf-8"))
+        wfield = wkt["fields"][1]
+        text = wfield["metadata"]["plenora.geometry.crs_definition"]
+        for old, new in (
+            ('ID["EPSG",4265]]', 'ANGLEUNIT["radian",1],ID["EPSG",4265]]'),
+            ('PRIMEM["Greenwich",0,\n            ANGLEUNIT["degree",0.0174532925199433]]',
+             'PRIMEM["Greenwich",0,\n            ANGLEUNIT["radian",1]]'),
+        ):
+            self.assertIn(old, text)
+            mutated = copy.deepcopy(wfield)
+            mutated["metadata"]["plenora.geometry.crs_definition"] = text.replace(old, new, 1)
+            with self.subTest(new):
+                self.assertEqual(data.computation_verdict(mutated), data.Verdict("crs", "GEO-015"))
 
     def test_the_reported_extensions(self):
         wkt2 = json.loads((VECTORS / "crs-id-with-consistent-definition.json").read_text(encoding="utf-8"))

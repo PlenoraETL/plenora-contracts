@@ -17,7 +17,8 @@ full commit SHA; a release tag names one of those commits.
   component verifies a definition before computing with one conservative
   subset (exact decimals, two spellings of the degree, closed aliases, units
   by quantity, datum and conversion) over a closed grammar of the three
-  formats, outside which a definition is undecidable (GEO-019), with
+  formats, closed on members and on the kind of every value, outside which a
+  definition is undecidable (GEO-019), with
   ignorable usage metadata and the reference WGS 84 ensemble, so that the
   WKT 2 and PROJJSON PROJ 9.6.2 writes are verified; a local catalog
   identifier (`POSTGIS:n`, ...) is never resolved and never computed with
@@ -71,11 +72,14 @@ full commit SHA; a release tag names one of those commits.
 ### Changed
 
 - The gate's messages carry no data: only fixed text, rule identifiers,
-  repository paths, positions and names the contracts define; schema errors
-  name the keyword and anonymous paths instead of quoting the instance. A
-  sentinel test injects a marker into every value, number and key of every
-  vector and example and requires that the gate never prints it. No
-  contract document changes. See
+  repository paths, positions, names the validator's code defines and names
+  of contract documents quoted between « and »; schema errors name the
+  keyword and anonymous paths instead of quoting the instance. A sentinel
+  test mutates every input the gate reads (vectors, examples, schemas,
+  catalogs, bindings, composition, Markdown), at every value, key, number
+  and array element, and requires that the gate never prints a value of a
+  vector or an example, nor a contract name outside its quotes; the null
+  fuzz covers every JSON input the same way. No contract document changes. See
   [decision 0021](decisions/0021-messages-without-data.md).
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
   universal from Python 3.10: `rpds-py` keeps 0.30.0, its last release for
