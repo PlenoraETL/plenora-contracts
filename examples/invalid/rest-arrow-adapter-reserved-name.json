@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-v1",
+  "accept_status": [
+    "success"
+  ],
+  "on_record_error": "exclude",
+  "undeclared_members": "reject",
+  "fields": [
+    {
+      "name": "@undeclared",
+      "field_id": 0,
+      "pointer": "/x",
+      "type": "int64",
+      "nullable": true
+    }
+  ]
+}
