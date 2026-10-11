@@ -163,6 +163,12 @@ from every accepted definition and requires the refusal, except where
 GEO-017 makes the unit implicit (an ellipsoid; a WKT 2 base CRS, which has
 no coordinate system of its own). The PROJ outputs keep their verdict.
 
+Searching `str` of a JSON number (the class of decision 0017) found that the
+grammar admitted a PROJJSON identifier code written with a fraction or an
+exponent and compared its text: `6.326E3` became `6326` and matched, while
+the same code in WKT is refused. A numeric code is now an integer literal in
+every format; any other is outside the grammar (GEO-019).
+
 ### Local catalog authorities
 
 database-tools writes `POSTGIS:n` or `MYSQL:n` for an SRID its catalog does
