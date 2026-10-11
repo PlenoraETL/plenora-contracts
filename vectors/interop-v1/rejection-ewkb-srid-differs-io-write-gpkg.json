@@ -1,0 +1,36 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "rejection",
+  "description": "io.write rejects ewkb-srid-differs with the category of its class (REJ-001).",
+  "input": "../arrow-data-v1/invalid-ewkb-srid-differs.json",
+  "chain": [
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.write",
+      "version": 2,
+      "params": {
+        "format": "gpkg"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "input",
+    "category": "crs",
+    "phases": [
+      "write"
+    ],
+    "remote_effects": [
+      "none",
+      "rolled_back"
+    ],
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "GEO-009",
+      "REJ-001"
+    ]
+  }
+}

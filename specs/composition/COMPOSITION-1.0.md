@@ -82,3 +82,12 @@ For an `adapter_required` edge, the named contract MUST be either the source
 operation's output contract or an interchange contract declared by that
 output. The adapter owns the conversion from that complete source result to a
 contract accepted by the target.
+
+## 6. Informative: interoperability vectors
+
+This document keeps the meaning it was published with. What a pipeline of
+public operations must deliver between components that claim Arrow Geometry
+Semantics 1.0, checked by the vectors in `vectors/interop-v1`, is fixed by
+the separate, opt-in contract
+[Interoperability Vectors 1.0](INTEROP-VECTORS-1.0.md)
+(`plenora-interop-vectors-v1`).

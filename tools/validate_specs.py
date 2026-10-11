@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID
 
 import arrow_data
+import interop_vectors
 import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
 from messages import contract_name, differing_members
@@ -54,6 +55,7 @@ EXPECTED_SCHEMAS = {
     "data-execution-result-v3.schema.json",
     "data-plan-v1.schema.json",
     "error-v1.schema.json",
+    "interop-vector-v1.schema.json",
     "operation-registry-v1.schema.json",
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
@@ -137,6 +139,9 @@ CASES = {
         ],
         "runtime-probe-v1.schema.json": [
             "examples/invalid/runtime-probe-two-mutations.json",
+        ],
+        "interop-vector-v1.schema.json": [
+            "examples/invalid/interop-vector-handoff-with-error.json",
         ],
         "arrow-data-vector-v1.schema.json": [
             "examples/invalid/arrow-data-vector-valid-with-category.json",
@@ -463,6 +468,7 @@ def validate_example_inventory() -> list[str]:
     registrations.extend((path, "invalid", "data-plan") for path in DATA_PLAN_VIOLATING)
     registrations.extend((path, "invalid", "data-plan-number") for path in DATA_PLAN_NUMBER_VIOLATING)
     registrations.extend((path, "invalid", "public-semantics") for path in PUBLIC_SEMANTIC_CASES)
+    registrations.extend((path, "invalid", "interop") for path in INTEROP_VIOLATING)
     registrations.extend((path, "invalid", "runtime-negotiation") for path in NEGOTIATION_VIOLATING)
     return example_inventory_errors(ROOT, registrations)
 
@@ -598,6 +604,9 @@ def validate_machine_documents(
         ),
         "arrow-data-vector-v1.schema.json": sorted(
             (ROOT / "vectors/arrow-data-v1").glob("*.json")
+        ),
+        "interop-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/interop-v1").glob("*.json")
         ),
         "runtime-vector-v1.schema.json": runtime_vector_paths(),
         "runtime-probe-v1.schema.json": sorted(
@@ -2183,6 +2192,91 @@ def cited_rule_errors(label: str, rules: list[str], known: set[str]) -> list[str
     return [f"{label} cites {rule}, which no specification or profile defines" for rule in rules if rule not in known]
 
 
+def validate_interop_vectors(
+    catalogs: dict[str, dict[str, Any]],
+    schemas: dict[str, dict[str, Any]] | None = None,
+    registry: Registry | None = None,
+) -> list[str]:
+    """Interoperability Vectors 1.0: chains against the matrix, expectations
+    recomputed from the inputs (`interop_vectors`). A vector outside its
+    schema is reported by the schema check and never evaluated here: the
+    rules read only fields of the shape the schema fixes."""
+    operations = operation_index(catalogs)
+    edges = load_json(ROOT / "composition/pipelines-v1.json")["edges"]
+    direct = {
+        (
+            (edge["from"]["component"], edge["from"]["operation"], edge["from"]["version"]),
+            (edge["to"]["component"], edge["to"]["operation"], edge["to"]["version"]),
+        )
+        for edge in edges
+        if edge["mode"] == "direct"
+    }
+    paths = sorted((ROOT / "vectors/interop-v1").glob("*.json"))
+    if not paths:
+        return ["vectors/interop-v1 has no vectors"]
+    # The kernels of the current registry; none without one, which
+    # data_registry_errors reports (a geo plan then names no kernel).
+    kernels = latest_kernel_ids()
+    known = defined_rules()
+    if schemas is None:
+        schemas = {name: load_json(ROOT / "schemas" / name) for name in EXPECTED_SCHEMAS}
+        registry = schema_registry(schemas)
+    failures: list[str] = []
+    for path in paths:
+        label = path.relative_to(ROOT).as_posix()
+        vector = load_json(path)
+        if instance_errors(schemas["interop-vector-v1.schema.json"], vector, registry):
+            continue
+        for problem in interop_vectors.vector_errors(path, vector, operations, direct, load_json, kernels):
+            failures.append(f"{label} {problem}")
+        expected_error = vector.get("expected_error")
+        if isinstance(expected_error, dict):
+            failures.extend(cited_rule_errors(label, list(expected_error.get("rules") or []), known))
+    return failures
+
+
+# Accepted by the schema and refused by the interoperability gate, each for
+# the rule its value names: without them, a check of the gate could vanish
+# and the published vectors, all conforming, would stay green.
+INTEROP_VIOLATING = {
+    "examples/invalid/interop-vector-handoff-single-json-step.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-database-write-as-ipc.json": "INTEROP-002",
+    "examples/invalid/interop-vector-source-format-mismatch.json": "INTEROP-001",
+    "examples/invalid/interop-vector-handoff-target-read-in-another-format.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-unknown-format.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-limits-not-a-list.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-plan-not-a-string.json": "INTEROP-002",
+}
+
+
+def validate_interop_violating(
+    schemas: dict[str, dict[str, Any]], registry: Registry, catalogs: dict[str, dict[str, Any]]
+) -> list[str]:
+    operations = operation_index(catalogs)
+    edges = load_json(ROOT / "composition/pipelines-v1.json")["edges"]
+    direct = {
+        (
+            (edge["from"]["component"], edge["from"]["operation"], edge["from"]["version"]),
+            (edge["to"]["component"], edge["to"]["operation"], edge["to"]["version"]),
+        )
+        for edge in edges
+        if edge["mode"] == "direct"
+    }
+    failures: list[str] = []
+    for relative, rule in INTEROP_VIOLATING.items():
+        path = ROOT / relative
+        document = load_json(path)
+        if instance_errors(schemas["interop-vector-v1.schema.json"], document, registry):
+            failures.append(f"{relative} must be accepted by the schema so that it probes the gate")
+            continue
+        # Its input path is the schema's, relative to the published vectors.
+        published = ROOT / "vectors/interop-v1" / path.name
+        errors = interop_vectors.vector_errors(published, document, operations, direct, load_json, latest_kernel_ids())
+        if not errors or not all(rule in error for error in errors):
+            failures.append(f"{relative} must be refused by {rule} and by no other check")
+    return failures
+
+
 def validate_arrow_data_vectors() -> list[str]:
     """Arrow Geometry Semantics 1.0 section 9: each vector states the verdict the
     rules give, derived by `arrow_data`, and cites rules that exist."""
@@ -3286,6 +3380,8 @@ def run_gate() -> int:
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_arrow_data_vectors())
+    failures.extend(validate_interop_vectors(catalogs, schemas, registry))
+    failures.extend(validate_interop_violating(schemas, registry, catalogs))
     failures.extend(validate_rest_adapter_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
     failures.extend(validate_runtime_negotiation_vectors())
