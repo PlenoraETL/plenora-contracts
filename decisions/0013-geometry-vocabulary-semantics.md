@@ -199,7 +199,7 @@ component knows. The list of local authorities is closed (`POSTGIS`,
 - **Compatible:** yes: a new contract next to the existing ones; nothing
   published changes meaning.
 - **Schemas, examples and profiles:** new specification, new schema
-  `arrow-data-vector-v1`, two invalid examples, 66 vectors in
+  `arrow-data-vector-v1`, two invalid examples, 71 vectors in
   `vectors/arrow-data-v1`. No existing schema, catalog, binding, vector or
   profile changes.
 - **Adoption impact**, for a component that claims the contract:

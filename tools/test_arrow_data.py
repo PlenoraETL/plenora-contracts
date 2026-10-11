@@ -166,7 +166,7 @@ class DefinitionTests(unittest.TestCase):
             '{"type":"GeographicCRS","datum":{"ellipsoid":'
             '{"semi_major_axis":{"value":6378137,"unit":"metre"},"inverse_flattening":298.257223563}},'
             '"prime_meridian":{"longitude":{"value":0,"unit":"degree"}},'
-            '"coordinate_system":{"subtype":"ellipsoidal","axis":[{"unit":{"name":"degree","conversion_factor":0.0174532925199433}},{"unit":{"name":"degree","conversion_factor":0.0174532925199433}}]}}',
+            '"coordinate_system":{"subtype":"ellipsoidal","axis":[{"unit":{"type":"AngularUnit","name":"degree","conversion_factor":0.0174532925199433}},{"unit":{"type":"AngularUnit","name":"degree","conversion_factor":0.0174532925199433}}]}}',
             "projjson",
         )
         self.assertEqual(projjson.ellipsoid, (Decimal("6378137"), Decimal("298.257223563")))
@@ -1059,6 +1059,129 @@ class RequiredPartsTests(unittest.TestCase):
             with self.subTest(written):
                 self.assertEqual(self.verdict_of(field, text.replace('"code": 1166', '"code": ' + written, 1)),
                                  data.Verdict("crs", "GEO-019"))
+
+
+class UnitQuantityTests(unittest.TestCase):
+    """GEO-017: a unit measures the quantity of the place where it occurs.
+    A PROJJSON unit object states its quantity with `type`, a WKT 2 unit
+    with its keyword: a unit of another quantity, or of none stated, is
+    never verified, whatever its name and factor."""
+
+    DECIDED = {"angle": ("degree", 0.0174532925199433), "length": ("metre", 1), "scale": ("unity", 1)}
+    TYPES = {"angle": "AngularUnit", "length": "LinearUnit", "scale": "ScaleUnit"}
+    KEYWORDS = {"angle": "ANGLEUNIT", "length": "LENGTHUNIT", "scale": "SCALEUNIT"}
+
+    def verdict_of(self, field, text):
+        mutated = copy.deepcopy(field)
+        mutated["metadata"]["plenora.geometry.crs_definition"] = text
+        return data.computation_verdict(mutated)
+
+    def test_every_projjson_unit_type_at_every_place(self):
+        count = 0
+        accepted = 0
+        for name, field in ClosedGrammarTests().accepted():
+            if field["metadata"]["plenora.geometry.crs_definition_format"] != "projjson":
+                continue
+            root = json.loads(field["metadata"]["plenora.geometry.crs_definition"])
+            self.assertIsNone(self.verdict_of(field, json.dumps(root)), name)
+            for path, quantity in _projjson_unit_places(root):
+                unit_name, factor = self.DECIDED[quantity]
+                for unit_type in (*self.TYPES.values(), "Unit", None):
+                    unit = {"name": unit_name, "conversion_factor": factor}
+                    if unit_type is not None:
+                        unit["type"] = unit_type
+                    variant = copy.deepcopy(root)
+                    holder = variant
+                    for key in path[:-1]:
+                        holder = holder[key]
+                    if path[-1] == "unit":
+                        holder["unit"] = unit
+                    elif isinstance(holder[path[-1]], dict):
+                        holder[path[-1]]["unit"] = unit
+                    else:
+                        holder[path[-1]] = {"value": holder[path[-1]], "unit": unit}
+                    expected = None if unit_type == self.TYPES[quantity] else data.Verdict("crs", "GEO-015")
+                    accepted += expected is None
+                    count += 1
+                    with self.subTest(name=name, path=path, type=unit_type):
+                        self.assertEqual(self.verdict_of(field, json.dumps(variant)), expected)
+        self.assertGreater(accepted, 20)
+        self.assertGreater(count, 100)
+
+    def test_the_reported_linear_degree(self):
+        """The case of the review: a degree typed as a linear unit on a
+        geographic axis, and the same as a scale unit."""
+        field = json.loads((VECTORS / "crs-proj-epsg-4326-projjson.json").read_text(encoding="utf-8"))["fields"][1]
+        root = json.loads(field["metadata"]["plenora.geometry.crs_definition"])
+        for unit_type in ("LinearUnit", "ScaleUnit"):
+            variant = copy.deepcopy(root)
+            variant["coordinate_system"]["axis"][0]["unit"] = {
+                "type": unit_type, "name": "degree", "conversion_factor": 0.0174532925199433}
+            with self.subTest(unit_type):
+                self.assertEqual(self.verdict_of(field, json.dumps(variant)), data.Verdict("crs", "GEO-015"))
+
+    def test_every_wkt_unit_of_another_quantity_at_every_place(self):
+        """Every unit node of a verified WKT definition replaced by a unit of
+        another quantity (keyword alone, or keyword, name and factor
+        together), or by a generic `UNIT` in WKT 2, or by a WKT 2 keyword in
+        WKT 1: never verified, by GEO-017 or by the grammar of GEO-019."""
+        count = 0
+        for name, field in ClosedGrammarTests().accepted():
+            definition_format = field["metadata"]["plenora.geometry.crs_definition_format"]
+            if definition_format == "projjson":
+                continue
+            text = field["metadata"]["plenora.geometry.crs_definition"]
+            self.assertIsNone(self.verdict_of(field, text), name)
+            for start, end, _parent in _wkt_unit_nodes(text):
+                node = text[start:end]
+                found = re.match(r'(,?\s*)([A-Za-z]+)(\[.*)', node, re.S)
+                self.assertIsNotNone(found, node)
+                lead, keyword, rest = found.groups()
+                replacements = []
+                if definition_format == "wkt2":
+                    own = {v: k for k, v in self.KEYWORDS.items()}[keyword.upper()]
+                    for quantity, other in self.KEYWORDS.items():
+                        if quantity == own:
+                            continue
+                        unit_name, factor = self.DECIDED[quantity]
+                        replacements.append(lead + other + rest)
+                        replacements.append(lead + other + '["' + unit_name + '",' + str(factor) + "]")
+                    replacements.append(lead + "UNIT" + rest)
+                else:
+                    replacements.extend(lead + other + rest for other in self.KEYWORDS.values())
+                for replacement in replacements:
+                    count += 1
+                    with self.subTest(name=name, at=start, unit=replacement):
+                        self.assertIn(
+                            self.verdict_of(field, text[:start] + replacement + text[end:]),
+                            (data.Verdict("crs", "GEO-015"), data.Verdict("crs", "GEO-019")),
+                        )
+        self.assertGreater(count, 100)
+
+
+def _projjson_unit_places(root):
+    """Every place of a PROJJSON definition where a unit can stand, with the
+    quantity GEO-017 requires there: each `unit` member, and each value that
+    may carry its own unit (written bare or not)."""
+    kinds = {"GeographicCRS": "angle", "ProjectedCRS": "length"}
+    places = []
+    for index, _axis in enumerate(root["coordinate_system"]["axis"]):
+        places.append((("coordinate_system", "axis", index, "unit"), kinds[root["type"]]))
+    geographic = root.get("base_crs", root)
+    prefix = ("base_crs",) if geographic is not root else ()
+    if geographic is not root and "coordinate_system" in geographic:
+        for index, _axis in enumerate(geographic["coordinate_system"]["axis"]):
+            places.append((prefix + ("coordinate_system", "axis", index, "unit"), "angle"))
+    for index, parameter in enumerate(root.get("conversion", {}).get("parameters", [])):
+        quantity = data.PARAMETER_QUANTITY[data.PARAMETER_NAMES[parameter["name"].lower()]]
+        places.append((("conversion", "parameters", index, "unit"), quantity))
+    datum_key = "datum" if "datum" in geographic else "datum_ensemble"
+    ellipsoid = prefix + (datum_key, "ellipsoid")
+    places.append((ellipsoid + ("semi_major_axis",), "length"))
+    places.append((ellipsoid + ("inverse_flattening",), "scale"))
+    if "prime_meridian" in geographic[datum_key]:
+        places.append((prefix + (datum_key, "prime_meridian", "longitude"), "angle"))
+    return places
 
 
 def _unit_paths(value, path=()):
