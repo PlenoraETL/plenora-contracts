@@ -138,6 +138,16 @@ twelve PROJ outputs are vectors, unchanged: all verified but the WKT 1 of
 adds a member to the WGS 84 ensemble writes a definition that is undecidable
 (a refusal, never a wrong verification) until the table follows it.
 
+A fourth reading found two more gaps. The grammar closed the members but
+not their values: a PROJJSON name given as an object, an arbitrary unit
+type, a subtype or a direction outside any list passed it. Every member of
+every object, and every value of every WKT node, now has exactly one kind
+(text, number, word from a closed set, object of a given kind, array of
+them), and a generative test gives every value, at any depth, each other
+JSON kind, and every WKT value another kind or a node, requiring the
+refusal. And the units of the base CRS's coordinate system in PROJJSON were
+not compared: every unit of every coordinate system is now compared.
+
 ### Local catalog authorities
 
 database-tools writes `POSTGIS:n` or `MYSQL:n` for an SRID its catalog does

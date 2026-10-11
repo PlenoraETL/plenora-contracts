@@ -17,7 +17,8 @@ full commit SHA; a release tag names one of those commits.
   component verifies a definition before computing with one conservative
   subset (exact decimals, two spellings of the degree, closed aliases, units
   by quantity, datum and conversion) over a closed grammar of the three
-  formats, outside which a definition is undecidable (GEO-019), with
+  formats, closed on members and on the kind of every value, outside which a
+  definition is undecidable (GEO-019), with
   ignorable usage metadata and the reference WGS 84 ensemble, so that the
   WKT 2 and PROJJSON PROJ 9.6.2 writes are verified; a local catalog
   identifier (`POSTGIS:n`, ...) is never resolved and never computed with
