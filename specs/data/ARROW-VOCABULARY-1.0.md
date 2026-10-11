@@ -86,3 +86,14 @@ schema fixtures. A component test constructs its native Arrow schema from the
 fixture, serializes it through its public boundary and checks the expected
 acceptance or rejection. The vector shape is defined by
 [`arrow-metadata-vector-v1.schema.json`](../../schemas/arrow-metadata-vector-v1.schema.json).
+
+## 7. Informative: geometry semantics
+
+This document keeps the meaning it was published with. The meaning of the
+geometry keys (stored axis order, CRS identifier and definition, encodings
+and SRID, geometry types, several geometry fields) and the category of each
+rejection are fixed by the separate, opt-in contract
+[Arrow Geometry Semantics 1.0](ARROW-GEOMETRY-SEMANTICS-1.0.md)
+(`plenora-arrow-geometry-semantics-v1`), which adds obligations for the
+components that claim it and changes neither the keys, nor their values, nor
+`plenora.contract.version`.
