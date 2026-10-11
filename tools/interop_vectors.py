@@ -41,6 +41,13 @@ TRANSFORMATION_OWNERS: dict[str, set[tuple[str, str]] | None] = {
 # Declared component limits a step may name (GEO-010, GEO-012).
 LIMITS = {"one_geometry_field": "GEO-012", "one_geometry_type": "GEO-010"}
 IPC_FORMATS = {"arrow_ipc_file", "arrow_ipc_stream"}
+# INTEROP-002: the catalog input contracts whose request selects the format of
+# the document a step reads (source) or writes (sink). Only for these is the
+# `format` of a step a format: the catalog sides of `database.read` and
+# `database.write` equal those of `io.read` and `io.write`, but their input
+# contracts select no format.
+SOURCE_FORMAT_INPUTS = {"plenora-io-read-input-v1"}
+SINK_FORMAT_INPUTS = {"plenora-io-write-input-v1"}
 ARROW_INTERCHANGE = "plenora-arrow-interchange-v1"
 ARROW_MEDIA_TYPES = {"application/vnd.apache.arrow.stream", "application/vnd.apache.arrow.file"}
 NORTH_FIRST = {"lat_lon", "northing_easting"}
@@ -375,14 +382,29 @@ def chain_errors(
         for limit in (step.get("params") or {}).get("limits") or []:
             if limit not in LIMITS:
                 errors.append("a step names an unknown limit")
+        operation = operations.get(step_key(step))
+        if (
+            operation is not None
+            and "format" in (step.get("params") or {})
+            and operation["input"]["contract"] not in SOURCE_FORMAT_INPUTS | SINK_FORMAT_INPUTS
+        ):
+            errors.append(f"step {position} names a format its input contract does not select (INTEROP-002)")
     if chain and chain[0].get("via") == "target":
         errors.append("the first step cannot read a target no step wrote")
     for position, (before, after) in enumerate(zip(chain, chain[1:]), start=1):
         if after.get("via") == "target":
+            # A step that takes a table, then one of the same component that
+            # delivers one: as the catalog declares them, not only as named.
+            writer = operations.get(step_key(before))
+            reader = operations.get(step_key(after))
             if (
                 before["component"] != after["component"]
                 or not before["operation"].endswith(".write")
                 or not after["operation"].endswith(".read")
+                or writer is None
+                or reader is None
+                or not _arrow(writer["input"])
+                or not _arrow(reader["output"])
             ):
                 errors.append(f"steps {position} -> {position + 1} are not a write then a read of one component")
         elif (step_key(before), step_key(after)) not in direct_edges:
@@ -403,17 +425,29 @@ def _names_ipc_format(step: dict[str, Any]) -> bool:
 
 def reads_arrow_ipc(step: dict[str, Any], operation: dict[str, Any]) -> bool:
     """INTEROP-002: the step takes the input table as Arrow IPC, either as its
-    input or as the source it reads, named by an Arrow IPC `format`."""
+    catalog input or as the source it reads: its catalog input contract
+    selects a source format, the `format` is Arrow IPC and its catalog output
+    delivers the table. The name of the operation proves nothing."""
     if _arrow(operation["input"]):
         return True
-    return _arrow(operation["output"]) and step["operation"].endswith(".read") and _names_ipc_format(step)
+    return (
+        operation["input"]["contract"] in SOURCE_FORMAT_INPUTS
+        and _arrow(operation["output"])
+        and _names_ipc_format(step)
+    )
 
 
 def delivers_arrow_ipc(step: dict[str, Any], operation: dict[str, Any]) -> bool:
-    """INTEROP-002: the step delivers a table, or writes it as Arrow IPC."""
+    """INTEROP-002: the step delivers a table as its catalog output, or writes
+    it as Arrow IPC: its catalog input contract selects a sink format and
+    takes the table, and the `format` is Arrow IPC."""
     if _arrow(operation["output"]):
         return True
-    return _arrow(operation["input"]) and step["operation"].endswith(".write") and _names_ipc_format(step)
+    return (
+        operation["input"]["contract"] in SINK_FORMAT_INPUTS
+        and _arrow(operation["input"])
+        and _names_ipc_format(step)
+    )
 
 
 def end_errors(vector: dict[str, Any], operations: dict[Key, dict[str, Any]]) -> list[str]:
@@ -499,6 +533,10 @@ def source_errors(vector: dict[str, Any]) -> list[str]:
     step = vector["chain"][0]
     params = step.get("params") or {}
     errors = []
+    # INTEROP-001: the parser is chosen by the format of the source document,
+    # and the read request names that same format, never left implicit.
+    if params.get("format") != source["format"]:
+        errors.append("the read request does not name the format of the source document (INTEROP-001)")
     try:
         if source["format"] == "geojson":
             found = geojson_coordinates(source["text"])

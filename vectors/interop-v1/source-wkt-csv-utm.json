@@ -14,6 +14,7 @@
       "operation": "io.read",
       "version": 2,
       "params": {
+        "format": "wkt_csv",
         "source": "points.csv",
         "geometry_column": "wkt",
         "crs_id": "EPSG:32632",

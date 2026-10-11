@@ -1872,6 +1872,8 @@ def validate_interop_vectors(catalogs: dict[str, dict[str, Any]]) -> list[str]:
 # and the published vectors, all conforming, would stay green.
 INTEROP_VIOLATING = {
     "examples/invalid/interop-vector-handoff-single-json-step.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-database-write-as-ipc.json": "INTEROP-002",
+    "examples/invalid/interop-vector-source-format-mismatch.json": "INTEROP-001",
 }
 
 

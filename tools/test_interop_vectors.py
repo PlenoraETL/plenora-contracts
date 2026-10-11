@@ -245,6 +245,55 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(validator.validate_interop_violating(
             schemas, validator.schema_registry(schemas), validator.load_catalogs()), [])
 
+    def test_an_ipc_end_only_where_the_catalog_declares_a_format(self):
+        """INTEROP-002: a `format` makes a read or a write an Arrow IPC end
+        only when the input contract the catalog declares for the step
+        selects a source or sink format. `database.write` and
+        `database.read` have the same catalog sides as `io.write` and
+        `io.read`, but their input contracts select no format: an IPC
+        `format` on them is an incoherence, never an end."""
+        last = "the last step neither delivers a table nor writes it as Arrow IPC (INTEROP-002)"
+        first = "the first step does not read the input table as Arrow IPC (INTEROP-002)"
+        written = vector("handoff-io-database-io.json")
+        written["chain"] = written["chain"][:2]
+        written["chain"][1]["params"]["format"] = "arrow_ipc_file"
+        errors = errors_of("handoff-io-database-io.json", written)
+        self.assertIn(last, errors)
+        self.assertIn("step 2 names a format its input contract does not select (INTEROP-002)", errors)
+        read = vector("handoff-database-data-io.json")
+        read["chain"] = read["chain"][1:]
+        read["chain"][0].pop("via")
+        read["chain"][0]["params"]["format"] = "arrow_ipc_stream"
+        errors = errors_of("handoff-database-data-io.json", read)
+        self.assertIn(first, errors)
+        self.assertIn("step 1 names a format its input contract does not select (INTEROP-002)", errors)
+        # In the middle of a chain the incoherence is reported as well.
+        middle = vector("handoff-io-database-io.json")
+        middle["chain"][1]["params"]["format"] = "arrow_ipc_file"
+        self.assertEqual(errors_of("handoff-io-database-io.json", middle),
+                         ["step 2 names a format its input contract does not select (INTEROP-002)"])
+        # The ends deduced from the catalog, without a format, are unchanged.
+        self.assertEqual(errors_of("handoff-database-data-io.json"), [])
+
+    def test_the_target_of_a_write_then_read(self):
+        """INTEROP-002: `via: target` joins a step that takes a table to a
+        step of the same component that delivers one, as their catalog
+        entries declare, not only as their names suggest."""
+        operations, direct, _load = gate_inputs()
+        chain = vector("handoff-io-database-io.json")["chain"]
+        self.assertEqual(interop.chain_errors(chain, operations, direct), [])
+        key = interop.step_key(chain[2])
+        for side in ("input", "output"):
+            altered = copy.deepcopy(operations)
+            # The read's catalog side becomes JSON only, its name unchanged.
+            altered[key][side] = {"contract": "x", "content_types": ["application/json"],
+                                  "interchange_contracts": []}
+            if side == "input":
+                altered[interop.step_key(chain[1])][side] = altered[key][side]
+            with self.subTest(side):
+                self.assertIn("steps 2 -> 3 are not a write then a read of one component",
+                              interop.chain_errors(chain, altered, direct))
+
     def test_order_of_transformations_and_types(self):
         forward = [{"transformations": ["srid_from_epsg_identifier", "ewkb_with_field_srid"]}]
         backward = [{"transformations": ["ewkb_with_field_srid", "srid_from_epsg_identifier"]}]
@@ -325,6 +374,20 @@ class SourceTests(unittest.TestCase):
         transformed = vector(name)
         transformed["chain"][0]["transformations"] = ["assign_field_ids"]
         self.assertEqual(len(errors_of(name, transformed)), 1)
+
+    def test_the_read_request_names_the_format_of_the_source(self):
+        """The parser is chosen by the source document's format; the read
+        request names the same format, or the vector is incoherent."""
+        for name, other in (("source-geojson-points.json", "wkt_csv"), ("source-wkt-csv-utm.json", "geojson")):
+            self.assertEqual(errors_of(name), [])
+            for params in ({"format": other}, {"format": "csv"}, {}):
+                document = vector(name)
+                request = document["chain"][0].setdefault("params", {})
+                request.pop("format", None)
+                request.update(params)
+                with self.subTest(name=name, params=params):
+                    self.assertIn("the read request does not name the format of the source document (INTEROP-001)",
+                                  errors_of(name, document))
 
     def test_wkt_csv(self):
         name = "source-wkt-csv-utm.json"

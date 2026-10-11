@@ -53,7 +53,9 @@ full commit SHA; a release tag names one of those commits.
   and a CSV source whose axis order and coordinates the validator reads.
   Chains are checked against the composition matrix and at both ends (the
   first step reads the input as Arrow IPC, the last delivers or writes a
-  table), with a negative example. No catalog, binding,
+  table, as the catalog declares the step: a `format` counts only where the
+  input contract selects one), and a source's read request names the
+  document's format, with three negative examples. No catalog, binding,
   profile or published vector changes. See
   [decision 0018](decisions/0018-interoperability-vectors.md).
 - Runtime vector `database-write-commit-timeout-error.json` (an elapsed

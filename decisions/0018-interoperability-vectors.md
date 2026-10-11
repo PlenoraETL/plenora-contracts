@@ -129,6 +129,23 @@ table now name `format: arrow_ipc_file` instead of leaving it to the file
 name. A negative example, accepted by the schema and refused only by
 INTEROP-002, keeps the check from vanishing unnoticed.
 
+### Seventh reading (Codex)
+
+The ends were deduced from the name of the operation: any `.write` with an
+Arrow IPC `format` counted as writing the output as Arrow IPC, and any
+`.read` with one as reading the input. `database.write` and `database.read`
+have the same catalog sides as `io.write` and `io.read`, so a chain ending
+with a `database.write` that named `arrow_ipc_file` passed, although its
+catalog result is JSON and its input contract selects no format. The ends
+are now deduced only from what the catalog declares: the Arrow sides, and
+the input contract, which for `io.read` and `io.write` selects a source or
+sink format. A `format` on a step whose input contract selects none is
+refused, and a `via: target` pair is checked on the catalog sides too. A
+source vector chose its parser by the document's format without comparing
+it with the read request: the request now names that format, and the two
+source vectors state it. Two negative examples keep both checks from
+vanishing unnoticed.
+
 ### What the vectors fix that the suite observed differently
 
 - database-tools reads geometry fields without `field_id` and `precision`:

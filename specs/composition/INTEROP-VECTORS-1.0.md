@@ -35,19 +35,30 @@ another implementation. Their shape is
 - `source`: a source document, the reading step and the coordinates and axis
   order the step must declare (GEO-002, GEO-003): a GeoJSON document, whose
   format fixes longitude first, or a CSV document with a `wkt` column, whose
-  order and CRS the read request states.
+  order and CRS the read request states. The read request names the format
+  of the document (`geojson` or `wkt_csv`); a request that names another
+  format, or none, contradicts the document and the vector is refused.
 
 **INTEROP-002** — Consecutive steps of a chain are a `direct` edge of the
 matrix, or a write followed by a read of the same component on the same
 target (`via: target`). The first step reads the input table as Arrow IPC;
 the output of a chain is the table its last step delivers or writes as Arrow
-IPC. Both ends are checked, not only the consecutive pairs: a step reads the
-input table as Arrow IPC when its catalog input carries the Arrow
-interchange contract with an Arrow IPC media type, or when it is a read
-whose catalog output does and whose `format` parameter is `arrow_ipc_file`
-or `arrow_ipc_stream`; a step delivers a table when its catalog output
-carries that contract, and writes it as Arrow IPC when it is a write whose
-catalog input does and whose `format` is one of those two. A `rejection`
+IPC. Both ends are checked, not only the consecutive pairs, from what the
+catalog declares for each step and never from the name of its operation: a
+step reads the input table as Arrow IPC when its catalog input carries the
+Arrow interchange contract with an Arrow IPC media type, or when its catalog
+input contract selects a source format, its catalog output carries that
+contract and its `format` parameter is `arrow_ipc_file` or
+`arrow_ipc_stream`; a step delivers a table when its catalog output carries
+that contract, and writes it as Arrow IPC when its catalog input contract
+selects a sink format, its catalog input carries that contract and its
+`format` is one of those two. The input contracts that select a format are
+`plenora-io-read-input-v1` (source) and `plenora-io-write-input-v1` (sink);
+a step whose input contract selects none, such as `database.read` or
+`database.write`, whose catalog sides equal those of `io.read` and
+`io.write`, names no `format`, and a vector in which it does is refused. In
+a `via: target` pair the first step's catalog input and the second step's
+catalog output carry the Arrow interchange contract. A `rejection`
 step reads the input table in the same way; a `source` step reads its
 source document instead. Step parameters such as a plan, a sink format or a read request are
 abstract: the harness maps them to each surface's spelling. A step MAY name
