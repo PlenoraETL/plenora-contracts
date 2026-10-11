@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DIFFERENT = (
     (1, True), (0, False), (1, 1.0), (0, 0.0), (True, 1.0), (0.0, -0.0), (None, False), ("1", 1),
     ([1], [True]), ((1,), (1.0,)), ({"a": 1}, {"a": True}), ({"a": [{"b": 0}]}, {"a": [{"b": False}]}),
-    ({"a": 1}, {"a": 1, "b": None}), (Decimal("1"), Decimal("1.0")), (Decimal("1"), 1),
+    ({"a": 1}, {"a": 1, "b": None}), (Decimal("1"), Decimal("1.0000000000000001")), (Decimal("1"), 1),
 )
 
 
@@ -104,6 +104,82 @@ class ScaleTests(unittest.TestCase):
                 schema = schema("object")
                 self.assertEqual(len(immutability.digest(immutability.assertions(schema))), 64)
                 self.assertFast(started, 10)
+
+
+class DecimalValueTests(unittest.TestCase):
+    """Decimals compare by exact value (COMPATIBILITY.md: a respelling that
+    cannot change validation is not a change): `1.0 == 1.00 == 1e0`, while
+    an integer stays another value and `1.0000000000000001` another number."""
+
+    def test_spellings_of_one_value(self):
+        parse = immutability.strict_json
+        for one, other in (("1.0", "1.00"), ("1.0", "1e0"), ("1.0", "10E-1"), ("0.0", "-0.0"), ("2.50", "25e-1"),
+                           ("1.5e300", "15E299")):
+            with self.subTest(one=one, other=other):
+                left, right = parse(one, "x"), parse(other, "x")
+                self.assertTrue(same_json(left, right))
+                self.assertEqual(json_key(left), json_key(right))
+                self.assertEqual(immutability.digest(left), immutability.digest(right))
+        self.assertEqual(immutability.document_changes(
+            "schemas/x-v1.schema.json", parse('{"minimum": 1.0}', "x"), parse('{"minimum": 1.00}', "x")), [])
+        self.assertEqual(immutability.document_changes(
+            "vectors/x.json", parse('[1e0]', "x"), parse('[1.0]', "x")), [])
+
+    def test_other_values_stay_other(self):
+        parse = immutability.strict_json
+        for one, other in (("1", "1.0"), ("1.0", "1.0000000000000001"), ("1.0", "-1.0"), ("1e2", "1e3"),
+                           ("0.1", "0.10000000000000000000000000000001")):
+            with self.subTest(one=one, other=other):
+                left, right = parse(one, "x"), parse(other, "x")
+                self.assertFalse(same_json(left, right))
+                self.assertNotEqual(json_key(left), json_key(right))
+                self.assertNotEqual(immutability.digest(left), immutability.digest(right))
+        self.assertEqual(immutability.document_changes(
+            "schemas/x-v1.schema.json", parse('{"minimum": 1}', "x"), parse('{"minimum": 1.0}', "x")),
+            ["assertions changed"])
+
+
+class DeepTraversalTests(unittest.TestCase):
+    """The traversals of the gate read documents deeper than the recursion
+    limit (1,100 and 10,000 levels) without recursion, in document order."""
+
+    def test_members_and_items(self):
+        import gate_fuzz
+        import rest_adapter
+        for depth in (1_100, 10_000):
+            with self.subTest(depth=depth):
+                document = nested(depth, "leaf", "object")
+                self.assertEqual(sum(1 for _ in gate_fuzz.members(document)), depth)
+                self.assertEqual(sum(1 for _ in validator.nested_items(document)), depth)
+                self.assertEqual(list(validator.artifact_strings(document)), ["leaf"])
+                array = nested(depth, "leaf", "array")
+                self.assertEqual(list(validator.artifact_strings(array)), ["leaf"])
+                self.assertEqual(sum(1 for _ in gate_fuzz.members(array)), depth)
+                left, right = nested(depth, 1, "object"), nested(depth, 2, "object")
+                self.assertEqual(rest_adapter.difference(left, right).count("/"), depth)
+
+    def test_error_bounds_of_deep_details(self):
+        for depth in (1_100, 10_000):
+            with self.subTest(depth=depth):
+                error = {"category": "internal", "message": "m", "details": nested(depth, "leaf", "object")}
+                self.assertIn("error details exceed the nesting-depth limit", validator.error_bound_errors(error))
+
+    def test_compact_size_is_the_size_of_the_compact_text(self):
+        for value in ({"a": [1, 1.5, None, True, "é\u0000"], 1: {}, None: [], True: "x"}, [], {}, "s", 1e300,
+                      json.loads((ROOT / "examples/valid/cli-error.json").read_text(encoding="utf-8"))):
+            with self.subTest(value=value):
+                self.assertEqual(validator.compact_json_size(value),
+                                 len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")))
+
+    def test_document_order_is_kept(self):
+        import gate_fuzz
+        document = {"a": [1, {"b": "x"}], "c": {"d": "y", "e": ["z"]}}
+        self.assertEqual(list(gate_fuzz.members(document)),
+                         [("a",), ("a", 0), ("a", 1), ("a", 1, "b"), ("c",), ("c", "d"), ("c", "e"), ("c", "e", 0)])
+        self.assertEqual(list(validator.nested_items(document)),
+                         [("a", [1, {"b": "x"}]), ("b", "x"), ("c", {"d": "y", "e": ["z"]}), ("d", "y"), ("e", ["z"])])
+        self.assertEqual(list(validator.artifact_strings(document)), ["x", "y", "z"])
+        self.assertEqual(list(validator.artifact_strings("s")), ["s"])
 
 
 class StrictJsonTests(unittest.TestCase):

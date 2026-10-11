@@ -276,21 +276,32 @@ def _segment(key: Any, position: int, structural: bool) -> str:
 def difference(left: Any, right: Any, path: str = "", structural: bool = True) -> str:
     """The path of the first difference of two values that are not `_same`.
     Inside a row, a count map or a metadata map, a member is named by its
-    position among the sorted keys, never by its key."""
-    if type(left) is type(right) and isinstance(left, dict):
-        inner = structural and not path.endswith(("/counts", "/metadata", "/schema_metadata")) \
-            and "/rows/" not in path + "/"
-        keys = sorted(set(left) | set(right), key=str)
-        for position, key in enumerate(keys):
-            segment = _segment(key, position, inner)
-            if key not in left or key not in right:
-                return f"{path}/{segment}"
-            if not _same(left[key], right[key]):
-                return difference(left[key], right[key], f"{path}/{segment}", structural)
-    if type(left) is type(right) and isinstance(left, list):
-        if len(left) != len(right):
-            return f"{path} (length)"
-        for index, (one, other) in enumerate(zip(left, right)):
-            if not _same(one, other):
-                return difference(one, other, f"{path}/{index}")
-    return path or "/"
+    position among the sorted keys, never by its key. It descends the one
+    differing branch in a loop, never by recursion."""
+    while True:
+        if type(left) is type(right) and isinstance(left, dict):
+            inner = structural and not path.endswith(("/counts", "/metadata", "/schema_metadata")) \
+                and "/rows/" not in path + "/"
+            keys = sorted(set(left) | set(right), key=str)
+            for position, key in enumerate(keys):
+                segment = _segment(key, position, inner)
+                if key not in left or key not in right:
+                    return f"{path}/{segment}"
+                if not _same(left[key], right[key]):
+                    left, right, path = left[key], right[key], f"{path}/{segment}"
+                    break
+            else:
+                return path or "/"
+            continue
+        if type(left) is type(right) and isinstance(left, list):
+            if len(left) != len(right):
+                return f"{path} (length)"
+            for index, (one, other) in enumerate(zip(left, right)):
+                if not _same(one, other):
+                    # An array element is named as the recursion named it.
+                    left, right, path, structural = one, other, f"{path}/{index}", True
+                    break
+            else:
+                return path or "/"
+            continue
+        return path or "/"

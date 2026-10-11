@@ -20,7 +20,7 @@ from pathlib import Path
 from decimal import Decimal
 from typing import Any, NamedTuple
 
-from json_values import json_key, same_json
+from json_values import decimal_text, json_key, same_json
 
 ROOT = Path(__file__).resolve().parents[1]
 # The main revision every later check starts from (merge of PR #12,
@@ -119,7 +119,8 @@ def canonical_text(value: Any) -> str:
     """Compact JSON with sorted member names, written with an explicit
     stack. Without decimal numbers it is the text of `json.dumps(value,
     sort_keys=True, separators=(",", ":"))`, so the published errata digests
-    keep their value; a decimal number is written with its exact text."""
+    keep their value; a decimal number is written by its exact value, so
+    `1.0`, `1.00` and `1e0` have one text and `1.0000000000000001` another."""
     parts: list[str] = []
     stack: list[Any] = [value]
     close = object()
@@ -130,7 +131,7 @@ def canonical_text(value: Any) -> str:
         elif item is None or type(item) in (bool, int, str):
             parts.append(json.dumps(item))
         elif type(item) is Decimal:
-            parts.append(str(item))
+            parts.append(decimal_text(item))
         elif type(item) is dict:
             names = sorted(item)
             parts.append("{")

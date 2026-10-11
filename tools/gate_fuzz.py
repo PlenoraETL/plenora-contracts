@@ -70,16 +70,26 @@ def serialize(document: Any) -> bytes:
     return (text + "\n").encode("utf-8")
 
 
-def members(value: Any, prefix: tuple[Any, ...] = ()) -> Iterator[tuple[Any, ...]]:
-    """Every object member and every array element, at any depth."""
+def _children(value: Any, prefix: tuple[Any, ...]) -> Iterator[tuple[tuple[Any, ...], Any]]:
     if isinstance(value, dict):
-        for key, child in value.items():
-            yield prefix + (key,)
-            yield from members(child, prefix + (key,))
-    elif isinstance(value, list):
-        for index, child in enumerate(value):
-            yield prefix + (index,)
-            yield from members(child, prefix + (index,))
+        return ((prefix + (key,), child) for key, child in value.items())
+    if isinstance(value, list):
+        return ((prefix + (index,), child) for index, child in enumerate(value))
+    return iter(())
+
+
+def members(value: Any, prefix: tuple[Any, ...] = ()) -> Iterator[tuple[Any, ...]]:
+    """Every object member and every array element, at any depth, in
+    document order; walked with an explicit stack, never by recursion."""
+    stack = [_children(value, prefix)]
+    while stack:
+        found = next(stack[-1], None)
+        if found is None:
+            stack.pop()
+            continue
+        path, child = found
+        yield path
+        stack.append(_children(child, path))
 
 
 def is_data(path: Path) -> bool:

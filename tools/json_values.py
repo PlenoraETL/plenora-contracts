@@ -42,13 +42,43 @@ def _scalar(value: Any) -> tuple[str, Any] | None:
         # `repr` tells -0.0 from 0.0; a NaN is the same as itself.
         return ("float", repr(value))
     if kind is Decimal:
-        # The exact text of the number: `1.0` and `1.00` are two spellings.
-        return ("decimal", str(value))
+        # By exact value: `1.0`, `1.00` and `1e0` are one number
+        # (COMPATIBILITY.md), `1.0000000000000001` another.
+        return ("decimal", decimal_value(value))
     if kind is str:
         return ("string", value)
     if kind in (list, tuple, dict):
         return None
     raise TypeError(f"not JSON data: {kind.__name__}")
+
+
+def decimal_value(value: Decimal) -> tuple:
+    """The exact value of a decimal, independent of its spelling and of any
+    context precision (`Decimal.normalize` would round to 28 digits): sign,
+    digits without trailing zeros and exponent; every zero is one value."""
+    sign, digits, exponent = value.as_tuple()
+    if not isinstance(exponent, int):
+        # NaN or infinity, which JSON does not have: compared as written.
+        return ("special", str(value))
+    digits = list(digits)
+    while len(digits) > 1 and digits[-1] == 0:
+        digits.pop()
+        exponent += 1
+    if digits == [0]:
+        return (0, (0,), 0)
+    return (sign, tuple(digits), exponent)
+
+
+def decimal_text(value: Decimal) -> str:
+    """A JSON number text of the exact value of a decimal: two spellings of
+    one value have the same text."""
+    image = decimal_value(value)
+    if image[0] == "special":
+        raise TypeError("not JSON data: a decimal that is not a finite number")
+    sign, digits, exponent = image
+    # Always with an exponent: an integer is never written so, and stays
+    # another value (`1` against `1.0`).
+    return ("-" if sign else "") + "".join(map(str, digits)) + f"E{exponent}"
 
 
 def _names(value: dict) -> list[str]:

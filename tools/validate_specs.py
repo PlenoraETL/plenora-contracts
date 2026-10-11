@@ -459,10 +459,31 @@ def validate_example_inventory() -> list[str]:
     return example_inventory_errors(ROOT, registrations)
 
 
+def _json_key_text(key: Any) -> str:
+    """The member name `json.dumps` writes for a dictionary key."""
+    return key if isinstance(key, str) else json.dumps(key)
+
+
 def compact_json_size(value: Any) -> int:
-    return len(
-        json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    )
+    """The UTF-8 size of `json.dumps(value, ensure_ascii=False,
+    separators=(",", ":"))`, counted with an explicit stack: a value nested
+    deeper than the recursion limit is measured, not an internal error."""
+    size = 0
+    stack = [value]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, dict):
+            # Braces, a colon per member and a comma between members.
+            size += 2 + len(item) + max(len(item) - 1, 0)
+            for key, child in item.items():
+                size += len(json.dumps(_json_key_text(key), ensure_ascii=False).encode("utf-8"))
+                stack.append(child)
+        elif isinstance(item, (list, tuple)):
+            size += 2 + max(len(item) - 1, 0)
+            stack.extend(item)
+        else:
+            size += len(json.dumps(item, ensure_ascii=False).encode("utf-8"))
+    return size
 
 
 def error_bound_errors(error: dict[str, Any]) -> list[str]:
@@ -1489,25 +1510,40 @@ def rest_capability_errors(
     return errors
 
 
+def _walk(value: Any):
+    """Every member (`(key, child)`, `key` None for an array element) of a
+    JSON value at any depth, in document order, with an explicit stack: a
+    document deeper than the recursion limit is read like a flat one."""
+    def children(node: Any):
+        if isinstance(node, dict):
+            return iter(node.items())
+        if isinstance(node, list):
+            return ((None, child) for child in node)
+        return iter(())
+
+    stack = [children(value)]
+    while stack:
+        found = next(stack[-1], None)
+        if found is None:
+            stack.pop()
+            continue
+        yield found
+        stack.append(children(found[1]))
+
+
 def nested_items(value: Any):
-    if isinstance(value, dict):
-        for key, child in value.items():
-            yield key, child
-            yield from nested_items(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from nested_items(child)
+    """Every object member `(key, value)` at any depth, in document order."""
+    return ((key, child) for key, child in _walk(value) if key is not None)
 
 
 def artifact_strings(value: Any):
+    """Every string value at any depth, in document order."""
     if isinstance(value, str):
         yield value
-    elif isinstance(value, dict):
-        for child in value.values():
-            yield from artifact_strings(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from artifact_strings(child)
+        return
+    for _, child in _walk(value):
+        if isinstance(child, str):
+            yield child
 
 
 # Fixture guards for private local paths and inline credentials (RT-008,

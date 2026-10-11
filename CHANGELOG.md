@@ -57,8 +57,12 @@ full commit SHA; a release tag names one of those commits.
   the gate harness answered such a mutation with the unmutated verdict. The
   comparisons walk the data with an explicit stack, in linear time, so a
   deeply nested document is compared like a flat one; the immutability
-  guard parses numbers as exact decimals (`1.0` and `1.0000000000000001`
-  differ) and refuses `NaN` and `Infinity`. No contract document changes.
+  guard parses numbers as exact decimals compared by value (`1.0`, `1.00`
+  and `1e0` are one number, as COMPATIBILITY.md treats them; `1` and `1.0`,
+  `1.0` and `1.0000000000000001` differ) and refuses `NaN` and `Infinity`.
+  The gate's other traversals (fuzz members, nested items and strings of
+  payloads, the error size bound, the REST adapter's difference path) walk
+  with an explicit stack too. No contract document changes.
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
   universal from Python 3.10: `rpds-py` keeps 0.30.0, its last release for
   Python 3.10, under `python_full_version < '3.11'` and 2026.9.1 above; the
