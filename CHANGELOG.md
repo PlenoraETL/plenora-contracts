@@ -8,6 +8,27 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- Arrow Geometry Semantics 1.0 (`plenora-arrow-geometry-semantics-v1`), an
+  opt-in contract next to Arrow Vocabulary 1.0 that changes neither keys,
+  values nor `plenora.contract.version` (GEO-000 to GEO-020): input
+  conformance, component support and operation applicability are distinct
+  verdicts; `axis_order` is the stored order, declared by the producer;
+  `crs_id` is normative, a contradictory top-level identifier is `crs`, and a
+  component verifies a definition before computing with one conservative
+  subset (exact decimals, two spellings of the degree, closed aliases, units
+  by quantity, datum and conversion) over a closed grammar of the three
+  formats, closed on members and on the kind of every value, outside which a
+  definition is undecidable (GEO-019), with
+  ignorable usage metadata and the reference WGS 84 ensemble, so that the
+  WKT 2 and PROJJSON PROJ 9.6.2 writes are verified; a local catalog
+  identifier (`POSTGIS:n`, ...) is never resolved and never computed with
+  (GEO-020); both `wkb` and `ewkb` are accepted;
+  several types and geometry fields are valid; identity and precision of
+  produced fields. Arrow Vocabulary 1.0 keeps its published text, with an
+  informative pointer. New schema `arrow-data-vector-v1` and 71 vectors in
+  `vectors/arrow-data-v1`. No existing schema, catalog, binding or vector
+  changes. See
+  [decision 0013](decisions/0013-geometry-vocabulary-semantics.md).
 - REST-to-Arrow Adapter 1.0 (`plenora-rest-arrow-adapter-v1`): the adapter
   of the `rest.enrich` to `data.run` edges belongs to the application, and
   an adapter claiming the contract declares fields (name, identity, RFC 6901
