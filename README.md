@@ -35,7 +35,9 @@ An adopter does not need to read the implementation of the other components.
 The normative sources are:
 
 - [public surface contract](specs/surfaces/PUBLIC-SURFACES-1.0.md);
-- [public catalogs contract](specs/catalogs/PUBLIC-CATALOGS-1.0.md);
+- [public catalogs contract](specs/catalogs/PUBLIC-CATALOGS-1.0.md) and its
+  [version 2.0](specs/catalogs/PUBLIC-CATALOGS-2.0.md)
+  ([transition](COMPATIBILITY.md#public-catalogs-and-runtime-binding-10-to-20));
 - [exact surface bindings](specs/surfaces/SURFACE-BINDINGS-1.0.md);
 - [capability discovery contract](specs/capabilities/CAPABILITY-DISCOVERY-2.0.md);
 - [typed error contract](specs/errors/ERRORS-1.0.md);
@@ -46,7 +48,8 @@ The normative sources are:
 - [Data Plan 1.0](specs/data/DATA-PLAN-1.0.md), the plan accepted by `data.validate` and `data.run` version 2;
 - [row diagnostics contract](specs/diagnostics/ROW-DIAGNOSTICS-1.0.md);
 - [public security contract](specs/security/PUBLIC-SECURITY-1.0.md);
-- [runtime binding contract](specs/runtime/RUNTIME-BINDING-1.0.md);
+- [runtime binding contract](specs/runtime/RUNTIME-BINDING-1.0.md) and its
+  [version 2.0](specs/runtime/RUNTIME-BINDING-2.0.md);
 - [runtime conformance vectors](specs/runtime/RUNTIME-VECTORS-1.0.md);
 - [cross-component composition contract](specs/composition/COMPOSITION-1.0.md);
 - [interoperability vectors](specs/composition/INTEROP-VECTORS-1.0.md), opt-in for the components that claim Arrow geometry semantics;
