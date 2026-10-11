@@ -735,6 +735,10 @@ def runtime_negotiation_decision(sender: dict[str, Any], interface: Any) -> dict
     """Runtime Binding 2.0 RT-026: the decision of the sender, or of the
     transport that routes for it, from the runtime interface of the
     destination's capability document (None: the document cannot be read)."""
+    if sender.get("kind") == "transport" and sender.get("context") != "preserved":
+        # RT-027: a hop that finds the negotiation context lost refuses; the
+        # same bytes would otherwise be routed as a request of 1.0.
+        return dict(REFUSED_BEFORE_SENDING)
     if not isinstance(interface, dict):
         return dict(REFUSED_BEFORE_SENDING)
     advertised = interface.get("contract")

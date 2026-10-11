@@ -2,7 +2,7 @@
   "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
   "schema_version": 1,
   "contract": "plenora-runtime-negotiation-vector-v1",
-  "description": "A client that requires 1.0 and a destination of 2.0: sent with wire version 1, which the destination accepts; every result of 2.0 is one 1.0 admits (RT-025, RT-026 item 1).",
+  "description": "A client requires 1.0; the destination advertises 2.0: sent with wire version 1, which the destination accepts; every result of 2.0 is one 1.0 admits (RT-025, RT-026 item 1).",
   "sender": {
     "kind": "client",
     "requires": "plenora-runtime-binding-v1",

@@ -25,9 +25,22 @@ def interface(contract, version):
 
 
 class DecisionTests(unittest.TestCase):
-    def decide(self, requires, downgrade, destination):
-        return validator.runtime_negotiation_decision(
-            {"kind": "client", "requires": requires, "accepts_downgrade": downgrade}, destination)
+    def decide(self, requires, downgrade, destination, kind="client", context=None):
+        sender = {"kind": kind, "requires": requires, "accepts_downgrade": downgrade}
+        if context is not None:
+            sender["context"] = context
+        return validator.runtime_negotiation_decision(sender, destination)
+
+    def test_a_lost_context_is_refused_whatever_the_destination(self):
+        """RT-027: a hop that finds the negotiation context lost refuses; the
+        same bytes would otherwise be routed as a request of 1.0."""
+        for requires in (V1, V2):
+            for downgrade in (False, True):
+                for destination in (interface(V1, 1), interface(V2, 2), None):
+                    with self.subTest(requires=requires, downgrade=downgrade, destination=destination):
+                        self.assertEqual(self.decide(requires, downgrade, destination, "transport", "lost"), REFUSE)
+                        preserved = self.decide(requires, downgrade, destination, "transport", "preserved")
+                        self.assertEqual(preserved, self.decide(requires, downgrade, destination))
 
     def test_the_cases_of_rt_026(self):
         cases = [
@@ -52,15 +65,37 @@ class DecisionTests(unittest.TestCase):
 
 class VectorTests(unittest.TestCase):
     def test_every_published_vector_agrees_with_the_rule(self):
-        paths = sorted(VECTORS.glob("*.json"))
-        self.assertGreaterEqual(len(paths), 6)
         self.assertEqual(validator.validate_runtime_negotiation_vectors(), [])
-        decisions = {(vector(path.name)["sender"]["kind"], vector(path.name)["expect"]["decision"]) for path in paths}
-        # The three cases the transition names: 2.0 to 1.0 (refused and with
-        # an explicit downgrade), 1.0 to 2.0, and a routed request.
-        self.assertIn(("transport", "refuse"), decisions)
-        self.assertIn(("client", "refuse"), decisions)
-        self.assertIn(("client", "send"), decisions)
+
+    def test_the_vectors_cover_every_case_for_clients_and_transports(self):
+        """Every combination of RT-026 and RT-027, for a client and for a
+        transport: a set of vectors that only refuses, or only covers the
+        client, does not pass."""
+        found = set()
+        for path in VECTORS.glob("*.json"):
+            document = vector(path.name)
+            sender, destination = document["sender"], document["destination"]["interface"]
+            found.add((
+                sender["kind"], sender["requires"], sender["accepts_downgrade"],
+                None if destination is None else (destination["contract"], destination["version"]),
+                sender.get("context", "preserved"), document["expect"]["decision"],
+            ))
+        required = set()
+        for kind in ("client", "transport"):
+            required |= {
+                (kind, V2, False, (V2, 2), "preserved", "send"),
+                (kind, V2, False, (V1, 1), "preserved", "refuse"),
+                (kind, V2, True, (V1, 1), "preserved", "send"),
+                (kind, V1, False, (V2, 2), "preserved", "send"),
+                (kind, V1, False, (V1, 1), "preserved", "send"),
+                (kind, V2, True, None, "preserved", "refuse"),
+            }
+        required |= {
+            ("client", V1, False, (V2, 1), "preserved", "refuse"),
+            ("transport", V2, False, (V1, 1), "lost", "refuse"),
+            ("transport", V2, False, (V2, 2), "lost", "refuse"),
+        }
+        self.assertEqual(sorted(required - found, key=str), [])
 
     def test_a_wrong_decision_is_reported(self):
         original = validator.load_json

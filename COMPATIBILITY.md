@@ -180,7 +180,10 @@ conditions:
   downgrade, and otherwise refuses before sending; a request meant for 2.0
   routed to a destination of 1.0 is detectable only by that selection, so a
   transport that routes such requests checks each destination's capability
-  document and refuses when it cannot read it. The vectors of
+  document and refuses when it cannot read it. The sender's requirement and
+  its consent to the downgrade travel outside the envelope, from the ingress
+  through every intermediary to the hop that selects the destination, and a
+  hop that finds them lost refuses (RT-027). The vectors of
   `vectors/runtime-negotiation-v1` state each case;
 - an adoption manifest declares each contract identifier it claims
   (`plenora-public-catalog-v1` or `-v2`, `plenora-runtime-binding-v1` or
