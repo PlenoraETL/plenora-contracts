@@ -69,12 +69,15 @@ from a claim of 1.0 and adds, for runtime-tools:
   document advertises `plenora-runtime-binding-v2`, or to one of 1.0 after
   the sender's explicit downgrade, and refused before sending when the
   destination's capability document cannot be read (RT-026);
-- as ingress, runtime-tools attaches the negotiation context the sender
-  states, or the default of 1.0 for a sender that states none; as
-  intermediary, it carries the context unchanged outside the envelope and
-  never forwards a request without it; as the hop that selects the
-  destination, it refuses a request from another hop whose context is
-  missing (RT-027);
+- it keeps the acceptance record of every request by
+  `plenora.message.id`; as ingress of a new request it attaches the context
+  the sender states, or the default of 1.0 for a sender that states none
+  unless it is configured with a minimum requirement of 2.0, which refuses
+  such a request; for a retry, a redrive or a resend it acts as a
+  forwarding; it carries the context unchanged outside the envelope, and
+  refuses a request whose context is lost or altered, or whose acceptance
+  record it cannot read (RT-027). Its adoption manifest states whether a
+  minimum requirement of 2.0 is configured at its ingress;
 - a result the transport cannot carry whole fails with `resource_limit` and
   is never delivered truncated as a success (RT-024); the transport's bound
   is declared in its adoption manifest;

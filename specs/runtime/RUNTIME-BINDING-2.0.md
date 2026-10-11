@@ -313,27 +313,50 @@ reaches the hop that selects the effective destination unchanged, through
 every forwarding:
 
 1. *Where it is.* Outside the runtime envelope, in the transport metadata
-   of each hop (message attributes, headers, or a durable record bound to
-   `plenora.message.id`), as two values: `plenora.negotiation.requires`
-   (`plenora-runtime-binding-v1` or `plenora-runtime-binding-v2`) and
-   `plenora.negotiation.accepts_downgrade` (`true` or `false`). It is never
-   written into the reserved metadata or the payload of the request, so the
-   wire format of RT-025 does not change, and the destination neither reads
-   nor needs it.
-2. *Who sets it.* The sender states it to the transport. The ingress, the
-   hop that receives the request from a sender it is configured to serve,
-   attaches it; for a sender that states none, a sender of 1.0, it attaches
-   `plenora-runtime-binding-v1` without downgrade. Only an ingress may
-   supply that default.
-3. *Who keeps it.* Every intermediary that forwards the request, a queue, a
-   router or a relay, carries the context unchanged with the request to the
-   next hop, and never forwards the request without it. An intermediary
-   that cannot carry it refuses the request when it receives it.
-4. *Who applies it.* The hop that selects the effective destination applies
-   RT-026 with the context. A hop that receives the request from another
-   hop of the route, not from a sender it serves, and finds no context
-   refuses before sending: the context was lost, and the same bytes would
-   otherwise be routed as a request of 1.0.
+   of each hop (message attributes or headers), as two values:
+   `plenora.negotiation.requires` (`plenora-runtime-binding-v1` or
+   `plenora-runtime-binding-v2`) and `plenora.negotiation.accepts_downgrade`
+   (`true` or `false`). It is never written into the reserved metadata or
+   the payload of the request, so the wire format of RT-025 does not change,
+   and the destination neither reads nor needs it.
+2. *The acceptance record.* The transport keeps, for every request it has
+   accepted, a durable record bound to its `plenora.message.id` that holds
+   the context fixed at its first acceptance, readable by every hop of the
+   transport for as long as the transport may still deliver, retry,
+   redrive or resend that request.
+3. *Ingress or forwarding, per request.* Whether a hop acts as ingress is
+   a property of the request, not of the service it receives it from. A
+   hop is the ingress of a request only when it accepts it from outside the
+   transport and no acceptance record exists for its `plenora.message.id`:
+   a new request. Every other reception, a retry, a redrive from a
+   dead-letter queue, a resend by the sender with the same
+   `plenora.message.id`, or a delivery from another hop, is a forwarding.
+   A hop that cannot read the acceptance record cannot tell the two cases
+   apart and refuses.
+4. *The ingress.* The sender states the context to the ingress, which
+   writes it into the acceptance record. For a sender that states none, the
+   ingress attaches `plenora-runtime-binding-v1` without downgrade, unless
+   it is configured with a minimum requirement of
+   `plenora-runtime-binding-v2`: then a request that states no requirement,
+   or states `plenora-runtime-binding-v1`, is refused. Only the ingress of a
+   new request may supply the default.
+5. *A forwarding.* Every hop that forwards the request, a queue, a router or
+   a relay, carries the context unchanged to the next hop. A hop that
+   receives a forwarding compares the context it receives with the
+   acceptance record: a missing context is a loss, a different one an
+   alteration, and both are refused before sending; the request would
+   otherwise be routed with a context its sender did not state. A hop that
+   cannot carry the context refuses the request when it receives it.
+6. *The selection.* The hop that selects the effective destination applies
+   RT-026 with the context.
+
+**Limit.** Without a minimum requirement at the ingress, a sender of 2.0
+that states no requirement is indistinguishable from a sender of 1.0: its
+request is routed under 1.0, without RT-024, and no error reports it. The
+guarantee that a downgrade is never implicit (RT-026 item 2) covers the
+requirements a sender states, and the requests an ingress with a minimum
+requirement of 2.0 accepts; a sender of 2.0 states its requirement, or uses
+an ingress so configured.
 
 A refusal before sending is a typed error of the sender: `unsupported`,
 `phase: validate`, `remote_effect: none`, `retry.kind: never`. A sender
@@ -342,7 +365,12 @@ destination of 2.0: a refusal, never a misread result. The vectors in
 [`vectors/runtime-negotiation-v1`](../../vectors/runtime-negotiation-v1/)
 (schema
 [`runtime-negotiation-vector-v1.schema.json`](../../schemas/runtime-negotiation-vector-v1.schema.json))
-state each decision, which the validator derives from this rule.
+are sequences of hops: the context the sender states, the ingress
+configuration, and for each hop where the request comes from, the context it
+receives and forwards and whether it can read the acceptance record. The
+validator derives the decision of RT-026 and RT-027 from the sequence; the
+vectors illustrate the rules and do not attest that every sequence is
+covered.
 
 ## 16. Changes from version 1.0
 
@@ -357,6 +385,9 @@ state each decision, which the validator derives from this rule.
 - RT-026 is new: the selection of the destination decides which contract
   governs an exchange, and a downgrade from 2.0 to 1.0 is explicit.
 - RT-027 is new: the negotiation context travels outside the envelope from
-  the ingress to the hop that selects the destination, and a hop that
-  finds it lost refuses.
+  the ingress of a new request to the hop that selects the destination;
+  an acceptance record per `plenora.message.id` tells a new request from a
+  retry, a redrive or a resend, and a hop refuses a lost or altered context
+  or one it cannot check. A silent sender is routed under 1.0 unless the
+  ingress requires 2.0.
 - Every other rule, key, grammar and vector of 1.0 applies unchanged.

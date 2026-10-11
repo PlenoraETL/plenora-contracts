@@ -725,39 +725,96 @@ RUNTIME_VECTOR_DIRECTORIES = ("vectors/runtime-v1", "vectors/runtime-v2")
 
 RUNTIME_NEGOTIATION_DIRECTORY = "vectors/runtime-negotiation-v1"
 RUNTIME_BINDINGS = {"plenora-runtime-binding-v1": 1, "plenora-runtime-binding-v2": 2}
-REFUSED_BEFORE_SENDING = {
-    "decision": "refuse", "category": "unsupported", "phase": "validate",
-    "remote_effect": "none", "retry": "never",
-}
+DEFAULT_CONTEXT = {"requires": "plenora-runtime-binding-v1", "accepts_downgrade": False}
+# Every branch of the derivation of RT-026 and RT-027; the tests require the
+# published vectors to take each one.
+NEGOTIATION_BRANCHES = frozenset({
+    "ingress-stated", "ingress-default-1.0", "ingress-minimum-met", "ingress-minimum-silent",
+    "ingress-minimum-below", "first-reception-from-a-hop", "record-unreadable", "forwarding",
+    "resend-from-outside", "context-lost", "context-altered", "cannot-carry",
+    "select-send-required", "select-downgrade", "select-refuse-no-downgrade",
+    "select-capabilities-unreadable", "select-interface-mismatch",
+})
 
 
-def runtime_negotiation_decision(sender: dict[str, Any], interface: Any) -> dict[str, Any]:
-    """Runtime Binding 2.0 RT-026: the decision of the sender, or of the
-    transport that routes for it, from the runtime interface of the
-    destination's capability document (None: the document cannot be read)."""
-    if sender.get("kind") == "transport" and sender.get("context") != "preserved":
-        # RT-027: a hop that finds the negotiation context lost refuses; the
-        # same bytes would otherwise be routed as a request of 1.0.
-        return dict(REFUSED_BEFORE_SENDING)
+def _refusal(at_hop: int) -> dict[str, Any]:
+    return {
+        "decision": "refuse", "at_hop": at_hop, "category": "unsupported", "phase": "validate",
+        "remote_effect": "none", "retry": "never",
+    }
+
+
+def runtime_negotiation_outcome(vector: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Runtime Binding 2.0 RT-026 and RT-027 on a sequence of hops: the
+    decision, and the branches taken. The acceptance record is the context of
+    the first acceptance; a hop is the ingress of a new request only when it
+    receives it from outside and no record exists."""
+    hops = vector["hops"]
+    minimum = vector["ingress"]["minimum"]
+    record: dict[str, Any] | None = None
+    branches: list[str] = []
+    for position, hop in enumerate(hops):
+        if hop["record"] != "readable":
+            # It cannot tell a new request from a retry, a redrive or a resend.
+            return _refusal(position), branches + ["record-unreadable"]
+        received = hop["receives"]
+        if record is None:
+            if hop["from"] != "sender":
+                return _refusal(position), branches + ["first-reception-from-a-hop"]
+            if received is None:
+                if minimum == "plenora-runtime-binding-v2":
+                    return _refusal(position), branches + ["ingress-minimum-silent"]
+                record = dict(DEFAULT_CONTEXT)
+                branches.append("ingress-default-1.0")
+            elif minimum == "plenora-runtime-binding-v2" and received["requires"] != minimum:
+                return _refusal(position), branches + ["ingress-minimum-below"]
+            else:
+                record = dict(received)
+                branches.append("ingress-minimum-met" if minimum else "ingress-stated")
+        else:
+            # A retry, a redrive or a resend: never an ingress.
+            branches.append("resend-from-outside" if hop["from"] == "sender" else "forwarding")
+            if received is None:
+                return _refusal(position), branches + ["context-lost"]
+            if received != record:
+                return _refusal(position), branches + ["context-altered"]
+        if position < len(hops) - 1 and not hop["carries"]:
+            return _refusal(position), branches + ["cannot-carry"]
+    selector = len(hops) - 1
+    interface = vector["destination"]["interface"]
     if not isinstance(interface, dict):
-        return dict(REFUSED_BEFORE_SENDING)
+        return _refusal(selector), branches + ["select-capabilities-unreadable"]
     advertised = interface.get("contract")
-    if RUNTIME_BINDINGS.get(advertised) != interface.get("version") or isinstance(interface.get("version"), bool):
-        # Another contract, or a version that is not that of its contract.
-        return dict(REFUSED_BEFORE_SENDING)
-    if sender["requires"] == "plenora-runtime-binding-v1":
-        return {"decision": "send", "governed_by": advertised}
-    if advertised == "plenora-runtime-binding-v2":
-        return {"decision": "send", "governed_by": advertised}
-    if sender["accepts_downgrade"] is True:
-        return {"decision": "send", "governed_by": advertised}
+    version = interface.get("version")
+    if isinstance(version, bool) or RUNTIME_BINDINGS.get(advertised) != version:
+        return _refusal(selector), branches + ["select-interface-mismatch"]
+    if record is None:
+        # No hop: the schema requires one; never a decision without a context.
+        return _refusal(selector), branches + ["first-reception-from-a-hop"]
+    if record["requires"] == "plenora-runtime-binding-v1" or advertised == "plenora-runtime-binding-v2":
+        return {"decision": "send", "governed_by": advertised}, branches + ["select-send-required"]
+    if record["accepts_downgrade"] is True:
+        return {"decision": "send", "governed_by": advertised}, branches + ["select-downgrade"]
     # The downgrade from 2.0 to 1.0 is never implicit.
-    return dict(REFUSED_BEFORE_SENDING)
+    return _refusal(selector), branches + ["select-refuse-no-downgrade"]
+
+
+def negotiation_route_errors(vector: dict[str, Any]) -> list[str]:
+    """A vector is a route: a hop receives from another hop what that hop
+    forwarded, and the hop that selects the destination forwards nothing."""
+    errors = []
+    hops = vector["hops"]
+    for position, hop in enumerate(hops):
+        if position > 0 and hop["from"] == "hop" and hop["receives"] != hops[position - 1]["forwards"]:
+            errors.append(f"hop {position} receives a context other than the one hop {position - 1} forwards")
+    if hops and hops[-1]["forwards"] is not None:
+        errors.append("the hop that selects the destination forwards a context")
+    return errors
 
 
 def validate_runtime_negotiation_vectors() -> list[str]:
-    """Each negotiation vector states the decision RT-026 gives, for a
-    request vector of wire version 1 (RT-025)."""
+    """Each negotiation vector is a route of hops and states the decision
+    RT-026 and RT-027 give, for a request vector of wire version 1."""
     failures: list[str] = []
     paths = sorted((ROOT / RUNTIME_NEGOTIATION_DIRECTORY).glob("*.json"))
     if not paths:
@@ -777,9 +834,12 @@ def validate_runtime_negotiation_vectors() -> list[str]:
         if metadata.get("plenora.capability.version") != "1":
             failures.append(f"{label} names a request whose wire version is not 1 (RT-025)")
             continue
-        expected = runtime_negotiation_decision(vector["sender"], vector["destination"]["interface"])
-        if vector["expect"] != expected:
-            failures.append(f"{label} states a decision other than the one RT-026 gives")
+        route = negotiation_route_errors(vector)
+        if route:
+            failures.append(f"{label}: {route[0]}")
+            continue
+        if vector["expect"] != runtime_negotiation_outcome(vector)[0]:
+            failures.append(f"{label} states a decision other than the one RT-026 and RT-027 give")
     return failures
 
 

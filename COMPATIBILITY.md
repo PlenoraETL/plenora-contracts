@@ -182,15 +182,22 @@ conditions:
   transport that routes such requests checks each destination's capability
   document and refuses when it cannot read it. The sender's requirement and
   its consent to the downgrade travel outside the envelope, from the ingress
-  through every intermediary to the hop that selects the destination, and a
-  hop that finds them lost refuses (RT-027). The vectors of
-  `vectors/runtime-negotiation-v1` state each case;
+  of a new request through every forwarding to the hop that selects the
+  destination; an acceptance record per `plenora.message.id` tells a new
+  request from a retry, a redrive or a resend, and a hop refuses a lost or
+  altered context or one it cannot check (RT-027). The vectors of
+  `vectors/runtime-negotiation-v1` illustrate these sequences;
+- the guarantee against an implicit downgrade covers only stated
+  requirements: a sender of 2.0 that states none is indistinguishable from
+  a sender of 1.0 and is routed under 1.0, unless the ingress is configured
+  with a minimum requirement of 2.0, which then refuses it;
 - an adoption manifest declares each contract identifier it claims
   (`plenora-public-catalog-v1` or `-v2`, `plenora-runtime-binding-v1` or
   `-v2`), with its own verification.
 
-There is no unconditional compatibility: a sender that requires 2.0 and a
-destination of 1.0 do not exchange without an explicit downgrade.
+There is no unconditional compatibility: a sender that states a
+requirement of 2.0 and a destination of 1.0 do not exchange without an
+explicit downgrade.
 
 **Exit of 1.0.** No 1.0 document, schema, catalog or vector is ever removed
 or changed: a pin to a revision that adopts 1.0 stays valid. Version 1.0
