@@ -74,8 +74,8 @@ their internal implementation.
 The three version 2 schemas, `plenora-io-read-result-v2`,
 `plenora-io-write-result-v2` and `plenora-io-catalog-v2`, are not published in
 this repository: IO-tools publishes them, with their examples, in the release
-that first claims this profile. Until then no artifact can claim profile
-version 2, and the meaning fixed below (IO-SER-001, IO-CAT-001, IO-NULL-001)
+that first claims profile version 2 or this profile. Until then no artifact
+can claim either, and the meaning fixed below (IO-SER-001, IO-CAT-001, IO-NULL-001)
 is what those schemas MUST encode.
 
 When an IO error includes `details`, the value MUST conform to the
@@ -146,10 +146,12 @@ those states are observable.
 
 ## Cutover from profile version 1
 
-Profile version 2 is a component major change for IO-tools: the three
-operations change version and output contract. CLI protocol v2 and the rules of
-profile version 1 on deprecated command spellings continue to apply.
-
+Profile version 2, whose operations this profile keeps unchanged, was a
+component major change for IO-tools: the three operations changed version and
+output contract. CLI protocol v2 and the rules of profile version 1 on
+deprecated command spellings continue to apply. From profile version 2 to
+this profile no operation changes: only the contracts 2.0 and the runtime
+applicability.
 ## Not specified here
 
 This profile does not prescribe drivers, parsers, temporary files, spooling,
