@@ -142,6 +142,34 @@ class VectorTests(unittest.TestCase):
                           if "intermediary-preserves-context.json" in error]
                 self.assertEqual(len(errors), 1, errors)
 
+    def test_nothing_travels_past_a_refusal(self):
+        """The refusing hop ends the route: a vector whose ingress refuses (an
+        unreadable record) but still forwards to a later hop is refused, even
+        when it states the refusal it derives."""
+        original = validator.load_json
+
+        def after_refusal(path):
+            document = original(path)
+            if path.parent.name == "runtime-negotiation-v1" and path.name == "declared-2-0-to-server-2-0.json":
+                document = copy.deepcopy(document)
+                document["hops"][0]["record"] = "unreadable"
+                document["expect"] = {"decision": "refuse", "at_hop": 0, "category": "unsupported",
+                                      "phase": "validate", "remote_effect": "none", "retry": "never"}
+            return document
+
+        with patch.object(validator, "load_json", after_refusal):
+            errors = validator.validate_runtime_negotiation_vectors()
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("hops follow the hop that refuses", errors[0])
+        # The published negative example, registered in the inventory.
+        schemas = {name: validator.load_json(ROOT / "schemas" / name) for name in validator.EXPECTED_SCHEMAS}
+        self.assertEqual(validator.validate_negotiation_violating(schemas, validator.schema_registry(schemas)), [])
+        for relative in validator.NEGOTIATION_VIOLATING:
+            example = validator.load_json(ROOT / relative)
+            self.assertIsNotNone(example["hops"][0]["forwards"])
+            self.assertEqual(validator.negotiation_vector_errors(example),
+                             ["hops follow the hop that refuses the request (RT-027)"])
+
     def test_the_gate_validates_their_schema(self):
         schemas = {name: validator.load_json(ROOT / "schemas" / name) for name in validator.EXPECTED_SCHEMAS}
         registry = validator.schema_registry(schemas)

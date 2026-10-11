@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
 from messages import contract_name, differing_members
 
@@ -55,6 +56,8 @@ EXPECTED_SCHEMAS = {
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
     "public-catalog-v2.schema.json",
+    "rest-arrow-adapter-v1.schema.json",
+    "rest-arrow-adapter-vector-v1.schema.json",
     "row-diagnostics-v1.schema.json",
     "runtime-probe-v1.schema.json",
     "runtime-vector-v1.schema.json",
@@ -132,6 +135,13 @@ CASES = {
         ],
         "runtime-probe-v1.schema.json": [
             "examples/invalid/runtime-probe-two-mutations.json",
+        ],
+        "rest-arrow-adapter-v1.schema.json": [
+            "examples/invalid/rest-arrow-adapter-unknown-type.json",
+            "examples/invalid/rest-arrow-adapter-reserved-name.json",
+        ],
+        "rest-arrow-adapter-vector-v1.schema.json": [
+            "examples/invalid/rest-arrow-adapter-vector-error-without-cause.json",
         ],
         "plan-budget-v1.schema.json": [
             "examples/invalid/plan-budget-v5-with-domain.json",
@@ -447,6 +457,7 @@ def validate_example_inventory() -> list[str]:
     registrations.extend((path, "invalid", "data-plan") for path in DATA_PLAN_VIOLATING)
     registrations.extend((path, "invalid", "data-plan-number") for path in DATA_PLAN_NUMBER_VIOLATING)
     registrations.extend((path, "invalid", "public-semantics") for path in PUBLIC_SEMANTIC_CASES)
+    registrations.extend((path, "invalid", "runtime-negotiation") for path in NEGOTIATION_VIOLATING)
     return example_inventory_errors(ROOT, registrations)
 
 
@@ -585,6 +596,9 @@ def validate_machine_documents(
         ),
         "runtime-negotiation-vector-v1.schema.json": sorted(
             (ROOT / RUNTIME_NEGOTIATION_DIRECTORY).glob("*.json")
+        ),
+        "rest-arrow-adapter-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/rest-arrow-adapter-v1").glob("*.json")
         ),
     })
     failures: list[str] = []
@@ -778,7 +792,9 @@ def runtime_negotiation_outcome(vector: dict[str, Any]) -> tuple[dict[str, Any],
                 return _refusal(position), branches + ["context-lost"]
             if received != record:
                 return _refusal(position), branches + ["context-altered"]
-        if position < len(hops) - 1 and not hop["carries"]:
+        if not hop["carries"]:
+            # Every hop of the route carries the context, the selecting one
+            # into its decision.
             return _refusal(position), branches + ["cannot-carry"]
     selector = len(hops) - 1
     interface = vector["destination"]["interface"]
@@ -808,38 +824,66 @@ def negotiation_route_errors(vector: dict[str, Any]) -> list[str]:
         if position > 0 and hop["from"] == "hop" and hop["receives"] != hops[position - 1]["forwards"]:
             errors.append(f"hop {position} receives a context other than the one hop {position - 1} forwards")
     if hops and hops[-1]["forwards"] is not None:
-        errors.append("the hop that selects the destination forwards a context")
+        errors.append("the last hop, which selects the destination or refuses, forwards a context")
     return errors
 
 
+def negotiation_vector_errors(vector: dict[str, Any]) -> list[str]:
+    """One negotiation vector, its request resolved from the published
+    directory: a route of hops that states the decision RT-026 and RT-027
+    give, for a request vector of wire version 1."""
+    request_path = (ROOT / RUNTIME_NEGOTIATION_DIRECTORY / vector["request"]).resolve()
+    if not request_path.is_file():
+        return ["names a request vector that does not exist"]
+    request = load_json(request_path)
+    metadata = member(request, "metadata")
+    if member(request, "kind") != "request" or not isinstance(metadata, dict):
+        return ["names a runtime vector that is not a request"]
+    if metadata.get("plenora.capability.version") != "1":
+        return ["names a request whose wire version is not 1 (RT-025)"]
+    route = negotiation_route_errors(vector)
+    if route:
+        return route[:1]
+    derived = runtime_negotiation_outcome(vector)[0]
+    if derived["decision"] == "refuse" and derived["at_hop"] != len(vector["hops"]) - 1:
+        # Nothing travels past a refusal: the refusing hop ends the route,
+        # and no later hop receives or forwards a context.
+        return ["hops follow the hop that refuses the request (RT-027)"]
+    if vector["expect"] != derived:
+        return ["states a decision other than the one RT-026 and RT-027 give"]
+    return []
+
+
 def validate_runtime_negotiation_vectors() -> list[str]:
-    """Each negotiation vector is a route of hops and states the decision
-    RT-026 and RT-027 give, for a request vector of wire version 1."""
     failures: list[str] = []
     paths = sorted((ROOT / RUNTIME_NEGOTIATION_DIRECTORY).glob("*.json"))
     if not paths:
         return [f"{RUNTIME_NEGOTIATION_DIRECTORY} has no vectors"]
     for path in paths:
         label = path.relative_to(ROOT).as_posix()
-        vector = load_json(path)
-        request_path = (path.parent / vector["request"]).resolve()
-        if not request_path.is_file():
-            failures.append(f"{label} names a request vector that does not exist")
+        for error in negotiation_vector_errors(load_json(path)):
+            failures.append(f"{label}: {error}")
+    return failures
+
+
+# Accepted by the schema and refused by the negotiation gate for the rule
+# their value names: without them, a check could vanish while every
+# published vector, all conforming, stays green.
+NEGOTIATION_VIOLATING = {
+    "examples/invalid/runtime-negotiation-hops-after-refusal.json": "hops follow the hop that refuses",
+}
+
+
+def validate_negotiation_violating(schemas: dict[str, dict[str, Any]], registry: Registry) -> list[str]:
+    failures: list[str] = []
+    for relative, expected in NEGOTIATION_VIOLATING.items():
+        document = load_json(ROOT / relative)
+        if instance_errors(schemas["runtime-negotiation-vector-v1.schema.json"], document, registry):
+            failures.append(f"{relative} must be accepted by the schema so that it probes the gate")
             continue
-        request = load_json(request_path)
-        metadata = member(request, "metadata")
-        if member(request, "kind") != "request" or not isinstance(metadata, dict):
-            failures.append(f"{label} names a runtime vector that is not a request")
-            continue
-        if metadata.get("plenora.capability.version") != "1":
-            failures.append(f"{label} names a request whose wire version is not 1 (RT-025)")
-            continue
-        route = negotiation_route_errors(vector)
-        if route:
-            failures.append(f"{label}: {route[0]}")
-            continue
-        if vector["expect"] != runtime_negotiation_outcome(vector)[0]:
-            failures.append(f"{label} states a decision other than the one RT-026 and RT-027 give")
+        errors = negotiation_vector_errors(document)
+        if not errors or not all(expected in error for error in errors):
+            failures.append(f"{relative} must be refused only because {expected}")
     return failures
 
 
@@ -1080,6 +1124,11 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
         identities = [(item["id"], item["version"]) for item in catalog["operations"]]
         if len(identities) != len(set(identities)):
             failures.append(f"{component} has duplicate operation identities")
+        # JSON Schema's integer admits 2.0, whose text is not the decimal
+        # version that runtime metadata and probes compare (decision 0017).
+        for position, item in enumerate(catalog["operations"]):
+            if not isinstance(item["version"], int) or isinstance(item["version"], bool):
+                failures.append(f"{component} v{version} operation #{position} version is not an integer literal")
 
         required = {
             item["id"]
@@ -2104,6 +2153,19 @@ def validate_arrow_vectors() -> list[str]:
             failures.append(
                 f"{path.relative_to(ROOT)} must contain a semantic violation"
             )
+    return failures
+
+
+def validate_rest_adapter_vectors() -> list[str]:
+    """REST-to-Arrow Adapter 1.0 section 8: each vector states the outcome
+    the reference adapter gives."""
+    failures: list[str] = []
+    paths = sorted((ROOT / "vectors/rest-arrow-adapter-v1").glob("*.json"))
+    if not paths:
+        failures.append("vectors/rest-arrow-adapter-v1 has no vectors")
+    for path in paths:
+        for problem in rest_adapter.vector_errors(load_json(path)):
+            failures.append(f"{path.relative_to(ROOT).as_posix()} {problem}")
     return failures
 
 
@@ -3175,8 +3237,10 @@ def run_gate() -> int:
     failures.extend(validate_bindings(catalogs))
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
+    failures.extend(validate_rest_adapter_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
     failures.extend(validate_runtime_negotiation_vectors())
+    failures.extend(validate_negotiation_violating(schemas, registry))
     failures.extend(validate_runtime_probes(catalogs, schemas, registry))
     failures.extend(validate_plan_budget(schemas, registry))
     failures.extend(validate_data_plan(schemas, registry))

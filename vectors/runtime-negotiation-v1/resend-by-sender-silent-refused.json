@@ -37,13 +37,6 @@
       "carries": true,
       "receives": null,
       "forwards": null
-    },
-    {
-      "from": "hop",
-      "record": "readable",
-      "carries": true,
-      "receives": null,
-      "forwards": null
     }
   ],
   "destination": {

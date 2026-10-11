@@ -35,7 +35,7 @@
       }
     },
     "hops": {
-      "description": "The hops that receive the request, in order; the last one selects the destination.",
+      "description": "The hops that receive the request, in order. The last one selects the destination or refuses the request; no hop follows a refusal, and the last hop forwards nothing (RT-027).",
       "type": "array",
       "minItems": 1,
       "maxItems": 16,
