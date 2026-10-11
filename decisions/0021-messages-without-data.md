@@ -47,7 +47,10 @@ Fixing the messages one by one did not close the class.
   example.
 - `tools/gate_fuzz.py` makes the 34,000 runs affordable: a validator that
   `run_gate` calls is re-executed only when it read the mutated file or its
-  arguments changed; listings and file existence are read once. An oracle
+  arguments changed, compared by type and value at every depth and in member
+  order (Python's `==` takes `1`, `1.0` and `true` for one value, also
+  inside a dictionary, and answered a schema whose `const` 1 became `true`
+  with the unmutated verdict); listings and file existence are read once. An oracle
   re-runs every 97th mutation with every validator executed and without the
   caches of parses, schema verdicts and schema checks, and requires the same
   output; the schema-verdict cache is keyed by the schema, the instance and

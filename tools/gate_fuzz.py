@@ -22,9 +22,12 @@ import contextlib
 import io
 import json
 import re
-from pathlib import Path
+from decimal import Decimal
+from pathlib import Path, PurePath
 from typing import Any, Callable, Iterator
 from unittest.mock import patch
+
+from referencing import Registry
 
 import validate_specs as validator
 
@@ -179,10 +182,12 @@ class Gate:
 
     def _content(self, document: Any) -> Any:
         """A key for a document: its identity when it is shared (unchanged,
-        never mutated), otherwise its whole text."""
+        never mutated), otherwise its whole text. The text keeps the member
+        order, which orders the errors of a verdict, and the JSON type of
+        every value (`1`, `1.0` and `true` differ)."""
         if id(document) in self.shared:
             return ("shared", id(document))
-        return ("text", json.dumps(document, sort_keys=True))
+        return ("text", json.dumps(document))
 
     def _registry_key(self, registry: Any) -> Any:
         """Every schema a `$ref` can reach: a mutation of a referenced schema
@@ -326,7 +331,7 @@ class Gate:
         for path in self.inputs():
             if path.suffix == ".json":
                 document = parse(self.original[path].decode("utf-8"))
-                if self.run((path, serialize(document))) != self.baseline_output:
+                if not _same(self.run((path, serialize(document))), self.baseline_output):
                     problems.append(f"{path.relative_to(ROOT).as_posix()} does not re-serialize unchanged")
         return problems
 
@@ -335,15 +340,69 @@ class Gate:
         return [
             "the gate mutated a shared document"
             for text, document in self.parsed.items()
-            if self._real_loads(text) != document
+            if not _same(self._real_loads(text), document)
         ]
 
 
 def _same(left: Any, right: Any) -> bool:
+    """The same data, by type and by value at every depth. Python's `==`
+    is not: `1 == True == 1.0`, also inside a dictionary or a list, so a
+    schema whose `const` 1 became `true` compared equal to the unmutated
+    one and its validators returned the unmutated result."""
     try:
-        return bool(left == right)
+        return _typed_equal(left, right)
     except Exception:  # noqa: BLE001 - an incomparable argument is a different one
         return False
+
+
+def _typed_equal(left: Any, right: Any) -> bool:
+    """`_canonical(left) == _canonical(right)`, walked in place: the same
+    object is the same value, so an unchanged shared document is not walked
+    again; only what differs in identity is compared by type and value."""
+    if left is right:
+        return True
+    kind = type(left)
+    if kind is not type(right):
+        return False
+    if kind is dict:
+        return (
+            len(left) == len(right)
+            and all(_typed_equal(a, b) for a, b in zip(left, right))
+            and all(_typed_equal(left[key], right[other]) for key, other in zip(left, right))
+        )
+    if kind in (list, tuple):
+        return len(left) == len(right) and all(_typed_equal(a, b) for a, b in zip(left, right))
+    return _canonical(left) == _canonical(right)
+
+
+def _canonical(value: Any) -> Any:
+    """A typed image of a value: two values have the same image only when
+    they have the same type and value at every depth, the member order of a
+    dictionary included. A value of any other kind is the same only as
+    itself."""
+    kind = type(value)
+    if value is None or kind in (bool, int, str, bytes):
+        return (kind.__name__, value)
+    if kind is float:
+        # `repr` tells -0.0 from 0.0 and makes a NaN the same as itself.
+        return ("float", repr(value))
+    if kind is Decimal:
+        return ("Decimal", str(value))
+    if kind is Raw:
+        return ("Raw", value.text)
+    if kind in (list, tuple):
+        return (kind.__name__, tuple(_canonical(item) for item in value))
+    if kind is dict:
+        return ("dict", tuple((_canonical(key), _canonical(item)) for key, item in value.items()))
+    if kind in (set, frozenset):
+        return (kind.__name__, frozenset(_canonical(item) for item in value))
+    if isinstance(value, PurePath):
+        return (kind.__name__, str(value))
+    if kind is Registry:
+        # Every schema a `$ref` can reach, as the verdict cache keys it.
+        return ("Registry", tuple(sorted(
+            ((uri, _canonical(value[uri].contents)) for uri in value), key=lambda pair: pair[0])))
+    return ("object", id(value))
 
 
 def _copy(value: Any) -> Any:

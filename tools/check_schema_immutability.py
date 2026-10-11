@@ -19,6 +19,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from json_values import json_key, same_json
+
 ROOT = Path(__file__).resolve().parents[1]
 # The main revision every later check starts from (merge of PR #12,
 # 2026-10-05). A branch is also compared with the commit where it left
@@ -167,28 +169,40 @@ def declared_erratum(
 MISSING = object()
 
 
+def changed(previous: dict, current: dict, key: Any) -> bool:
+    """A member added, removed or of another JSON value (`1`, `1.0` and
+    `true` differ: `==` would take them for the same)."""
+    if (key in previous) != (key in current):
+        return True
+    return key in previous and not same_json(previous[key], current[key])
+
+
 def fixed_fields(previous: dict, current: dict, open_fields: set[str], label: str) -> list[str]:
     return [
         f"{label} changes {key}"
         for key in sorted(set(previous) | set(current), key=str)
-        if key not in open_fields and previous.get(key, MISSING) != current.get(key, MISSING)
+        if key not in open_fields and changed(previous, current, key)
     ]
 
 
 def entries_by(items: Any, key: Callable[[dict], Any], label: str) -> tuple[dict, list[str]]:
-    """Index entries by identity; a repeated identity is ambiguous and fails."""
+    """Index entries by identity; a repeated identity is ambiguous and fails.
+    The index is keyed by the JSON image of the identity, so that a version
+    `1` and a version `true` or `1.0` are two identities, as in JSON, never
+    one dictionary key; each entry keeps its identity for the messages."""
     if not isinstance(items, list):
         return {}, [f"{label} is not a list"]
-    index: dict[Any, dict] = {}
+    index: dict[Any, tuple[Any, dict]] = {}
     errors = []
     for item in items:
         if not isinstance(item, dict):
             errors.append(f"{label} has an entry that is not an object")
             continue
         identity = key(item)
-        if identity in index:
+        typed = json_key(identity)
+        if typed in index:
             errors.append(f"{label} repeats {identity}")
-        index[identity] = item
+        index[typed] = (identity, item)
     return index, errors
 
 
@@ -206,19 +220,20 @@ def catalog_changes(previous: dict, current: dict) -> list[str]:
     else:
         for surface in sorted(set(before_surfaces) | set(after_surfaces)):
             applicability = before_surfaces.get(surface, MISSING)
-            if after_surfaces.get(surface, MISSING) != applicability and applicability not in OPEN_APPLICABILITY:
+            if changed(before_surfaces, after_surfaces, surface) and applicability not in OPEN_APPLICABILITY:
                 errors.append(f"catalog changes target surface {surface}")
     key = lambda item: (item.get("id"), item.get("version"))
     before, problems = entries_by(previous.get("operations"), key, "base catalog operations")
     after, current_problems = entries_by(current.get("operations"), key, "catalog operations")
     errors += problems + current_problems
-    for identity, operation in before.items():
+    for typed, (identity, operation) in before.items():
         label = f"operation {identity[0]}@{identity[1]}"
-        if identity not in after:
+        if typed not in after:
             errors.append(f"{label} removed")
             continue
-        errors += fixed_fields(operation, after[identity], {"surfaces"} | OPERATION_PROSE, label)
-        old, new = operation.get("surfaces"), after[identity].get("surfaces")
+        current_operation = after[typed][1]
+        errors += fixed_fields(operation, current_operation, {"surfaces"} | OPERATION_PROSE, label)
+        old, new = operation.get("surfaces"), current_operation.get("surfaces")
         if not isinstance(old, list) or not isinstance(new, list) or not set(old) <= set(new):
             errors.append(f"{label} drops a surface")
     return errors
@@ -231,10 +246,10 @@ def registry_changes(previous: dict, current: dict) -> list[str]:
     before, problems = entries_by(previous.get("operations"), key, "base registry operations")
     after, current_problems = entries_by(current.get("operations"), key, "registry operations")
     errors += problems + current_problems
-    for identity, entry in before.items():
-        if identity not in after:
+    for typed, (identity, entry) in before.items():
+        if typed not in after:
             errors.append(f"kernel {identity} removed")
-        elif after[identity] != entry:
+        elif not same_json(after[typed][1], entry):
             errors.append(f"kernel {identity} changes")
     return errors
 
@@ -248,13 +263,13 @@ def binding_changes(previous: dict, current: dict) -> list[str]:
     before, problems = entries_by(previous.get("components"), component_key, "base binding sections")
     after, current_problems = entries_by(current.get("components"), component_key, "binding sections")
     errors += problems + current_problems
-    for component, section in before.items():
-        if component not in after:
+    for typed_component, (component, section) in before.items():
+        if typed_component not in after:
             errors.append(f"binding section {component} removed")
             continue
-        new = after[component]
+        new = after[typed_component][1]
         errors += fixed_fields(section, new, {"artifact", "discovery", "bindings"}, component)
-        if section.get("artifact") is not None and new.get("artifact") != section.get("artifact"):
+        if section.get("artifact") is not None and changed(section, new, "artifact"):
             errors.append(f"{component} changes its artifact")
         old_discovery, new_discovery = section.get("discovery"), new.get("discovery")
         if (
@@ -266,10 +281,10 @@ def binding_changes(previous: dict, current: dict) -> list[str]:
         old_bindings, problems = entries_by(section.get("bindings"), key, f"base {component} bindings")
         new_bindings, current_problems = entries_by(new.get("bindings"), key, f"{component} bindings")
         errors += problems + current_problems
-        for identity, binding in old_bindings.items():
-            if identity not in new_bindings:
+        for typed, (identity, binding) in old_bindings.items():
+            if typed not in new_bindings:
                 errors.append(f"{component} binding {identity[0]}@{identity[1]} removed")
-            elif new_bindings[identity] != binding:
+            elif not same_json(new_bindings[typed][1], binding):
                 errors.append(f"{component} binding {identity[0]}@{identity[1]} changes")
     return errors
 
@@ -278,7 +293,7 @@ def document_changes(relative: str, previous: Any, current: Any) -> list[str]:
     """The kind is decided by the base document; a protected document of no
     recognized kind is compared whole (fail closed)."""
     if relative.startswith("schemas/"):
-        return [] if assertions(previous) == assertions(current) else ["assertions changed"]
+        return [] if same_json(assertions(previous), assertions(current)) else ["assertions changed"]
     if isinstance(previous, dict) and isinstance(current, dict):
         contract = previous.get("contract")
         if relative.startswith("catalogs/") and contract == "plenora-public-catalog-v1":
@@ -287,7 +302,7 @@ def document_changes(relative: str, previous: Any, current: Any) -> list[str]:
             return registry_changes(previous, current)
         if relative.startswith("bindings/") and contract == "plenora-surface-bindings-v1":
             return binding_changes(previous, current)
-    return [] if previous == current else ["document changed"]
+    return [] if same_json(previous, current) else ["document changed"]
 
 
 def is_protected(relative: str) -> bool:

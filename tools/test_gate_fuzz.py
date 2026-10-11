@@ -90,5 +90,49 @@ class EndToEndTests(unittest.TestCase):
         self.assertIn("examples/valid/cli-error.json must validate", memoized[1])
 
 
+    def test_a_constant_of_another_json_type_is_another_argument(self):
+        """`1 == True` in Python, also inside a dictionary: a schema whose
+        `const` 1 becomes `true` is another schema, and the validators that
+        receive it run again instead of returning the unmutated result."""
+        path = (ROOT / "schemas" / "arrow-metadata-vector-v1.schema.json").resolve()
+        text = path.read_text(encoding="utf-8")
+        self.assertIn('"schema_version": {"const": 1}', text)
+        content = text.replace('"schema_version": {"const": 1}', '"schema_version": {"const": true}', 1).encode("utf-8")
+        with gate_fuzz.Gate() as gate:
+            memoized = gate.run((path, content))
+            complete = gate.run_complete((path, content))
+        self.assertNotEqual(complete[0], 0)
+        self.assertEqual(memoized, complete)
+
+
+class SameTests(unittest.TestCase):
+    """`_same` compares arguments as JSON data: by type, then by value."""
+
+    def test_json_types_are_distinct(self):
+        pairs = (
+            (1, True), (0, False), (1, 1.0), (0, 0.0), (True, 1.0),
+            ({"a": 1}, {"a": True}), ([1], [1.0]), ((1,), (True,)),
+            ({"a": [{"b": 0}]}, {"a": [{"b": False}]}), ({1}, {True}),
+            ({"a": 1, "b": 2}, {"b": 2, "a": 1}), ("1", 1), (None, False),
+        )
+        for left, right in pairs:
+            with self.subTest(left=left, right=right):
+                self.assertFalse(gate_fuzz._same(left, right))
+                self.assertFalse(gate_fuzz._same(right, left))
+
+    def test_equal_data_is_the_same(self):
+        values = (1, True, 1.5, "x", None, {"a": [1, {"b": True}]}, (1, "a"), {1, 2}, frozenset({"x"}),
+                  float("nan"))
+        for value in values:
+            with self.subTest(value=value):
+                self.assertTrue(gate_fuzz._same(value, copy.deepcopy(value)))
+
+    def test_an_object_of_another_kind_is_the_same_only_as_itself(self):
+        marker = object()
+        self.assertTrue(gate_fuzz._same(marker, marker))
+        self.assertFalse(gate_fuzz._same(object(), object()))
+        self.assertFalse(gate_fuzz._same([marker], [object()]))
+
+
 if __name__ == "__main__":
     unittest.main()

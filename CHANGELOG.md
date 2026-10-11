@@ -37,6 +37,13 @@ full commit SHA; a release tag names one of those commits.
   vector or an example, nor a contract name outside its quotes; the null
   fuzz covers every JSON input the same way. No contract document changes. See
   [decision 0021](decisions/0021-messages-without-data.md).
+- The tools compare JSON data by type and value (`tools/json_values.py`):
+  `1`, `1.0` and `true` differ, also inside an array or an object. Python's
+  `==` took them for one value, so the immutability guard accepted a
+  published `const` 1 changed into `true`, a catalog operation version or
+  attribute, a registry kernel or a binding changed in the same way, and
+  the gate harness answered such a mutation with the unmutated verdict. No
+  contract document changes.
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
   universal from Python 3.10: `rpds-py` keeps 0.30.0, its last release for
   Python 3.10, under `python_full_version < '3.11'` and 2026.9.1 above; the
