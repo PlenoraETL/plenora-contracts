@@ -76,8 +76,9 @@ from a claim of 1.0 and adds, for runtime-tools:
   such a request; for a retry, a redrive or a resend it acts as a
   forwarding; it carries the context unchanged outside the envelope, and
   refuses a request whose context is lost or altered, or whose acceptance
-  record it cannot read (RT-027). Its adoption manifest states whether a
-  minimum requirement of 2.0 is configured at its ingress;
+  record it cannot read authoritatively (RT-027). Its adoption manifest
+  states whether a minimum requirement of 2.0 is configured at its ingress,
+  and the window for which it keeps acceptance records;
 - a result the transport cannot carry whole fails with `resource_limit` and
   is never delivered truncated as a success (RT-024); the transport's bound
   is declared in its adoption manifest;

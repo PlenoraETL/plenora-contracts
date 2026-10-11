@@ -321,9 +321,23 @@ every forwarding:
    and the destination neither reads nor needs it.
 2. *The acceptance record.* The transport keeps, for every request it has
    accepted, a durable record bound to its `plenora.message.id` that holds
-   the context fixed at its first acceptance, readable by every hop of the
-   transport for as long as the transport may still deliver, retry,
-   redrive or resend that request.
+   the context fixed at its first acceptance:
+   - it is created atomically at the first acceptance: two concurrent
+     receptions of the same `plenora.message.id` create one record, and the
+     one that does not create it is a forwarding;
+   - it is kept, readable by every hop of the transport, for the whole
+     window in which the transport may still deliver, retry, redrive or
+     resend the request, a window the transport declares in its adoption
+     manifest;
+   - only an authoritative read counts: a read that may miss a record
+     already created, such as one from a lagging replica, is an unreadable
+     record (item 3);
+   - after the window, a reception with the same `plenora.message.id` is
+     refused, never taken for a new request;
+   - two senders that use the same `plenora.message.id` for different
+     requests already violate the uniqueness of that identity (section 3);
+     the record does not repair it: the second request is a forwarding of
+     the first and is refused unless it states the same context.
 3. *Ingress or forwarding, per request.* Whether a hop acts as ingress is
    a property of the request, not of the service it receives it from. A
    hop is the ingress of a request only when it accepts it from outside the
@@ -352,7 +366,9 @@ every forwarding:
 
 **Limit.** Without a minimum requirement at the ingress, a sender of 2.0
 that states no requirement is indistinguishable from a sender of 1.0: its
-request is routed under 1.0, without RT-024, and no error reports it. The
+requirement is taken as 1.0 and no error reports it. The selection then
+does not guarantee RT-024, because a destination of 1.0 may be chosen; a
+destination of 2.0, if chosen, still applies it. The
 guarantee that a downgrade is never implicit (RT-026 item 2) covers the
 requirements a sender states, and the requests an ingress with a minimum
 requirement of 2.0 accepts; a sender of 2.0 states its requirement, or uses

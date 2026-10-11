@@ -189,8 +189,10 @@ conditions:
   `vectors/runtime-negotiation-v1` illustrate these sequences;
 - the guarantee against an implicit downgrade covers only stated
   requirements: a sender of 2.0 that states none is indistinguishable from
-  a sender of 1.0 and is routed under 1.0, unless the ingress is configured
-  with a minimum requirement of 2.0, which then refuses it;
+  a sender of 1.0, its requirement is taken as 1.0 and the selection does
+  not guarantee RT-024 (a destination of 2.0 still applies it), unless the
+  ingress is configured with a minimum requirement of 2.0, which then
+  refuses it;
 - an adoption manifest declares each contract identifier it claims
   (`plenora-public-catalog-v1` or `-v2`, `plenora-runtime-binding-v1` or
   `-v2`), with its own verification.

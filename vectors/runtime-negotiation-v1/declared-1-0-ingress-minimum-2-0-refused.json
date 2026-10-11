@@ -16,19 +16,6 @@
         "requires": "plenora-runtime-binding-v1",
         "accepts_downgrade": false
       },
-      "forwards": {
-        "requires": "plenora-runtime-binding-v1",
-        "accepts_downgrade": false
-      }
-    },
-    {
-      "from": "hop",
-      "record": "readable",
-      "carries": true,
-      "receives": {
-        "requires": "plenora-runtime-binding-v1",
-        "accepts_downgrade": false
-      },
       "forwards": null
     }
   ],
