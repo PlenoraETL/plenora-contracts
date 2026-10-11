@@ -1042,6 +1042,24 @@ class RequiredPartsTests(unittest.TestCase):
             with self.subTest(label):
                 self.assertUndecidable(projjson, json.dumps(variant))
 
+    def test_a_projjson_code_is_an_integer_literal(self):
+        """`str` of a JSON number is not its code: `6326.0` and `6.326E3`
+        are refused like a non-integer WKT code, never compared as text."""
+        from decimal import Decimal
+        import crs_grammar
+        self.assertEqual(crs_grammar._projjson_ids({"id": {"authority": "EPSG", "code": 6326}}),
+                         [("EPSG", "6326")])
+        for code in (Decimal("6326.0"), Decimal("6.326E3")):
+            with self.subTest(code=str(code)), self.assertRaises(crs_grammar.Outside):
+                crs_grammar._projjson_ids({"id": {"authority": "EPSG", "code": code}})
+        field = self.field("crs-proj-epsg-4326-projjson.json")
+        text = field["metadata"]["plenora.geometry.crs_definition"]
+        self.assertIn('"code": 1166', text)
+        for written in ("1166.0", "1.166E3"):
+            with self.subTest(written):
+                self.assertEqual(self.verdict_of(field, text.replace('"code": 1166', '"code": ' + written, 1)),
+                                 data.Verdict("crs", "GEO-019"))
+
 
 def _unit_paths(value, path=()):
     """Every `unit` member of a PROJJSON document."""
