@@ -29,6 +29,18 @@ full commit SHA; a release tag names one of those commits.
   `vectors/arrow-data-v1`. No existing schema, catalog, binding or vector
   changes. See
   [decision 0013](decisions/0013-geometry-vocabulary-semantics.md).
+- Rejection categories in Arrow Geometry Semantics 1.0 (section 10, REJ-001
+  to REJ-004), for the components that claim it: one category for each of
+  disjoint classes (contract version absent `schema`, not supported
+  `unsupported`, vocabulary `schema`, CRS keys and their dependencies `crs`,
+  support `unsupported`, operation schema `schema`, invalid value
+  `data_mapping`, value contradicting the CRS `crs`); one order that
+  includes the operation; the other axes, with "before any effect" meaning
+  before a publication or a commit. Profile acceptances are never revoked.
+  Arrow Interchange 1.0 and Typed Errors 1.0 keep their published meaning,
+  with informative pointers. Nine vectors in `vectors/arrow-data-v1`, four
+  with two defects. See
+  [decision 0014](decisions/0014-arrow-input-rejection-categories.md).
 - REST-to-Arrow Adapter 1.0 (`plenora-rest-arrow-adapter-v1`): the adapter
   of the `rest.enrich` to `data.run` edges belongs to the application, and
   an adapter claiming the contract declares fields (name, identity, RFC 6901
