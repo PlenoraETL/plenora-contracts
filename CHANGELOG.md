@@ -27,8 +27,9 @@ full commit SHA; a release tag names one of those commits.
   request to the hop that selects the destination, with an acceptance
   record per message identity that makes every retry, redrive or resend a
   forwarding and refuses a lost or altered context; an ingress may require
-  2.0, and without it a silent sender of 2.0 is routed under 1.0, a stated
-  limit. Twenty-one vectors in `vectors/runtime-negotiation-v1` (schema
+  2.0, and without it the requirement of a silent sender of 2.0 is taken
+  as 1.0 and the selection does not guarantee RT-024, while a destination
+  of 2.0, if chosen, still applies it: a stated limit. Twenty-one vectors in `vectors/runtime-negotiation-v1` (schema
   `runtime-negotiation-vector-v1`) are sequences of hops from which the
   validator derives the decision. COMPATIBILITY.md states the transition
   (what changes, who adopts, coexistence, exit of 1.0); the runtime-tools

@@ -136,8 +136,10 @@ Runtime Binding 2.0:
   acceptance record per `plenora.message.id` holds the context of the first
   acceptance, a retry, a redrive or a resend is always a forwarding, a lost
   or altered context and an unreadable record are refused; an ingress may
-  require 2.0, and without that configuration a silent sender of 2.0 is
-  routed under 1.0, a limit the text states. The vectors became sequences
+  require 2.0, and without that configuration the requirement of a silent
+  sender of 2.0 is taken as 1.0 and the selection does not guarantee
+  RT-024, while a destination of 2.0, if chosen, still applies it: a limit
+  the text states. The vectors became sequences
   of hops from which the validator derives the decision. The tenth reading
   (Codex) fixed the life of the record (created atomically, kept for a
   declared window, only authoritative reads, refusal after the window, the

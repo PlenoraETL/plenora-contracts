@@ -2,7 +2,7 @@
   "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
   "schema_version": 1,
   "contract": "plenora-runtime-negotiation-vector-v1",
-  "description": "A sender states nothing and the ingress has no minimum requirement: the ingress attaches 1.0 without downgrade, the only default, and the request is routed under 1.0. A sender of 2.0 that states nothing is indistinguishable from this one: the limit of RT-027.",
+  "description": "A sender states nothing and the ingress has no minimum requirement: the ingress attaches 1.0 without downgrade, the only default. The selection does not guarantee RT-024; the destination chosen here advertises 2.0 and still applies it. A sender of 2.0 that states nothing is indistinguishable from this one: the limit of RT-027.",
   "request": "../runtime-v1/database-read-request.json",
   "ingress": {
     "minimum": null
