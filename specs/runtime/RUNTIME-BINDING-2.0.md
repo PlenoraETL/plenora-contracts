@@ -404,6 +404,7 @@ covered.
   the ingress of a new request to the hop that selects the destination;
   an acceptance record per `plenora.message.id` tells a new request from a
   retry, a redrive or a resend, and a hop refuses a lost or altered context
-  or one it cannot check. A silent sender is routed under 1.0 unless the
-  ingress requires 2.0.
+  or one it cannot check. Unless the ingress requires 2.0, the requirement
+  of a silent sender is taken as 1.0 and the selection does not guarantee
+  RT-024; a destination of 2.0, if chosen, still applies it.
 - Every other rule, key, grammar and vector of 1.0 applies unchanged.
