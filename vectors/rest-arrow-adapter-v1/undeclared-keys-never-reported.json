@@ -1,0 +1,101 @@
+{
+  "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-vector-v1",
+  "description": "Undeclared keys that are secrets, empty or longer than 256 characters are reported as @undeclared, never by key.",
+  "declaration": {
+    "schema_version": 1,
+    "contract": "plenora-rest-arrow-adapter-v1",
+    "accept_status": [
+      "success"
+    ],
+    "on_record_error": "exclude",
+    "undeclared_members": "reject",
+    "fields": [
+      {
+        "name": "id",
+        "field_id": 0,
+        "pointer": "/id",
+        "type": "int64",
+        "nullable": false
+      }
+    ]
+  },
+  "result": {
+    "schema_version": 1,
+    "status": "success",
+    "output": {
+      "type": "records",
+      "records": [
+        {
+          "id": 1,
+          "password=SENTINELLA-PWD-c91e": "x"
+        },
+        {
+          "id": 2,
+          "": 0
+        },
+        {
+          "id": 3,
+          "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk": true
+        },
+        {
+          "id": 4
+        }
+      ]
+    },
+    "errors": []
+  },
+  "expect": {
+    "outcome": "table",
+    "schema": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "int64",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "0"
+          }
+        }
+      ]
+    },
+    "rows": [
+      {
+        "id": 4
+      }
+    ],
+    "diagnostics": {
+      "contract": "plenora-row-diagnostics-v1",
+      "scope": "read",
+      "index_basis": "source_row_zero_based",
+      "completeness": "complete",
+      "observed_total": 3,
+      "input_total": 4,
+      "counts": {
+        "adapter.undeclared_member": 3
+      },
+      "examples_limit": 128,
+      "examples_truncated": false,
+      "examples": [
+        {
+          "source_index": 0,
+          "cause": "adapter.undeclared_member"
+        },
+        {
+          "source_index": 1,
+          "cause": "adapter.undeclared_member"
+        },
+        {
+          "source_index": 2,
+          "cause": "adapter.undeclared_member"
+        }
+      ]
+    },
+    "rest_status": "success",
+    "rest_errors": 0
+  }
+}
