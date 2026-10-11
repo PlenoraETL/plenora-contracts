@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+import arrow_data
 import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
 from messages import contract_name, differing_members
@@ -43,6 +44,7 @@ EXPECTED_SCHEMAS = {
     "adoption-manifest-v2.schema.json",
     "adoption-manifest-v3.schema.json",
     "adoption-manifest-v4.schema.json",
+    "arrow-data-vector-v1.schema.json",
     "arrow-metadata-vector-v1.schema.json",
     "capabilities-v1.schema.json",
     "capabilities-v2.schema.json",
@@ -133,6 +135,10 @@ CASES = {
         ],
         "runtime-probe-v1.schema.json": [
             "examples/invalid/runtime-probe-two-mutations.json",
+        ],
+        "arrow-data-vector-v1.schema.json": [
+            "examples/invalid/arrow-data-vector-valid-with-category.json",
+            "examples/invalid/arrow-data-vector-invalid-with-computation.json",
         ],
         "rest-arrow-adapter-v1.schema.json": [
             "examples/invalid/rest-arrow-adapter-unknown-type.json",
@@ -581,6 +587,9 @@ def validate_machine_documents(
         "composition-v1.schema.json": [ROOT / "composition/pipelines-v1.json"],
         "arrow-metadata-vector-v1.schema.json": sorted(
             (ROOT / "vectors/arrow-v1").glob("*.json")
+        ),
+        "arrow-data-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/arrow-data-v1").glob("*.json")
         ),
         "runtime-vector-v1.schema.json": sorted(
             (ROOT / "vectors/runtime-v1").glob("*.json")
@@ -1817,6 +1826,45 @@ def validate_arrow_vectors() -> list[str]:
     return failures
 
 
+RULE_DEFINITION = re.compile(r"\*\*([A-Z]+(?:-[A-Z]+)*-[0-9]{3})\*\*")
+
+
+def defined_rules() -> set[str]:
+    """Rule identifiers defined in bold in the specifications and profiles,
+    plus the section references `VOCABULARY-<n>` of Arrow Vocabulary 1.0."""
+    found: set[str] = set()
+    for path in [*(ROOT / "specs").rglob("*.md"), *(ROOT / "profiles").glob("*.md")]:
+        found.update(RULE_DEFINITION.findall(read_text(path)))
+    vocabulary = read_text(ROOT / "specs/data/ARROW-VOCABULARY-1.0.md")
+    found.update(f"VOCABULARY-{number}" for number in re.findall(r"^## ([1-9][0-9]?)\.", vocabulary, re.M))
+    return found
+
+
+def cited_rule_errors(label: str, rules: list[str], known: set[str]) -> list[str]:
+    return [f"{label} cites {rule}, which no specification or profile defines" for rule in rules if rule not in known]
+
+
+def validate_arrow_data_vectors() -> list[str]:
+    """Arrow Geometry Semantics 1.0 section 9: each vector states the verdict the
+    rules give, derived by `arrow_data`, and cites rules that exist."""
+    failures: list[str] = []
+    paths = sorted((ROOT / "vectors/arrow-data-v1").glob("*.json"))
+    if not paths:
+        return ["vectors/arrow-data-v1 has no vectors"]
+    known = defined_rules()
+    for path in paths:
+        label = path.relative_to(ROOT).as_posix()
+        vector = load_json(path)
+        for error in arrow_data.vector_errors(vector):
+            failures.append(f"{label} {error}")
+        computation = vector.get("computation")
+        cited = list(vector.get("rules") or []) + list(
+            computation.get("rules") or [] if isinstance(computation, dict) else []
+        )
+        failures.extend(cited_rule_errors(label, cited, known))
+    return failures
+
+
 def validate_rest_adapter_vectors() -> list[str]:
     """REST-to-Arrow Adapter 1.0 section 8: each vector states the outcome
     the reference adapter gives."""
@@ -2898,6 +2946,7 @@ def run_gate() -> int:
     failures.extend(validate_bindings(catalogs))
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
+    failures.extend(validate_arrow_data_vectors())
     failures.extend(validate_rest_adapter_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
     failures.extend(validate_runtime_probes(catalogs, schemas, registry))
