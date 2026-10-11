@@ -51,7 +51,9 @@ full commit SHA; a release tag names one of those commits.
   transformations, provider keys listed as delegated; 28 rejections, each
   the first of one ordered evaluation that includes the operation; a GeoJSON
   and a CSV source whose axis order and coordinates the validator reads.
-  Chains are checked against the composition matrix. No catalog, binding,
+  Chains are checked against the composition matrix and at both ends (the
+  first step reads the input as Arrow IPC, the last delivers or writes a
+  table), with a negative example. No catalog, binding,
   profile or published vector changes. See
   [decision 0018](decisions/0018-interoperability-vectors.md).
 - Runtime vector `database-write-commit-timeout-error.json` (an elapsed

@@ -41,7 +41,15 @@ another implementation. Their shape is
 matrix, or a write followed by a read of the same component on the same
 target (`via: target`). The first step reads the input table as Arrow IPC;
 the output of a chain is the table its last step delivers or writes as Arrow
-IPC. Step parameters such as a plan, a sink format or a read request are
+IPC. Both ends are checked, not only the consecutive pairs: a step reads the
+input table as Arrow IPC when its catalog input carries the Arrow
+interchange contract with an Arrow IPC media type, or when it is a read
+whose catalog output does and whose `format` parameter is `arrow_ipc_file`
+or `arrow_ipc_stream`; a step delivers a table when its catalog output
+carries that contract, and writes it as Arrow IPC when it is a write whose
+catalog input does and whose `format` is one of those two. A `rejection`
+step reads the input table in the same way; a `source` step reads its
+source document instead. Step parameters such as a plan, a sink format or a read request are
 abstract: the harness maps them to each surface's spelling. A step MAY name
 the limits its component declares (`one_geometry_field`, GEO-012;
 `one_geometry_type`, GEO-010).
@@ -96,7 +104,8 @@ not describe; the components' own vectors exercise it.
 
 **INTEROP-005** — The validator evaluates every step with that order,
 recomputes every expected table from the input and the declared
-transformations, checks every chain against the matrix and reads every
+transformations, checks every chain against the matrix and at both ends
+(INTEROP-002) and reads every
 source document itself. Its messages name rules and structural paths, never
 a value or a data key. The vectors illustrate the rules and do not cover them
 all: the phases `connect` and `probe`, an `unknown` remote effect with its

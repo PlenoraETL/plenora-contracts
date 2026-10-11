@@ -116,6 +116,19 @@ along a chain needs the chain to run: INTEROP-003 assigns it to the
 interoperability suite and to the provider's vectors; this validator checks
 that the prefixes are declared.
 
+### Sixth reading (Codex)
+
+The validator checked only consecutive pairs of a chain, so a handoff of a
+single JSON-only step (`storage.test`) passed: no pair to check, neither end
+checked. INTEROP-002 already required the first step to read the input
+table as Arrow IPC and the last to deliver or write a table; the validator
+now checks both ends from the catalogs (the Arrow interchange contract with
+an Arrow IPC media type, and for a read or a write the `format` parameter),
+for the step of a rejection too. The `io.read` steps that read the input
+table now name `format: arrow_ipc_file` instead of leaving it to the file
+name. A negative example, accepted by the schema and refused only by
+INTEROP-002, keeps the check from vanishing unnoticed.
+
 ### What the vectors fix that the suite observed differently
 
 - database-tools reads geometry fields without `field_id` and `precision`:
@@ -162,7 +175,7 @@ of v1.1.0 with an informative pointer.
 - **Before:** expectations owned by the suite.
 - **After:** INTEROP-001 to INTEROP-005, schema `interop-vector-v1`, 40 vectors.
 - **Compatible:** yes; nothing existing changes meaning.
-- **Schemas, examples and profiles:** one schema, one invalid example, 40
+- **Schemas, examples and profiles:** one schema, two invalid examples, 40
   vectors; Interoperability Vectors 1.0, a new contract; Composition 1.0
   keeps its published text with an informative pointer. No catalog, binding or profile
   changes.

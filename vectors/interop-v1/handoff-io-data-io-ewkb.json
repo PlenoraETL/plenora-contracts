@@ -11,7 +11,8 @@
       "operation": "io.read",
       "version": 2,
       "params": {
-        "source": "input.arrow"
+        "source": "input.arrow",
+        "format": "arrow_ipc_file"
       },
       "transformations": []
     },

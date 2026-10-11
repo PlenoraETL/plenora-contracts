@@ -23,7 +23,7 @@ def vector(name):
     return validator.load_json(VECTORS / name)
 
 
-def errors_of(name, document=None, load=validator.load_json):
+def gate_inputs(load=validator.load_json):
     catalogs = validator.load_catalogs()
     operations = validator.operation_index(catalogs)
     edges = validator.load_json(ROOT / "composition/pipelines-v1.json")["edges"]
@@ -34,7 +34,11 @@ def errors_of(name, document=None, load=validator.load_json):
         )
         for edge in edges if edge["mode"] == "direct"
     }
-    return interop.vector_errors(VECTORS / name, document or vector(name), operations, direct, load, KERNELS)
+    return operations, direct, load
+
+
+def errors_of(name, document=None, load=validator.load_json):
+    return interop.vector_errors(VECTORS / name, document or vector(name), *gate_inputs(load), KERNELS)
 
 
 def step(operation, component, version=2, **params):
@@ -199,6 +203,47 @@ class HandoffTests(unittest.TestCase):
         errors = errors_of("handoff-io-database-io.json", odd)
         for text in ("reserved", "unknown operation", "unknown limit", "cannot declare"):
             self.assertTrue(any(text in error for error in errors), text)
+
+    def test_the_ends_of_a_chain(self):
+        """INTEROP-002: the first step reads the input table as Arrow IPC and
+        the last delivers a table or writes it as Arrow IPC; consecutive
+        edges alone do not prove either end."""
+        storage = step("storage.test", "plenora-storage-tools", version=1)
+        lone = vector("handoff-io-data-io-points.json")
+        lone["chain"] = [storage]
+        errors = errors_of("handoff-io-data-io-points.json", lone)
+        self.assertIn("the first step does not read the input table as Arrow IPC (INTEROP-002)", errors)
+        self.assertIn("the last step neither delivers a table nor writes it as Arrow IPC (INTEROP-002)", errors)
+        # A read that does not name an Arrow IPC format reads another document.
+        unnamed = vector("handoff-io-data-io-points.json")
+        unnamed["chain"][0]["params"].pop("format")
+        self.assertEqual(errors_of("handoff-io-data-io-points.json", unnamed),
+                         ["the first step does not read the input table as Arrow IPC (INTEROP-002)"])
+        # A write to another format is not the tabular output of the chain.
+        gpkg = vector("handoff-io-data-io-points.json")
+        gpkg["chain"][-1]["params"]["format"] = "gpkg"
+        self.assertIn("the last step neither delivers a table nor writes it as Arrow IPC (INTEROP-002)",
+                      errors_of("handoff-io-data-io-points.json", gpkg))
+        # A chain that ends with a step delivering a table is complete.
+        delivered = vector("handoff-io-data-io-points.json")
+        delivered["chain"] = delivered["chain"][:-1]
+        self.assertNotIn("the last step neither delivers a table nor writes it as Arrow IPC (INTEROP-002)",
+                         errors_of("handoff-io-data-io-points.json", delivered))
+        # The step of a rejection reads the input table too.
+        rejection = vector("rejection-wkb-truncated-database-write.json")
+        rejection["chain"] = [storage]
+        self.assertIn("the first step does not read the input table as Arrow IPC (INTEROP-002)",
+                      errors_of("rejection-wkb-truncated-database-write.json", rejection))
+        # The published negative example: one JSON-only step.
+        for relative, rule in validator.INTEROP_VIOLATING.items():
+            path = ROOT / relative
+            with self.subTest(relative):
+                errors = interop.vector_errors(VECTORS / path.name, validator.load_json(path), *gate_inputs(), KERNELS)
+                self.assertTrue(errors)
+                self.assertTrue(all(rule in error for error in errors), errors)
+        schemas = {name: validator.load_json(ROOT / "schemas" / name) for name in validator.EXPECTED_SCHEMAS}
+        self.assertEqual(validator.validate_interop_violating(
+            schemas, validator.schema_registry(schemas), validator.load_catalogs()), [])
 
     def test_order_of_transformations_and_types(self):
         forward = [{"transformations": ["srid_from_epsg_identifier", "ewkb_with_field_srid"]}]

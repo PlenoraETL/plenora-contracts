@@ -41,6 +41,8 @@ TRANSFORMATION_OWNERS: dict[str, set[tuple[str, str]] | None] = {
 # Declared component limits a step may name (GEO-010, GEO-012).
 LIMITS = {"one_geometry_field": "GEO-012", "one_geometry_type": "GEO-010"}
 IPC_FORMATS = {"arrow_ipc_file", "arrow_ipc_stream"}
+ARROW_INTERCHANGE = "plenora-arrow-interchange-v1"
+ARROW_MEDIA_TYPES = {"application/vnd.apache.arrow.stream", "application/vnd.apache.arrow.file"}
 NORTH_FIRST = {"lat_lon", "northing_easting"}
 RESERVED_PREFIXES = ("plenora.geometry.", "plenora.contract.", "plenora.field_id")
 EPSG = re.compile(r"EPSG:([1-9][0-9]*)")
@@ -388,6 +390,49 @@ def chain_errors(
     return errors
 
 
+def _arrow(side: dict[str, Any]) -> bool:
+    """A catalog input or output that carries an Arrow IPC table."""
+    return ARROW_INTERCHANGE in side["interchange_contracts"] and bool(
+        ARROW_MEDIA_TYPES & set(side["content_types"])
+    )
+
+
+def _names_ipc_format(step: dict[str, Any]) -> bool:
+    return (step.get("params") or {}).get("format") in IPC_FORMATS
+
+
+def reads_arrow_ipc(step: dict[str, Any], operation: dict[str, Any]) -> bool:
+    """INTEROP-002: the step takes the input table as Arrow IPC, either as its
+    input or as the source it reads, named by an Arrow IPC `format`."""
+    if _arrow(operation["input"]):
+        return True
+    return _arrow(operation["output"]) and step["operation"].endswith(".read") and _names_ipc_format(step)
+
+
+def delivers_arrow_ipc(step: dict[str, Any], operation: dict[str, Any]) -> bool:
+    """INTEROP-002: the step delivers a table, or writes it as Arrow IPC."""
+    if _arrow(operation["output"]):
+        return True
+    return _arrow(operation["input"]) and step["operation"].endswith(".write") and _names_ipc_format(step)
+
+
+def end_errors(vector: dict[str, Any], operations: dict[Key, dict[str, Any]]) -> list[str]:
+    """INTEROP-002 at the ends of a chain: consecutive edges prove neither the
+    first input nor the last output. A source vector reads a document, not
+    the input table."""
+    chain = vector["chain"]
+    if vector["kind"] == "source" or not chain:
+        return []
+    errors = []
+    first = operations.get(step_key(chain[0]))
+    if first is not None and not reads_arrow_ipc(chain[0], first):
+        errors.append("the first step does not read the input table as Arrow IPC (INTEROP-002)")
+    last = operations.get(step_key(chain[-1]))
+    if vector["kind"] == "handoff" and last is not None and not delivers_arrow_ipc(chain[-1], last):
+        errors.append("the last step neither delivers a table nor writes it as Arrow IPC (INTEROP-002)")
+    return errors
+
+
 # --- rejections (INTEROP-004) -------------------------------------------------------
 
 def rejection_errors(vector: dict[str, Any], table: dict[str, Any], kernels: set[str]) -> list[str]:
@@ -494,7 +539,7 @@ def vector_errors(
     load: Callable[[Path], Any],
     kernels: set[str] = frozenset(),
 ) -> list[str]:
-    errors = chain_errors(vector["chain"], operations, direct_edges)
+    errors = chain_errors(vector["chain"], operations, direct_edges) + end_errors(vector, operations)
     if vector["kind"] == "source":
         return errors + source_errors(vector)
     input_path = (path.parent / vector["input"]).resolve()
