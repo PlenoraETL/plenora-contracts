@@ -299,7 +299,13 @@ whether a definition is verified:
   an exact text-level comparison that every language implements the same
   way, while an approximate comparison would need a tolerance that two
   implementations could round differently. Any other unit or factor is
-  undecidable;
+  undecidable. The quantity of a unit is the one it states: in WKT 1 the
+  place of its `UNIT`; in WKT 2 its keyword (`ANGLEUNIT`, `LENGTHUNIT`,
+  `SCALEUNIT`); in PROJJSON the name of the word form (`degree`, `metre`,
+  `unity`) and the `type` of a unit object (`AngularUnit`, `LinearUnit`,
+  `ScaleUnit`). A unit stating another quantity than its place, a WKT 2
+  generic `UNIT`, and a PROJJSON unit object of `type` `Unit` or without
+  `type` are undecidable, whatever their name and factor;
 - **implicit units**: in WKT 1 the units are fixed by the format (the
   `UNIT` of the `GEOGCS` for angles, of the `PROJCS` for lengths, metres for
   the `SPHEROID`); in WKT 2 and PROJJSON a coordinate system, a prime
