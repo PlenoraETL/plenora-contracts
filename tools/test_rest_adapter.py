@@ -172,7 +172,7 @@ class VectorTests(unittest.TestCase):
         self.assertEqual(len(errors), 2)
         for error in errors:
             self.assertNotIn("secret", error)
-        self.assertTrue(any("(missing a)" in error for error in errors))
+        self.assertTrue(any("(missing «a»)" in error for error in errors))
         self.assertEqual(validator.anonymous_path(["rows", 0, "x"]), "/*/0/*")
 
     def test_the_reserved_name_and_the_cause(self):
