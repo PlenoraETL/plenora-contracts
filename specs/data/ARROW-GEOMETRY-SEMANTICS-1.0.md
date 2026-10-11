@@ -445,7 +445,8 @@ only the members listed, each with a value of exactly the kind shown:
 object of the kind named, an array of them, or one of the closed values
 shown. A *value* is a number or an object with `value` (a number, required)
 and `unit`; a *unit* is `metre`, `degree` or `unity`, or a unit object; a
-*code* is a number or a string:
+*code* is a string or a number, an integer literal when a number (`6326.0`
+and `6.326E3` are outside, as in WKT):
 
 | object | members and kinds |
 |---|---|

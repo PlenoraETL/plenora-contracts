@@ -301,6 +301,10 @@ def _projjson_ids(holder: Any) -> list[tuple[str, str]]:
         for item in found
     ):
         raise Outside("identifiers outside the grammar")
+    # A numeric code is an integer literal: `str` of `6326.0` is not a
+    # code (the WKT path refuses it too, `_code_text`).
+    if any(isinstance(item["code"], Decimal) for item in found):
+        raise Outside("non-integer identifier code")
     return [(item["authority"], str(item["code"])) for item in found]
 
 
@@ -383,6 +387,9 @@ def check_projjson(root: Any) -> None:
     exactly the kind its table states."""
 
     def value_of(value: Any, kind: Kind) -> None:
+        if kind is ID_CODE and isinstance(value, Decimal):
+            # A numeric code is an integer literal, as in WKT (`_code_text`).
+            raise Outside("non-integer identifier code")
         for candidate in (kind, *kind.alternatives):
             if _json_kind(value) != candidate.json:
                 continue
