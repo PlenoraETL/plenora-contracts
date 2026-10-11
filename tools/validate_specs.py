@@ -1853,9 +1853,15 @@ def cited_rule_errors(label: str, rules: list[str], known: set[str]) -> list[str
     return [f"{label} cites {rule}, which no specification or profile defines" for rule in rules if rule not in known]
 
 
-def validate_interop_vectors(catalogs: dict[str, dict[str, Any]]) -> list[str]:
+def validate_interop_vectors(
+    catalogs: dict[str, dict[str, Any]],
+    schemas: dict[str, dict[str, Any]] | None = None,
+    registry: Registry | None = None,
+) -> list[str]:
     """Interoperability Vectors 1.0: chains against the matrix, expectations
-    recomputed from the inputs (`interop_vectors`)."""
+    recomputed from the inputs (`interop_vectors`). A vector outside its
+    schema is reported by the schema check and never evaluated here: the
+    rules read only fields of the shape the schema fixes."""
     operations = operation_index(catalogs)
     edges = load_json(ROOT / "composition/pipelines-v1.json")["edges"]
     direct = {
@@ -1873,10 +1879,15 @@ def validate_interop_vectors(catalogs: dict[str, dict[str, Any]]) -> list[str]:
     # data_registry_errors reports (a geo plan then names no kernel).
     kernels = latest_kernel_ids()
     known = defined_rules()
+    if schemas is None:
+        schemas = {name: load_json(ROOT / "schemas" / name) for name in EXPECTED_SCHEMAS}
+        registry = schema_registry(schemas)
     failures: list[str] = []
     for path in paths:
         label = path.relative_to(ROOT).as_posix()
         vector = load_json(path)
+        if instance_errors(schemas["interop-vector-v1.schema.json"], vector, registry):
+            continue
         for problem in interop_vectors.vector_errors(path, vector, operations, direct, load_json, kernels):
             failures.append(f"{label} {problem}")
         expected_error = vector.get("expected_error")
@@ -1894,6 +1905,8 @@ INTEROP_VIOLATING = {
     "examples/invalid/interop-vector-source-format-mismatch.json": "INTEROP-001",
     "examples/invalid/interop-vector-handoff-target-read-in-another-format.json": "INTEROP-002",
     "examples/invalid/interop-vector-handoff-unknown-format.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-limits-not-a-list.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-plan-not-a-string.json": "INTEROP-002",
 }
 
 
@@ -3028,7 +3041,7 @@ def run_gate() -> int:
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_arrow_data_vectors())
-    failures.extend(validate_interop_vectors(catalogs))
+    failures.extend(validate_interop_vectors(catalogs, schemas, registry))
     failures.extend(validate_interop_violating(schemas, registry, catalogs))
     failures.extend(validate_rest_adapter_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))

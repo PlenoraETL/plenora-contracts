@@ -70,7 +70,10 @@ source document instead. Step parameters such as a plan, a sink format or a read
 abstract: the harness maps them to each surface's spelling. A `data.run`
 step names the plan `identity` or a registered kernel. A step MAY name, as
 a list, the limits its component declares (`one_geometry_field`, GEO-012;
-`one_geometry_type`, GEO-010).
+`one_geometry_type`, GEO-010). The schema leaves `params` open, so every
+parameter these rules read is checked for its type and value before any
+step of the vector is evaluated, and a vector with an invalid one is
+refused without evaluating its steps.
 
 **INTEROP-003** — A step changes the table only through the transformations it
 declares, from this closed list, applied in the order of the table; only the

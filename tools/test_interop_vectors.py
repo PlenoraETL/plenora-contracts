@@ -8,6 +8,7 @@ import shutil
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import arrow_data
@@ -283,8 +284,73 @@ class HandoffTests(unittest.TestCase):
             document = vector("handoff-data-io-profile-completion.json")
             document["chain"][-1]["params"]["limits"] = limits
             with self.subTest(limits=limits):
-                self.assertIn("a step names an unknown limit",
+                self.assertIn("step 2 names an unknown limit (INTEROP-002)",
                               errors_of("handoff-data-io-profile-completion.json", document))
+
+    def test_every_parameter_of_another_type_is_reported_not_evaluated(self):
+        """`params` is an open object in the schema: each field the gate
+        reads is validated before any step is evaluated, and a step with an
+        invalid field stops the evaluation instead of reaching it."""
+        cases = {
+            ("limits", -1): (1, True, "one_geometry_field", {"a": 1}, [[]], [1], None),
+            ("format", -1): (1, True, {"a": 1}, ["arrow_ipc_file"], None),
+            ("plan", 1): (1, True, {"a": 1}, ["identity"], None),
+        }
+        for (name, index), values in cases.items():
+            for value in values:
+                document = vector("handoff-io-data-io-points.json")
+                document["chain"][index]["params"][name] = value
+                with self.subTest(name=name, value=value):
+                    errors = errors_of("handoff-io-data-io-points.json", document)
+                    self.assertTrue(errors)
+                    self.assertTrue(all("INTEROP-002" in error for error in errors), errors)
+        for params in (1, [], "x", True):
+            document = vector("handoff-io-data-io-points.json")
+            document["chain"][-1]["params"] = params
+            with self.subTest(params=params):
+                self.assertIn("step 3 params is not an object (INTEROP-002)",
+                              errors_of("handoff-io-data-io-points.json", document))
+        rejection = vector("rejection-two-geometries-io-write.json")
+        rejection["chain"][0]["params"]["limits"] = 1
+        self.assertIn("step 1 names an unknown limit (INTEROP-002)",
+                      errors_of("rejection-two-geometries-io-write.json", rejection))
+        source = vector("source-wkt-csv-utm.json")
+        source["chain"][0]["params"] = [1]
+        self.assertIn("step 1 params is not an object (INTEROP-002)", errors_of("source-wkt-csv-utm.json", source))
+
+    def test_no_parameter_value_reaches_an_internal_error(self):
+        """Generatively: every field of every step's `params` of every
+        published vector (and `limits`, `format`, `plan` where absent), set
+        to a value of each JSON type, ends in a verdict, never an exception."""
+        values = (None, True, 1, 1.5, "x", [], [1], {}, {"a": 1})
+        count = 0
+        for path in sorted(VECTORS.glob("*.json")):
+            original = vector(path.name)
+            for index, step in enumerate(original["chain"]):
+                for name in sorted(set(step.get("params", {})) | {"limits", "format", "plan"}):
+                    for value in values:
+                        document = copy.deepcopy(original)
+                        document["chain"][index].setdefault("params", {})[name] = value
+                        with self.subTest(path=path.name, step=index, name=name, value=value):
+                            self.assertIsInstance(errors_of(path.name, document), list)
+                        count += 1
+        self.assertGreater(count, 1000)
+
+    def test_a_vector_outside_its_schema_is_not_evaluated(self):
+        """The schema check reports it; the gate never reads its fields."""
+        target = VECTORS / "handoff-io-data-io-points.json"
+        broken_steps = ([1], [{"component": 1}], [dict(vector(target.name)["chain"][0], transformations="x")],
+                        [dict(vector(target.name)["chain"][0], transformations=["unknown"])])
+        real = validator.load_json
+        for chain in broken_steps:
+            def load(path, chain=chain):
+                document = real(path)
+                if Path(path).resolve() == target.resolve():
+                    document["chain"] = chain
+                return document
+            with self.subTest(chain=chain), patch.object(validator, "load_json", load):
+                errors = validator.validate_interop_vectors(validator.load_catalogs())
+                self.assertEqual(errors, [])
 
     def test_a_data_run_plan_is_identity_or_a_registered_kernel(self):
         """The same class: a plan the validator does not know would make the
@@ -431,14 +497,19 @@ class SourceTests(unittest.TestCase):
         request names the same format, or the vector is incoherent."""
         for name, other in (("source-geojson-points.json", "wkt_csv"), ("source-wkt-csv-utm.json", "geojson")):
             self.assertEqual(errors_of(name), [])
-            for params in ({"format": other}, {"format": "csv"}, {}):
+            # Another known format contradicts the document; an unknown or
+            # missing one is refused before the source is read (INTEROP-002).
+            for params, expected in (
+                ({"format": other}, "the read request does not name the format of the source document (INTEROP-001)"),
+                ({"format": "csv"}, "step 1 names an unknown format (INTEROP-002)"),
+                ({}, "step 1 names no format, which its input contract selects (INTEROP-002)"),
+            ):
                 document = vector(name)
                 request = document["chain"][0].setdefault("params", {})
                 request.pop("format", None)
                 request.update(params)
                 with self.subTest(name=name, params=params):
-                    self.assertIn("the read request does not name the format of the source document (INTEROP-001)",
-                                  errors_of(name, document))
+                    self.assertIn(expected, errors_of(name, document))
 
     def test_wkt_csv(self):
         name = "source-wkt-csv-utm.json"

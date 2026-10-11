@@ -54,8 +54,15 @@ SINK_FORMAT_INPUTS = {"plenora-io-write-input-v1"}
 FORMATS = IPC_FORMATS | {"gpkg", "geojson", "wkt_csv"}
 
 
+def _params(step: dict[str, Any]) -> dict[str, Any]:
+    """The step's parameters, an open object in the schema; anything else
+    reads as none (`step_errors` reports it and stops the evaluation)."""
+    params = step.get("params", {})
+    return params if isinstance(params, dict) else {}
+
+
 def _format(step: dict[str, Any]) -> Any:
-    return (step.get("params") or {}).get("format")
+    return _params(step).get("format")
 
 
 def _known_format(value: Any) -> bool:
@@ -279,7 +286,7 @@ def difference(left: Any, right: Any, path: str = "") -> str | None:
 def computes(step: dict[str, Any], kernels: set[str]) -> bool:
     """A step that computes with coordinates: `data.run` whose plan is a
     registered `geo.` kernel."""
-    plan = (step.get("params") or {}).get("plan")
+    plan = _params(step).get("plan")
     return (
         step["operation"] == "data.run"
         and isinstance(plan, str)
@@ -351,7 +358,10 @@ def step_rejection(table: dict[str, Any], step: dict[str, Any], kernels: set[str
         for field in geometry:
             if _metadata(field)[GEOMETRY + "spatial_semantics"] == "geography" or _edges(field) not in (None, "planar"):
                 return Rejection("support", "unsupported", "DT-ARROW-004")
-    limits = (step.get("params") or {}).get("limits") or []
+    # Validated by `step_errors` before any step is evaluated.
+    limits = _params(step).get("limits", [])
+    if not isinstance(limits, list):
+        raise ValueError("limits not validated")
     if "one_geometry_field" in limits and len(geometry) > 1:
         return Rejection("support", "unsupported", "GEO-012")
     if "one_geometry_type" in limits and any(
@@ -391,19 +401,6 @@ def chain_errors(
         prefix = step.get("provider_prefix")
         if prefix is not None and prefix.startswith(RESERVED_PREFIXES):
             errors.append("a provider prefix is reserved for the shared vocabulary")
-        limits = (step.get("params") or {}).get("limits", [])
-        if not isinstance(limits, list) or not all(isinstance(limit, str) and limit in LIMITS for limit in limits):
-            errors.append("a step names an unknown limit")
-        operation = operations.get(step_key(step))
-        names_format = "format" in (step.get("params") or {})
-        if operation is not None:
-            selects = operation["input"]["contract"] in SOURCE_FORMAT_INPUTS | SINK_FORMAT_INPUTS
-            if names_format and not selects:
-                errors.append(f"step {position} names a format its input contract does not select (INTEROP-002)")
-            elif selects and not names_format:
-                errors.append(f"step {position} names no format, which its input contract selects (INTEROP-002)")
-            elif names_format and not _known_format(_format(step)):
-                errors.append(f"step {position} names an unknown format (INTEROP-002)")
     if chain and chain[0].get("via") == "target":
         errors.append("the first step cannot read a target no step wrote")
     for position, (before, after) in enumerate(zip(chain, chain[1:]), start=1):
@@ -440,19 +437,44 @@ def chain_errors(
     return errors
 
 
-def plan_errors(chain: list[dict[str, Any]], kernels: set[str]) -> list[str]:
-    """INTEROP-002: a `data.run` step names `identity` or a registered
-    kernel; any other plan would make it carry instead of compute, in
-    silence (INTEROP-004)."""
+def step_errors(
+    chain: list[dict[str, Any]], operations: dict[Key, dict[str, Any]], kernels: set[str]
+) -> list[str]:
+    """INTEROP-002: every parameter the gate reads, validated before any
+    step is evaluated. `params` is an open object in the schema, so each
+    field read is checked here for its type and its closed values: an
+    object; `limits` a list of known names; `format` a known format, named
+    exactly where the input contract selects one; a `data.run` plan
+    `identity` or a registered kernel (any other plan would make the step
+    carry instead of compute, in silence: INTEROP-004). A vector with any of
+    these errors is not evaluated further (`vector_errors`)."""
     errors = []
     for position, step in enumerate(chain, start=1):
-        if (step["component"], step["operation"]) != DATA_RUN:
+        params = step.get("params", {})
+        if not isinstance(params, dict):
+            errors.append(f"step {position} params is not an object (INTEROP-002)")
             continue
-        plan = (step.get("params") or {}).get("plan")
-        if not isinstance(plan, str) or (plan != "identity" and plan not in kernels):
-            errors.append(
-                f"step {position} names a plan that is neither identity nor a registered kernel (INTEROP-002)"
-            )
+        limits = params.get("limits", [])
+        if not isinstance(limits, list) or not all(isinstance(limit, str) and limit in LIMITS for limit in limits):
+            errors.append(f"step {position} names an unknown limit (INTEROP-002)")
+        operation = operations.get(step_key(step))
+        names_format = "format" in params
+        if operation is not None:
+            selects = operation["input"]["contract"] in SOURCE_FORMAT_INPUTS | SINK_FORMAT_INPUTS
+            if names_format and not selects:
+                errors.append(f"step {position} names a format its input contract does not select (INTEROP-002)")
+            elif selects and not names_format:
+                errors.append(f"step {position} names no format, which its input contract selects (INTEROP-002)")
+            elif names_format and not _known_format(params["format"]):
+                errors.append(f"step {position} names an unknown format (INTEROP-002)")
+        elif names_format and not _known_format(params["format"]):
+            errors.append(f"step {position} names an unknown format (INTEROP-002)")
+        if (step["component"], step["operation"]) == DATA_RUN:
+            plan = params.get("plan")
+            if not isinstance(plan, str) or (plan != "identity" and plan not in kernels):
+                errors.append(
+                    f"step {position} names a plan that is neither identity nor a registered kernel (INTEROP-002)"
+                )
     return errors
 
 
@@ -576,7 +598,7 @@ def source_errors(vector: dict[str, Any]) -> list[str]:
     expected = vector["expected_geometry"]
     source = vector["source"]
     step = vector["chain"][0]
-    params = step.get("params") or {}
+    params = _params(step)
     errors = []
     # INTEROP-001: the parser is chosen by the format of the source document,
     # and the read request names that same format, never left implicit.
@@ -622,11 +644,12 @@ def vector_errors(
     load: Callable[[Path], Any],
     kernels: set[str] = frozenset(),
 ) -> list[str]:
-    errors = (
-        chain_errors(vector["chain"], operations, direct_edges)
-        + plan_errors(vector["chain"], kernels)
-        + end_errors(vector, operations)
-    )
+    parameters = step_errors(vector["chain"], operations, kernels)
+    errors = chain_errors(vector["chain"], operations, direct_edges) + parameters + end_errors(vector, operations)
+    if parameters:
+        # A step with an invalid parameter is never evaluated: the steps
+        # read only validated values.
+        return errors
     if vector["kind"] == "source":
         return errors + source_errors(vector)
     input_path = (path.parent / vector["input"]).resolve()

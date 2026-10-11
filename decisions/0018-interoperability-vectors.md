@@ -159,6 +159,18 @@ step carry instead of compute in silence, and is now refused; the limits are
 a list of known names. Two negative examples (another format, an unknown
 format) keep the check from vanishing unnoticed.
 
+### Ninth reading (Codex)
+
+An invalid `limits` was reported, but the evaluation went on and read the
+original value: `limits: 1` ended in an internal validator error. `params`
+is an open object in the schema, so every parameter the rules read
+(`limits`, `format`, `plan`, the object itself) is now validated in one
+place before any step is evaluated, and a vector with an invalid parameter
+is not evaluated; a vector outside its schema is left to the schema check.
+A generative test sets every parameter of every published vector to a value
+of each JSON type. Two negative examples (limits that are not a list, a plan
+that is not a string) keep the check from vanishing unnoticed.
+
 ### What the vectors fix that the suite observed differently
 
 - database-tools reads geometry fields without `field_id` and `precision`:
