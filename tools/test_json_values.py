@@ -311,27 +311,30 @@ class ValueContextTests(unittest.TestCase):
             with self.subTest(text), self.assertRaises(Exception):
                 validator.InstanceValidator.check_schema(validator.loads_json(text))
 
-    def test_the_gate_with_a_respelled_rest_schema(self):
-        """The REST schema with `minItems` and `minLength` written as integral
-        decimals passes its metaschema, as on main."""
+    def test_the_whole_gate_with_a_respelled_rest_schema(self):
+        """The complete gate (`validate_specs.py`), run on a copy of the
+        repository whose REST schema writes `minItems` and `minLength` as
+        integral decimals, passes, as on main: the metaschema and every
+        `$ref` read them as integers."""
         import re as regex
-        from unittest.mock import patch
+        import shutil
+        import subprocess
+        import sys
+        import tempfile
         name = next(n for n in sorted(validator.EXPECTED_SCHEMAS) if n.startswith("rest-") and "minItems" in
                     (ROOT / "schemas" / n).read_text(encoding="utf-8"))
-        text = (ROOT / "schemas" / name).read_text(encoding="utf-8")
-        respelled = regex.sub(r'"(minItems|minLength)": ([0-9]+)', r'"\1": \2.0', text)
-        self.assertNotEqual(respelled, text)
-        target = (ROOT / "schemas" / name).resolve()
-        original = validator.Path.read_text
-
-        def read(path, *args, **kwargs):
-            if validator.Path(path).resolve() == target:
-                return respelled
-            return original(path, *args, **kwargs)
-
-        with patch.object(validator.Path, "read_text", read):
-            schema = validator.load_json(ROOT / "schemas" / name)
-            validator.InstanceValidator.check_schema(schema)
+        with tempfile.TemporaryDirectory() as directory:
+            copy_root = Path(directory) / "repository"
+            shutil.copytree(ROOT, copy_root, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+            target = copy_root / "schemas" / name
+            text = target.read_text(encoding="utf-8")
+            respelled = regex.sub(r'"(minItems|minLength)": ([0-9]+)', r'"\1": \2.0', text)
+            self.assertNotEqual(respelled, text)
+            target.write_text(respelled, encoding="utf-8", newline="\n")
+            run = subprocess.run([sys.executable, str(copy_root / "tools/validate_specs.py")],
+                                 cwd=copy_root, capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertIn("validated", run.stdout)
 
 
 class CatalogVersionsTests(unittest.TestCase):

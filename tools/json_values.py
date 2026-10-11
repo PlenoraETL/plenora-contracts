@@ -1,4 +1,4 @@
-"""Equality of JSON data by type and by value, in two contexts.
+"""Equality of JSON data by type and by value, in three contexts.
 
 Python's `==` is not JSON equality: `1 == True == 1.0`, `0 == False`, also
 inside a list, a tuple or a dictionary, and `{1} == {True}`. A check that
@@ -6,10 +6,12 @@ compares two documents, or a document with an expected value, with `==`
 takes a `const` 1 changed into `true`, or a version `1` into `1.0`, for the
 same value and passes in silence.
 
-Numbers are compared in one of two contexts, which every caller names:
+Numbers are compared in one of three contexts, which every caller names
+(with a comment saying which and why):
 
-- `same_document` / `document_key`: data of a published document that is
-  not a schema assertion (catalog entries, expected values). COMPATIBILITY.md
+- `same_document` / `document_key`: published documents compared with one
+  another and nothing else (the immutability gate, catalog identities and
+  fields across versions or between two catalogs, digests). COMPATIBILITY.md
   forbids modifying a published vector, and a consumer reads each number as
   written: the sign of a zero is data (RA-003 keeps it), and `1.0` against
   `1.00`, `10e-1` or `1.0000000000000001` is another number. A number read
@@ -20,9 +22,14 @@ Numbers are compared in one of two contexts, which every caller names:
   JSON Schema, which compares numbers by value: `1.0`, `1.00` and `1e0`,
   `0.0` and `-0.0` validate the same instances (COMPATIBILITY.md: a schema
   edit that cannot alter validation is compatible).
+- `same_value`: every other comparison, of values (two fields of one
+  vector, an expectation against what a rule computes, a field against the
+  value a rule requires): numbers by exact value, so `-0` is the integer 0
+  and `1.00` equals `1.0`, while a binary float keeps the sign of its zero
+  (RA-003).
 
-In both contexts an integer and a decimal stay two values (`1` against
-`1.0`), and `1.0` and `1.0000000000000001` two numbers.
+In all three contexts an integer and a decimal stay two values (`1`
+against `1.0`), and `1.0` and `1.0000000000000001` two numbers.
 
 Both walk the data with an explicit stack, never by recursion: a document
 nested 10,000 levels deep is compared like a flat one, in time linear in its

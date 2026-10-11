@@ -213,6 +213,7 @@ def changed(previous: dict, current: dict, key: Any) -> bool:
     `true` differ: `==` would take them for the same)."""
     if (key in previous) != (key in current):
         return True
+    # DOCUMENT: a published field against the same field of the base.
     return key in previous and not same_document(previous[key], current[key])
 
 
@@ -238,6 +239,7 @@ def entries_by(items: Any, key: Callable[[dict], Any], label: str) -> tuple[dict
             errors.append(f"{label} has an entry that is not an object")
             continue
         identity = key(item)
+        # DOCUMENT: a published identity, indexed by its exact text.
         typed = document_key(identity)
         if typed in index:
             errors.append(f"{label} repeats {identity}")
@@ -288,6 +290,7 @@ def registry_changes(previous: dict, current: dict) -> list[str]:
     for typed, (identity, entry) in before.items():
         if typed not in after:
             errors.append(f"kernel {identity} removed")
+        # DOCUMENT: a published kernel entry against the base's.
         elif not same_document(after[typed][1], entry):
             errors.append(f"kernel {identity} changes")
     return errors
@@ -323,6 +326,7 @@ def binding_changes(previous: dict, current: dict) -> list[str]:
         for typed, (identity, binding) in old_bindings.items():
             if typed not in new_bindings:
                 errors.append(f"{component} binding {identity[0]}@{identity[1]} removed")
+            # DOCUMENT: a published binding against the base's.
             elif not same_document(new_bindings[typed][1], binding):
                 errors.append(f"{component} binding {identity[0]}@{identity[1]} changes")
     return errors
