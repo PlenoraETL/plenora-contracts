@@ -127,6 +127,24 @@ class SameTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertTrue(gate_fuzz._same(value, copy.deepcopy(value)))
 
+    def test_deep_arguments_compare_without_recursion(self):
+        def nested(leaf):
+            value = leaf
+            for _ in range(10_000):
+                value = {"a": [value]}
+            return value
+
+        self.assertTrue(gate_fuzz._same(nested(1), nested(1)))
+        self.assertFalse(gate_fuzz._same(nested(1), nested(True)))
+
+    def test_registries_compare_by_their_schemas(self):
+        documents = schemas()
+        before = validator.schema_registry(documents)
+        self.assertTrue(gate_fuzz._same(before, validator.schema_registry(copy.deepcopy(documents))))
+        mutated = copy.deepcopy(documents)
+        mutated[ERROR]["required"] = list(mutated[ERROR]["required"]) + ["zzz_required"]
+        self.assertFalse(gate_fuzz._same(before, validator.schema_registry(mutated)))
+
     def test_an_object_of_another_kind_is_the_same_only_as_itself(self):
         marker = object()
         self.assertTrue(gate_fuzz._same(marker, marker))

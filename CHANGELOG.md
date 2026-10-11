@@ -54,8 +54,11 @@ full commit SHA; a release tag names one of those commits.
   `==` took them for one value, so the immutability guard accepted a
   published `const` 1 changed into `true`, a catalog operation version or
   attribute, a registry kernel or a binding changed in the same way, and
-  the gate harness answered such a mutation with the unmutated verdict. No
-  contract document changes.
+  the gate harness answered such a mutation with the unmutated verdict. The
+  comparisons walk the data with an explicit stack, in linear time, so a
+  deeply nested document is compared like a flat one; the immutability
+  guard parses numbers as exact decimals (`1.0` and `1.0000000000000001`
+  differ) and refuses `NaN` and `Infinity`. No contract document changes.
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
   universal from Python 3.10: `rpds-py` keeps 0.30.0, its last release for
   Python 3.10, under `python_full_version < '3.11'` and 2026.9.1 above; the

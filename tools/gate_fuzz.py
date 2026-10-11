@@ -356,30 +356,42 @@ def _same(left: Any, right: Any) -> bool:
 
 
 def _typed_equal(left: Any, right: Any) -> bool:
-    """`_canonical(left) == _canonical(right)`, walked in place: the same
-    object is the same value, so an unchanged shared document is not walked
-    again; only what differs in identity is compared by type and value."""
-    if left is right:
-        return True
-    kind = type(left)
-    if kind is not type(right):
-        return False
-    if kind is dict:
-        return (
-            len(left) == len(right)
-            and all(_typed_equal(a, b) for a, b in zip(left, right))
-            and all(_typed_equal(left[key], right[other]) for key, other in zip(left, right))
-        )
-    if kind in (list, tuple):
-        return len(left) == len(right) and all(_typed_equal(a, b) for a, b in zip(left, right))
-    return _canonical(left) == _canonical(right)
+    """The same type and value at every depth, in member order, walked with
+    an explicit stack (a document deeper than the recursion limit compares
+    like a flat one). The same object is the same value, so an unchanged
+    shared document is not walked again."""
+    stack = [(left, right)]
+    while stack:
+        one, other = stack.pop()
+        if one is other:
+            continue
+        kind = type(one)
+        if kind is not type(other):
+            return False
+        if kind is dict:
+            if len(one) != len(other):
+                return False
+            for (key, item), (other_key, other_item) in zip(one.items(), other.items()):
+                stack.append((key, other_key))
+                stack.append((item, other_item))
+        elif kind in (list, tuple):
+            if len(one) != len(other):
+                return False
+            stack.extend(zip(one, other))
+        elif kind is Registry:
+            # Every schema a `$ref` can reach, as the verdict cache keys it.
+            uris = sorted(one)
+            if uris != sorted(other):
+                return False
+            stack.extend((one[uri].contents, other[uri].contents) for uri in uris)
+        elif _scalar_image(one) != _scalar_image(other):
+            return False
+    return True
 
 
-def _canonical(value: Any) -> Any:
-    """A typed image of a value: two values have the same image only when
-    they have the same type and value at every depth, the member order of a
-    dictionary included. A value of any other kind is the same only as
-    itself."""
+def _scalar_image(value: Any) -> Any:
+    """A typed image of a value that holds no document: a scalar, a set of
+    scalars or a path. A value of any other kind is the same only as itself."""
     kind = type(value)
     if value is None or kind in (bool, int, str, bytes):
         return (kind.__name__, value)
@@ -390,18 +402,10 @@ def _canonical(value: Any) -> Any:
         return ("Decimal", str(value))
     if kind is Raw:
         return ("Raw", value.text)
-    if kind in (list, tuple):
-        return (kind.__name__, tuple(_canonical(item) for item in value))
-    if kind is dict:
-        return ("dict", tuple((_canonical(key), _canonical(item)) for key, item in value.items()))
     if kind in (set, frozenset):
-        return (kind.__name__, frozenset(_canonical(item) for item in value))
+        return (kind.__name__, frozenset(_scalar_image(item) for item in value))
     if isinstance(value, PurePath):
         return (kind.__name__, str(value))
-    if kind is Registry:
-        # Every schema a `$ref` can reach, as the verdict cache keys it.
-        return ("Registry", tuple(sorted(
-            ((uri, _canonical(value[uri].contents)) for uri in value), key=lambda pair: pair[0])))
     return ("object", id(value))
 
 

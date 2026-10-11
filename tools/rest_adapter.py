@@ -14,6 +14,8 @@ import math
 import re
 from typing import Any
 
+from json_values import same_json
+
 INT64 = 2**63
 # Matched with `fullmatch`: `$` would admit a final line feed.
 ARRAY_INDEX = re.compile(r"0|[1-9][0-9]*")
@@ -229,16 +231,9 @@ def adapt(declaration: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
 
 
 def _same(left: Any, right: Any) -> bool:
-    """Equality that tells 1 from 1.0, True from 1 and 0.0 from -0.0."""
-    if type(left) is not type(right):
-        return False
-    if isinstance(left, dict):
-        return left.keys() == right.keys() and all(_same(left[key], right[key]) for key in left)
-    if isinstance(left, list):
-        return len(left) == len(right) and all(map(_same, left, right))
-    if isinstance(left, float):
-        return left == right and math.copysign(1.0, left) == math.copysign(1.0, right)
-    return left == right
+    """Equality that tells 1 from 1.0, True from 1 and 0.0 from -0.0, by type
+    and value at every depth, walked without recursion (`json_values`)."""
+    return same_json(left, right)
 
 
 def vector_errors(vector: dict[str, Any]) -> list[str]:

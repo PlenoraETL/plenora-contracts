@@ -146,6 +146,17 @@ class AdaptTests(unittest.TestCase):
         self.assertFalse(adapter._same(0.0, -0.0))
         self.assertTrue(adapter._same(-0.0, -0.0))
 
+    def test_deep_outcomes_compare_without_recursion(self):
+        def nested(leaf):
+            value = leaf
+            for _ in range(10_000):
+                value = {"a": [value]}
+            return value
+
+        self.assertTrue(adapter._same(nested(1), nested(1)))
+        self.assertFalse(adapter._same(nested(1), nested(True)))
+        self.assertFalse(adapter._same(nested(1), nested(1.0)))
+
     def test_output_without_records(self):
         missing = {"schema_version": 1, "status": "success", "output": {"type": "records"}, "errors": []}
         self.assertEqual(adapter.adapt(declaration(("n", "/n", "int64", True)), missing)["category"], "schema")

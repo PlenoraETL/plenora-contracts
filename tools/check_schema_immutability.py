@@ -17,6 +17,7 @@ import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from decimal import Decimal
 from typing import Any, NamedTuple
 
 from json_values import json_key, same_json
@@ -45,22 +46,36 @@ OPERATION_PROSE = {"summary"}
 
 
 def assertions(schema: Any) -> Any:
+    """The schema without its annotations, at every schema node. Walked with
+    an explicit stack: a schema nested deeper than the interpreter's
+    recursion limit is read like a flat one."""
     if not isinstance(schema, dict):
         return schema
-    result = {}
-    for key, value in schema.items():
-        if key in ANNOTATIONS:
-            continue
-        if key in SCHEMA_MAPS:
-            result[key] = {name: assertions(child) for name, child in value.items()}
-        elif key in SCHEMA_ARRAYS or (key == "items" and isinstance(value, list)):
-            result[key] = [assertions(child) for child in value]
-        elif key in SCHEMA_VALUES or key == "items":
-            result[key] = assertions(value)
-        else:
-            # Literal const/enum objects and unknown keywords are not schema nodes.
-            result[key] = value
-    return result
+    root: dict[str, Any] = {}
+    stack = [(schema, root)]
+
+    def node(child: Any) -> Any:
+        if not isinstance(child, dict):
+            return child
+        result: dict[str, Any] = {}
+        stack.append((child, result))
+        return result
+
+    while stack:
+        current, result = stack.pop()
+        for key, value in current.items():
+            if key in ANNOTATIONS:
+                continue
+            if key in SCHEMA_MAPS:
+                result[key] = {name: node(child) for name, child in value.items()}
+            elif key in SCHEMA_ARRAYS or (key == "items" and isinstance(value, list)):
+                result[key] = [node(child) for child in value]
+            elif key in SCHEMA_VALUES or key == "items":
+                result[key] = node(value)
+            else:
+                # Literal const/enum objects and unknown keywords are not schema nodes.
+                result[key] = value
+    return root
 
 
 class Erratum(NamedTuple):
@@ -100,9 +115,45 @@ def comparable(relative: str, document: Any) -> Any:
     return assertions(document) if relative.startswith("schemas/") else document
 
 
+def canonical_text(value: Any) -> str:
+    """Compact JSON with sorted member names, written with an explicit
+    stack. Without decimal numbers it is the text of `json.dumps(value,
+    sort_keys=True, separators=(",", ":"))`, so the published errata digests
+    keep their value; a decimal number is written with its exact text."""
+    parts: list[str] = []
+    stack: list[Any] = [value]
+    close = object()
+    while stack:
+        item = stack.pop()
+        if isinstance(item, tuple) and len(item) == 2 and item[0] is close:
+            parts.append(item[1])
+        elif item is None or type(item) in (bool, int, str):
+            parts.append(json.dumps(item))
+        elif type(item) is Decimal:
+            parts.append(str(item))
+        elif type(item) is dict:
+            names = sorted(item)
+            parts.append("{")
+            stack.append((close, "}"))
+            for index in range(len(names) - 1, -1, -1):
+                stack.append(item[names[index]])
+                stack.append((close, json.dumps(names[index]) + ":"))
+                if index:
+                    stack.append((close, ","))
+        elif type(item) is list:
+            parts.append("[")
+            stack.append((close, "]"))
+            for index in range(len(item) - 1, -1, -1):
+                stack.append(item[index])
+                if index:
+                    stack.append((close, ","))
+        else:
+            raise TypeError(f"not JSON data: {type(item).__name__}")
+    return "".join(parts)
+
+
 def digest(value: Any) -> str:
-    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return hashlib.sha256(canonical_text(value).encode("utf-8")).hexdigest()
 
 
 def assertions_digest(schema: Any) -> str:
@@ -117,7 +168,13 @@ def strict_json(text: str, relative: str) -> Any:
             raise ValueError(f"{relative} repeats a JSON object key")
         return dict(pairs)
 
-    return json.loads(text, object_pairs_hook=unique)
+    def constant(name: str) -> Any:
+        raise ValueError(f"{relative} holds {name}, which is not JSON")
+
+    # Decimal numbers keep their exact value: a binary float would make
+    # `1.0` and `1.0000000000000001` one number and hide the change.
+    # Integers stay integers, so `1` and `1.0` stay two values.
+    return json.loads(text, object_pairs_hook=unique, parse_float=Decimal, parse_constant=constant)
 
 
 def git(root: Path, *arguments: str) -> str:

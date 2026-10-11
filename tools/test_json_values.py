@@ -5,6 +5,7 @@ same value, also inside a list or a dictionary."""
 
 import copy
 import json
+import time
 import unittest
 from decimal import Decimal
 from pathlib import Path
@@ -43,6 +44,96 @@ class JsonValuesTests(unittest.TestCase):
         for value in (object(), {1, 2}, b"x", Path("x")):
             with self.subTest(value=value), self.assertRaises(TypeError):
                 json_key(value)
+
+
+def nested(depth, leaf, kind="object"):
+    value = leaf
+    for _ in range(depth):
+        value = {"a": value} if kind == "object" else [value]
+    return value
+
+
+class ScaleTests(unittest.TestCase):
+    """Deep and wide documents are compared without recursion and in about
+    linear time: an unchanged document of 10,000 levels is the same, and a
+    leaf of another type at the bottom is found."""
+
+    def assertFast(self, started, seconds):
+        self.assertLess(time.perf_counter() - started, seconds)
+
+    def test_deep_documents(self):
+        for kind in ("object", "array"):
+            with self.subTest(kind=kind):
+                started = time.perf_counter()
+                self.assertTrue(same_json(nested(10_000, 1, kind), nested(10_000, 1, kind)))
+                self.assertFalse(same_json(nested(10_000, 1, kind), nested(10_000, True, kind)))
+                self.assertEqual(json_key(nested(10_000, 1, kind)), json_key(nested(10_000, 1, kind)))
+                self.assertNotEqual(json_key(nested(10_000, 1, kind)), json_key(nested(10_000, 1.0, kind)))
+                hash(json_key(nested(10_000, 1, kind)))
+                self.assertFast(started, 5)
+
+    def test_wide_documents(self):
+        wide = {f"k{index}": [index, {"v": [True, None, "x"] * 10}] for index in range(20_000)}
+        started = time.perf_counter()
+        self.assertTrue(same_json(wide, copy.deepcopy(wide)))
+        changed = copy.deepcopy(wide)
+        changed["k19999"][1]["v"][0] = 1
+        self.assertFalse(same_json(wide, changed))
+        self.assertEqual(json_key(wide), json_key(copy.deepcopy(wide)))
+        self.assertNotEqual(json_key(wide), json_key(changed))
+        self.assertFast(started, 10)
+
+    def test_the_immutability_guard_on_deep_documents(self):
+        for depth in (400, 10_000):
+            with self.subTest(depth=depth):
+                started = time.perf_counter()
+                self.assertEqual(immutability.document_changes(
+                    "vectors/x.json", nested(depth, 1), nested(depth, 1)), [])
+                self.assertEqual(immutability.document_changes(
+                    "vectors/x.json", nested(depth, 1), nested(depth, True)), ["document changed"])
+                def schema(leaf):
+                    value = {"type": leaf}
+                    for _ in range(depth):
+                        value = {"not": value, "description": "d"}
+                    return value
+
+                self.assertEqual(immutability.document_changes(
+                    "schemas/x-v1.schema.json", schema("object"), schema("object")), [])
+                self.assertEqual(immutability.document_changes(
+                    "schemas/x-v1.schema.json", schema("object"), schema("array")), ["assertions changed"])
+                schema = schema("object")
+                self.assertEqual(len(immutability.digest(immutability.assertions(schema))), 64)
+                self.assertFast(started, 10)
+
+
+class StrictJsonTests(unittest.TestCase):
+    """Numbers are parsed exactly: `1.0` and `1.0000000000000001` are two
+    values, which a binary float would make one."""
+
+    def test_numbers_keep_their_exact_value(self):
+        parse = immutability.strict_json
+        self.assertFalse(same_json(parse('{"a": 1.0}', "x"), parse('{"a": 1.0000000000000001}', "x")))
+        self.assertEqual(immutability.document_changes(
+            "vectors/x.json", parse('{"a": 1.0}', "x"), parse('{"a": 1.0000000000000001}', "x")),
+            ["document changed"])
+        self.assertIs(type(parse("1", "x")), int)
+        self.assertFalse(same_json(parse("1", "x"), parse("1.0", "x")))
+        self.assertTrue(same_json(parse('{"a": 2.5}', "x"), parse('{"a": 2.5}', "x")))
+
+    def test_constants_that_are_not_json_are_refused(self):
+        for text in ("NaN", "Infinity", "-Infinity", '{"a": NaN}'):
+            with self.subTest(text), self.assertRaises(ValueError):
+                immutability.strict_json(text, "x")
+
+    def test_the_digest_of_a_float_free_document_is_unchanged(self):
+        """The published errata digests stay valid: without floats, the
+        canonical text is the one `json.dumps` gave."""
+        import hashlib
+        document = {"b": [1, True, None, "é\u0000\"x"], "a": {"z": False, "y": -3}}
+        expected = hashlib.sha256(json.dumps(document, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        self.assertEqual(immutability.digest(document), expected)
+        self.assertNotEqual(immutability.digest(immutability.strict_json('{"a": 1.0}', "x")),
+                            immutability.digest(immutability.strict_json('{"a": 1.0000000000000001}', "x")))
 
 
 class ImmutabilityTests(unittest.TestCase):
