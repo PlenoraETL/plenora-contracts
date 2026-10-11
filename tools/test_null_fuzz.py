@@ -1,105 +1,50 @@
-"""Null fuzz of the complete gate: every object member of every vector and
-example, replaced by null one at a time, must end in a clean verdict (exit 0
-or 1 with validation errors), never in an internal validator error.
+"""Null fuzz of the complete gate: every object member and every array
+element of every JSON input of the gate (vectors, examples, schemas,
+catalogs, bindings, composition), replaced by null one at a time, must end
+in a clean verdict (exit 0 or 1 with validation errors), never in an
+internal validator error.
 
-Documents are parsed once and schema verdicts are memoized per instance, so
-each run re-validates only the document it changes.
+The inputs are every JSON file the unmutated gate reads, found by
+`gate_fuzz`, which also memoizes what a mutation cannot change.
 """
 
-import contextlib
-import copy
-import io
-import json
 import unittest
-from unittest.mock import patch
 
-import validate_specs as validator
-
-ROOT = validator.ROOT
-FUZZED = sorted(
-    [*ROOT.glob("vectors/**/*.json"), *ROOT.glob("examples/**/*.json")]
-)
+import gate_fuzz
+from gate_fuzz import ROOT
 
 
-def member_paths(value, prefix=()):
-    """Every object member, and the members inside the first item of each
-    list (the other items have the same shape)."""
-    if isinstance(value, dict):
-        for key, child in value.items():
-            yield prefix + (key,)
-            yield from member_paths(child, prefix + (key,))
-    elif isinstance(value, list) and value:
-        yield from member_paths(value[0], prefix + (0,))
+def nulled(document, member):
+    import copy
 
-
-def set_null(document, path):
-    node = document
-    for step in path[:-1]:
+    mutated = copy.deepcopy(document)
+    node = mutated
+    for step in member[:-1]:
         node = node[step]
-    node[path[-1]] = None
+    node[member[-1]] = None
+    return mutated
 
 
 class NullFuzzTests(unittest.TestCase):
     def test_every_member_null_ends_in_a_clean_verdict(self):
-        original_load = validator.load_json
-        original_errors = validator.instance_errors
-        parsed = {}
-
-        def cached(path):
-            # Shared, unchanged documents: the gate must not mutate them, and
-            # the end of the test checks that it did not.
-            if path not in parsed:
-                parsed[path] = original_load(path)
-            return parsed[path]
-
-        verdicts = {}
-        shared = set()
-
-        def memoized(schema, instance, registry):
-            if not shared:
-                shared.update(id(document) for document in parsed.values())
-            if id(instance) in shared and any(instance is document for document in parsed.values()):
-                key = (id(schema), id(instance))
-            else:
-                key = (id(schema), json.dumps(instance, sort_keys=True))
-            if key not in verdicts:
-                verdicts[key] = original_errors(schema, instance, registry)
-            return list(verdicts[key])
-
-        target = {}
-
-        def mutated(path):
-            document = cached(path)
-            if path == target.get("path"):
-                document = copy.deepcopy(document)
-                set_null(document, target["member"])
-            return document
-
         crashes = []
         runs = 0
-        with patch.object(validator, "instance_errors", memoized), \
-                patch.object(validator.Draft202012Validator, "check_schema", lambda schema: None), \
-                patch.object(validator, "validate_markdown_links", lambda: []), \
-                patch.object(validator, "load_json", mutated):
-            for path in FUZZED:
-                for member in list(member_paths(cached(path))):
-                    target.update(path=path, member=member)
-                    with contextlib.redirect_stdout(io.StringIO()), \
-                            contextlib.redirect_stderr(io.StringIO()) as errors:
-                        try:
-                            status = validator.main()
-                        except Exception as error:  # noqa: BLE001 - what the fuzz looks for
-                            status = f"{type(error).__name__}: {error}"
-                            print(status, file=errors)
+        with gate_fuzz.Gate() as gate:
+            self.assertEqual(gate.baseline_output[0], 0, gate.baseline_output[1])
+            for path in gate.inputs():
+                if path.suffix != ".json":
+                    continue
+                document = gate_fuzz.parse(gate.original[path].decode("utf-8"))
+                for member in gate_fuzz.members(document):
+                    status, printed = gate.run((path, gate_fuzz.serialize(nulled(document, member))))
                     runs += 1
-                    if status not in (0, 1) or "internal validator error" in errors.getvalue():
+                    if status not in (0, 1) or "internal validator error" in printed:
                         crashes.append(
                             f"{path.relative_to(ROOT).as_posix()} {list(member)}: "
-                            + errors.getvalue().strip().splitlines()[-1]
+                            + (printed.strip().splitlines() or [str(status)])[-1]
                         )
-        self.assertGreater(runs, 1000)
-        for path, document in parsed.items():
-            self.assertEqual(document, original_load(path), f"the gate mutated {path}")
+            self.assertEqual(gate.check_unmutated(), [])
+        self.assertGreater(runs, 5000)
         self.assertEqual(crashes, [])
 
 
