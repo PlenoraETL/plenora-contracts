@@ -1,0 +1,49 @@
+{
+  "$schema": "../../schemas/rest-arrow-adapter-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-rest-arrow-adapter-vector-v1",
+  "description": "An object where a utf8 is declared.",
+  "declaration": {
+    "schema_version": 1,
+    "contract": "plenora-rest-arrow-adapter-v1",
+    "accept_status": [
+      "success"
+    ],
+    "on_record_error": "fail",
+    "undeclared_members": "ignore",
+    "fields": [
+      {
+        "name": "name",
+        "field_id": 0,
+        "pointer": "/name",
+        "type": "utf8",
+        "nullable": true
+      }
+    ]
+  },
+  "result": {
+    "schema_version": 1,
+    "status": "success",
+    "output": {
+      "type": "records",
+      "records": [
+        {
+          "name": {
+            "first": "a"
+          }
+        }
+      ]
+    },
+    "errors": []
+  },
+  "expect": {
+    "outcome": "error",
+    "category": "data_mapping",
+    "record": 0,
+    "field": "name",
+    "cause": "adapter.type_mismatch",
+    "phase": "read",
+    "remote_effect": "none",
+    "retry": "never"
+  }
+}

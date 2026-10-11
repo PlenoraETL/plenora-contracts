@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
 from json_values import json_key, same_json
 from messages import contract_name, differing_members
@@ -55,6 +56,8 @@ EXPECTED_SCHEMAS = {
     "operation-registry-v1.schema.json",
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
+    "rest-arrow-adapter-v1.schema.json",
+    "rest-arrow-adapter-vector-v1.schema.json",
     "row-diagnostics-v1.schema.json",
     "runtime-probe-v1.schema.json",
     "runtime-vector-v1.schema.json",
@@ -131,6 +134,13 @@ CASES = {
         ],
         "runtime-probe-v1.schema.json": [
             "examples/invalid/runtime-probe-two-mutations.json",
+        ],
+        "rest-arrow-adapter-v1.schema.json": [
+            "examples/invalid/rest-arrow-adapter-unknown-type.json",
+            "examples/invalid/rest-arrow-adapter-reserved-name.json",
+        ],
+        "rest-arrow-adapter-vector-v1.schema.json": [
+            "examples/invalid/rest-arrow-adapter-vector-error-without-cause.json",
         ],
         "plan-budget-v1.schema.json": [
             "examples/invalid/plan-budget-v5-with-domain.json",
@@ -579,6 +589,9 @@ def validate_machine_documents(
         "runtime-probe-v1.schema.json": sorted(
             (ROOT / "vectors/runtime-probes-v1").glob("*.json")
         ),
+        "rest-arrow-adapter-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/rest-arrow-adapter-v1").glob("*.json")
+        ),
     }
     failures: list[str] = []
     for schema_name, paths in groups.items():
@@ -781,6 +794,11 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
         identities = [(item["id"], item["version"]) for item in catalog["operations"]]
         if len(identities) != len(set(identities)):
             failures.append(f"{component} has duplicate operation identities")
+        # JSON Schema's integer admits 2.0, whose text is not the decimal
+        # version that runtime metadata and probes compare (decision 0017).
+        for position, item in enumerate(catalog["operations"]):
+            if not isinstance(item["version"], int) or isinstance(item["version"], bool):
+                failures.append(f"{component} v{version} operation #{position} version is not an integer literal")
 
         required = {
             item["id"]
@@ -1798,6 +1816,19 @@ def validate_arrow_vectors() -> list[str]:
             failures.append(
                 f"{path.relative_to(ROOT)} must contain a semantic violation"
             )
+    return failures
+
+
+def validate_rest_adapter_vectors() -> list[str]:
+    """REST-to-Arrow Adapter 1.0 section 8: each vector states the outcome
+    the reference adapter gives."""
+    failures: list[str] = []
+    paths = sorted((ROOT / "vectors/rest-arrow-adapter-v1").glob("*.json"))
+    if not paths:
+        failures.append("vectors/rest-arrow-adapter-v1 has no vectors")
+    for path in paths:
+        for problem in rest_adapter.vector_errors(load_json(path)):
+            failures.append(f"{path.relative_to(ROOT).as_posix()} {problem}")
     return failures
 
 
@@ -2869,6 +2900,7 @@ def run_gate() -> int:
     failures.extend(validate_bindings(catalogs))
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
+    failures.extend(validate_rest_adapter_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
     failures.extend(validate_runtime_probes(catalogs, schemas, registry))
     failures.extend(validate_plan_budget(schemas, registry))
