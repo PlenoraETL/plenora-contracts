@@ -36,10 +36,14 @@ full commit SHA; a release tag names one of those commits.
   of 1.0 (capability version `1`), and RT-018 compares that wire version
   only; RT-026 negotiates the contract at the selection of the destination,
   with an explicit downgrade from 2.0 to 1.0, and RT-027 carries the
-  negotiation context outside the envelope from the ingress to the hop that
-  selects the destination, which refuses when it was lost; fifteen vectors
-  in `vectors/runtime-negotiation-v1` (schema
-  `runtime-negotiation-vector-v1`). COMPATIBILITY.md states the transition
+  negotiation context outside the envelope from the ingress of a new
+  request to the hop that selects the destination, with an acceptance
+  record per message identity that makes every retry, redrive or resend a
+  forwarding and refuses a lost or altered context; an ingress may require
+  2.0, and without it a silent sender of 2.0 is routed under 1.0, a stated
+  limit. Twenty-one vectors in `vectors/runtime-negotiation-v1` (schema
+  `runtime-negotiation-vector-v1`) are sequences of hops from which the
+  validator derives the decision. COMPATIBILITY.md states the transition
   (what changes, who adopts, coexistence, exit of 1.0); the runtime-tools
   profile and ADOPTION.md name the claims of 2.0. The requirement of at most
   one start per request for mutating runtime operations without idempotency

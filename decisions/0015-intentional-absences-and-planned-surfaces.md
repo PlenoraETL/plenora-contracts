@@ -131,7 +131,14 @@ Runtime Binding 2.0:
   forwards without it, and the hop that selects the destination applies
   RT-026 with it and refuses when it was lost. Without it, an intermediary
   that queues only the envelope would let a second router route a request
-  meant for 2.0 as one of 1.0 (eighth reading, Codex).
+  meant for 2.0 as one of 1.0 (eighth reading, Codex). The ninth reading
+  (Codex) made the role of ingress a property of each request: an
+  acceptance record per `plenora.message.id` holds the context of the first
+  acceptance, a retry, a redrive or a resend is always a forwarding, a lost
+  or altered context and an unreadable record are refused; an ingress may
+  require 2.0, and without that configuration a silent sender of 2.0 is
+  routed under 1.0, a limit the text states. The vectors became sequences
+  of hops from which the validator derives the decision.
   `vectors/runtime-negotiation-v1` states each case and the validator
   derives the decision.
 
