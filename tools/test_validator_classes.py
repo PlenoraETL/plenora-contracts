@@ -102,7 +102,7 @@ class NullMemberTests(unittest.TestCase):
         del later["attributes"]["limit"]
         versions = {"plenora-probe-tools": {1: {"operations": [operation]}, 2: {"operations": [later]}}}
         errors = validator.repeated_identity_errors(versions)
-        self.assertTrue(any("changes attribute limit" in error for error in errors), errors)
+        self.assertTrue(any("changes attribute «limit»" in error for error in errors), errors)
         later["attributes"] = None
         errors = validator.repeated_identity_errors(versions)
         self.assertTrue(any("attributes are not an object" in error for error in errors), errors)

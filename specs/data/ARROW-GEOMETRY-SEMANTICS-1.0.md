@@ -334,8 +334,10 @@ whether a definition is verified:
 - **reference values** are those of the EPSG registry for the identifier.
 
 **GEO-019** — The closed grammar. A definition is verifiable only when it is
-made entirely of the nodes and members below; any other node, member, object
-type or attribute, whatever it says, makes it undecidable, so the operation
+made entirely of the nodes and members below, each value of exactly the kind
+listed; any other node, member, object type or attribute, and a value of
+another kind (a name given as an object, a number given as a text, a word
+outside its closed set), whatever it says, makes it undecidable, so the operation
 that computes fails with `crs` and a pass-through carries the field
 unchanged. A dynamic frame (`DYNAMIC`, `FRAMEEPOCH`,
 `DynamicGeodeticReferenceFrame`, `frame_reference_epoch`), a datum ensemble
@@ -371,70 +373,82 @@ is admitted only when every axis of the coordinate system carries one and
 each equals the position of its axis in the definition; the axis unit is
 then compared like the coordinate system's (GEO-017).
 
-WKT 1, outermost `GEOGCS` or `PROJCS`; each node admits at most the number
-of values shown and the children listed, each once unless marked `*`:
+WKT 1, outermost `GEOGCS` or `PROJCS`. Each node holds exactly the values
+shown, in order and before its children, each of the kind shown (*text* a
+quoted string, *number* a number, *word* an unquoted word, *code* a text or
+a number, an integer when a number), and only the children listed, each
+once unless marked `*`. A *direction* is one of `north`, `south`, `east`,
+`west`, `up`, `down`, ASCII case-insensitively:
 
 | node | values | children |
 |---|---|---|
-| `GEOGCS` | 1 | `DATUM`, `PRIMEM`, `UNIT`, `AXIS`*, `AUTHORITY` |
-| `PROJCS` | 1 | `GEOGCS`, `PROJECTION`, `PARAMETER`*, `UNIT`, `AXIS`*, `AUTHORITY` |
-| `DATUM` | 1 | `SPHEROID`, `AUTHORITY` |
-| `SPHEROID` | 3 | `AUTHORITY` |
-| `PRIMEM`, `UNIT` | 2 | `AUTHORITY` |
-| `PROJECTION` | 1 | `AUTHORITY` |
-| `AXIS`, `PARAMETER`, `AUTHORITY` | 2 | none |
+| `GEOGCS` | text | `DATUM`, `PRIMEM`, `UNIT`, `AXIS`*, `AUTHORITY` |
+| `PROJCS` | text | `GEOGCS`, `PROJECTION`, `PARAMETER`*, `UNIT`, `AXIS`*, `AUTHORITY` |
+| `DATUM` | text | `SPHEROID`, `AUTHORITY` |
+| `SPHEROID` | text, number, number | `AUTHORITY` |
+| `PRIMEM`, `UNIT` | text, number | `AUTHORITY` |
+| `PROJECTION` | text | `AUTHORITY` |
+| `PARAMETER` | text, number | none |
+| `AXIS` | text, direction | none |
+| `AUTHORITY` | text, code | none |
 
 WKT 1 has no ignorable node: an `EXTENSION`, such as the `PROJ4` one GDAL
 writes for `EPSG:3857`, is undecidable.
 
-WKT 2, outermost `GEOGCRS` or `PROJCRS`; a value marked as text or number is
-exactly one of that kind:
+WKT 2, outermost `GEOGCRS` or `PROJCRS`, with the same conventions; the
+coordinate system type is `ellipsoidal` or `Cartesian`, ASCII
+case-insensitively:
 
 | node | values | children |
 |---|---|---|
-| `GEOGCRS` | 1 | `DATUM` or `ENSEMBLE`, `PRIMEM`, `CS`, `AXIS`*, `ANGLEUNIT`, `ID`*, `USAGE`*, `SCOPE`, `AREA`, `BBOX`, `REMARK` |
-| `PROJCRS` | 1 | `BASEGEOGCRS`, `CONVERSION`, `CS`, `AXIS`*, `LENGTHUNIT`, `ID`*, `USAGE`*, `SCOPE`, `AREA`, `BBOX`, `REMARK` |
-| `BASEGEOGCRS` | 1 | `DATUM` or `ENSEMBLE`, `PRIMEM`, `ANGLEUNIT`, `ID`* |
-| `DATUM` | 1 | `ELLIPSOID`, `ID`* |
-| `ENSEMBLE` | 1 text | `MEMBER`*, `ELLIPSOID`, `ENSEMBLEACCURACY`, `ID`* |
-| `MEMBER` | 1 text | `ID`* |
-| `ENSEMBLEACCURACY` | 1 number | none |
-| `ELLIPSOID` | 3 | `LENGTHUNIT`, `ID`* |
-| `PRIMEM` | 2 | `ANGLEUNIT`, `ID`* |
-| `CONVERSION` | 1 | `METHOD`, `PARAMETER`*, `ID`* |
-| `METHOD` | 1 | `ID`* |
-| `PARAMETER` | 2 | `ANGLEUNIT`, `LENGTHUNIT`, `SCALEUNIT`, `ID`* |
-| `ANGLEUNIT`, `LENGTHUNIT`, `SCALEUNIT` | 2 | `ID`* |
-| `AXIS` | 2 | `ORDER`, `ANGLEUNIT`, `LENGTHUNIT` |
-| `ORDER` | 1 number | none |
-| `CS`, `ID` | 2 | none |
+| `GEOGCRS` | text | `DATUM` or `ENSEMBLE`, `PRIMEM`, `CS`, `AXIS`*, `ANGLEUNIT`, `ID`*, `USAGE`*, `SCOPE`, `AREA`, `BBOX`, `REMARK` |
+| `PROJCRS` | text | `BASEGEOGCRS`, `CONVERSION`, `CS`, `AXIS`*, `LENGTHUNIT`, `ID`*, `USAGE`*, `SCOPE`, `AREA`, `BBOX`, `REMARK` |
+| `BASEGEOGCRS` | text | `DATUM` or `ENSEMBLE`, `PRIMEM`, `ANGLEUNIT`, `ID`* |
+| `DATUM` | text | `ELLIPSOID`, `ID`* |
+| `ENSEMBLE` | text | `MEMBER`*, `ELLIPSOID`, `ENSEMBLEACCURACY`, `ID`* |
+| `MEMBER` | text | `ID`* |
+| `ENSEMBLEACCURACY` | number | none |
+| `ELLIPSOID` | text, number, number | `LENGTHUNIT`, `ID`* |
+| `PRIMEM` | text, number | `ANGLEUNIT`, `ID`* |
+| `CS` | word (the type), number | none |
+| `AXIS` | text, direction | `ORDER`, `ANGLEUNIT`, `LENGTHUNIT` |
+| `ORDER` | number | none |
+| `CONVERSION` | text | `METHOD`, `PARAMETER`*, `ID`* |
+| `METHOD` | text | `ID`* |
+| `PARAMETER` | text, number | `ANGLEUNIT`, `LENGTHUNIT`, `SCALEUNIT`, `ID`* |
+| `ANGLEUNIT`, `LENGTHUNIT`, `SCALEUNIT` | text, number | `ID`* |
+| `ID` | text, code | none |
 | `USAGE` | none | `SCOPE`, `AREA`, `BBOX`, `ID`* |
-| `SCOPE`, `AREA`, `REMARK` | 1 text | none |
-| `BBOX` | 4 numbers | none |
+| `SCOPE`, `AREA`, `REMARK` | text | none |
+| `BBOX` | number, number, number, number | none |
 
-PROJJSON, root of type `GeographicCRS` or `ProjectedCRS`; each object admits
-only the members listed (an `id` or `ids` holds objects with `authority` and
-`code` only; a unit object holds `type`, `name` and `conversion_factor`; a
-number may be an object with `value` and `unit`; `scope`, `area` and
-`remarks` are strings; a `bbox` holds exactly `south_latitude`,
-`west_longitude`, `north_latitude` and `east_longitude`, each a number):
+PROJJSON, root of type `GeographicCRS` or `ProjectedCRS`. Each object admits
+only the members listed, each with a value of exactly the kind shown:
+*string*, *number* (a JSON number, never `true`, `false` or `null`), an
+object of the kind named, an array of them, or one of the closed values
+shown. A *value* is a number or an object with `value` (a number, required)
+and `unit`; a *unit* is `metre`, `degree` or `unity`, or a unit object; a
+*code* is a number or a string:
 
-| object | members |
+| object | members and kinds |
 |---|---|
-| `GeographicCRS` | `$schema`, `type`, `name`, `datum` or `datum_ensemble`, `coordinate_system`, `id`, `ids`, `scope`, `area`, `bbox`, `usages`, `remarks` |
-| `ProjectedCRS` | `$schema`, `type`, `name`, `base_crs`, `conversion`, `coordinate_system`, `id`, `ids`, `scope`, `area`, `bbox`, `usages`, `remarks` |
-| base CRS (type `GeographicCRS` when stated) | `type`, `name`, `datum` or `datum_ensemble`, `coordinate_system`, `id`, `ids` |
-| datum (type `GeodeticReferenceFrame` when stated) | `type`, `name`, `ellipsoid`, `prime_meridian`, `id`, `ids` |
-| datum ensemble (type `DatumEnsemble` when stated) | `type`, `name`, `members`, `ellipsoid`, `accuracy` (a string), `id`, `ids` |
-| ensemble member | `name`, `id`, `ids` |
-| ellipsoid | `name`, `semi_major_axis`, `inverse_flattening`, `id`, `ids` |
-| prime meridian | `name`, `longitude`, `id`, `ids` |
-| coordinate system | `subtype`, `axis` |
-| axis | `name`, `abbreviation`, `direction`, `unit` |
-| conversion | `name`, `method`, `parameters`, `id`, `ids` |
-| method | `name`, `id`, `ids` |
-| parameter | `name`, `value`, `unit`, `id`, `ids` |
-| usage (in `usages`) | `scope`, `area`, `bbox`, `id`, `ids` |
+| `GeographicCRS` | `$schema` string, `type` `GeographicCRS`, `name` string, `datum` datum or `datum_ensemble` datum ensemble, `coordinate_system` coordinate system, `id` identifier or `ids` array of identifiers, `scope` string, `area` string, `bbox` bounding box, `usages` array of usages, `remarks` string |
+| `ProjectedCRS` | `$schema` string, `type` `ProjectedCRS`, `name` string, `base_crs` base CRS, `conversion` conversion, `coordinate_system` coordinate system, `id` or `ids`, `scope`, `area`, `bbox`, `usages`, `remarks` as above |
+| base CRS | `type` `GeographicCRS`, `name` string, `datum` or `datum_ensemble`, `coordinate_system` coordinate system, `id` or `ids` |
+| datum | `type` `GeodeticReferenceFrame`, `name` string, `ellipsoid` ellipsoid, `prime_meridian` prime meridian, `id` or `ids` |
+| datum ensemble | `type` `DatumEnsemble`, `name` string, `members` array of ensemble members, `ellipsoid` ellipsoid, `accuracy` string, `id` or `ids` |
+| ensemble member | `name` string, `id` or `ids` |
+| ellipsoid | `name` string, `semi_major_axis` value, `inverse_flattening` value, `id` or `ids` |
+| prime meridian | `name` string, `longitude` value, `id` or `ids` |
+| coordinate system | `subtype` `ellipsoidal` or `Cartesian`, `axis` array of axes |
+| axis | `name` string, `abbreviation` string, `direction` a direction, `unit` unit |
+| conversion | `name` string, `method` method, `parameters` array of parameters, `id` or `ids` |
+| method | `name` string, `id` or `ids` |
+| parameter | `name` string, `value` value, `unit` unit, `id` or `ids` |
+| unit object | `type` `LinearUnit`, `AngularUnit`, `ScaleUnit` or `Unit`, `name` string and `conversion_factor` number (both required), `id` or `ids` |
+| identifier | `authority` string and `code` code, both required |
+| usage (in `usages`) | `scope` string, `area` string, `bbox` bounding box, `id` or `ids` |
+| bounding box | exactly `south_latitude`, `west_longitude`, `north_latitude` and `east_longitude`, each a number |
 
 The vectors whose name begins with `crs-proj-epsg-` hold, unchanged, the
 WKT 1, WKT 2 (2019) and PROJJSON that PROJ 9.6.2 (GDAL 3.9.3, EPSG v12.013)

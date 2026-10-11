@@ -1,10 +1,12 @@
 """Messages without data (decision 0021).
 
 A message of the gate holds only fixed text and structural identifiers: rule
-identifiers, paths of repository files, positions, and names that a schema
-or a contract defines (a reserved metadata key, an error axis). Never a
-value, a key or a name taken from a vector or an example: those name members
-by position. `test_message_sentinels` enforces it on the whole gate.
+identifiers, paths of repository files, positions, names the validator's code
+defines (a reserved metadata key, an error axis, a component), and names of a
+contract document (a schema, a catalog, a binding, a Markdown text) quoted
+through `contract_name`. Never a value, a key or a name taken from a vector
+or an example, not even quoted: those name members by position.
+`test_message_sentinels` enforces it on every input of the gate.
 """
 
 from __future__ import annotations
@@ -34,3 +36,10 @@ def differing_members(declared: Any, expected: Any, allowed: Iterable[str]) -> s
         if declared.get(name, object()) != expected.get(name, object())
     ]
     return ", ".join(differing) or "none"
+
+
+def contract_name(name: Any) -> str:
+    """A name read from a contract document, between « and »: the only way
+    a message quotes document text. Never pass a value of a vector or an
+    example; the sentinel test fails when one arrives here."""
+    return "\u00ab" + str(name).replace("\u00ab", "").replace("\u00bb", "") + "\u00bb"

@@ -689,6 +689,15 @@ def _projjson_unit(unit: Any, quantity: str) -> None:
     raise Undecidable("PROJJSON unit missing")
 
 
+def _projjson_system_units(system: Any, quantity: str) -> None:
+    if not isinstance(system, dict) or not isinstance(system.get("axis"), list) or not system["axis"]:
+        raise Undecidable("PROJJSON without its coordinate system")
+    for axis in system["axis"]:
+        if not isinstance(axis, dict):
+            raise Undecidable("axis not readable")
+        _projjson_unit(axis.get("unit"), quantity)
+
+
 def _projjson_parts(root: dict[str, Any]) -> Parts:
     kinds = {"GeographicCRS": "geographic", "ProjectedCRS": "projected"}
     kind = kinds.get(root.get("type"), "other")
@@ -720,13 +729,11 @@ def _projjson_parts(root: dict[str, Any]) -> Parts:
             _projjson_unit(parameter.get("unit"), PARAMETER_QUANTITY[name])
             parameters[name] = _json_value(parameter.get("value"), PARAMETER_QUANTITY[name])
         conversion = (method, parameters)
-    system = root.get("coordinate_system")
-    if not isinstance(system, dict) or not isinstance(system.get("axis"), list) or not system["axis"]:
-        raise Undecidable("PROJJSON without its coordinate system")
-    for axis in system["axis"]:
-        if not isinstance(axis, dict):
-            raise Undecidable("axis not readable")
-        _projjson_unit(axis.get("unit"), quantity)
+    # Every unit of every coordinate system: the CRS's, which is required,
+    # and the base CRS's, an angle wherever it is stated.
+    _projjson_system_units(root.get("coordinate_system"), quantity)
+    if geographic is not root and "coordinate_system" in geographic:
+        _projjson_system_units(geographic["coordinate_system"], "angle")
     if "datum" in geographic and "datum_ensemble" in geographic:
         raise Undecidable("PROJJSON with a datum and a datum ensemble")
     datum = geographic.get("datum", geographic.get("datum_ensemble"))
