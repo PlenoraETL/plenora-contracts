@@ -61,12 +61,16 @@ count as conformance.
 A claim of Runtime Binding 2.0 (`plenora-runtime-binding-v2`) is separate
 from a claim of 1.0 and adds, for runtime-tools:
 
-- requests and results of both versions are routed alike: the wire format
-  is the same and carries capability version `1` (RT-025);
+- requests and results of both versions carry wire version `1` (RT-025);
+  a request meant for 2.0 is routed only to a destination whose capability
+  document advertises `plenora-runtime-binding-v2`, or to one of 1.0 after
+  the sender's explicit downgrade, and refused before sending when the
+  destination's capability document cannot be read (RT-026);
 - a result the transport cannot carry whole fails with `resource_limit` and
   is never delivered truncated as a success (RT-024); the transport's bound
   is declared in its adoption manifest;
-- the vectors of [`vectors/runtime-v2`](../vectors/runtime-v2/) are
+- the vectors of [`vectors/runtime-v2`](../vectors/runtime-v2/) and
+  [`vectors/runtime-negotiation-v1`](../vectors/runtime-negotiation-v1/) are
   exercised in addition to those of `vectors/runtime-v1`.
 
 A claim of 1.0 alone keeps the obligations above this section.

@@ -159,18 +159,35 @@ unchanged ([decision 0015](decisions/0015-intentional-absences-and-planned-surfa
   RT-024 and RT-025, declares its bounds where its profile says, and
   exercises `vectors/runtime-v2` in addition to `vectors/runtime-v1`.
 - runtime-tools, for a claim of Runtime Binding 2.0, declares its transport
-  bound in its adoption manifest and exercises both vector sets
+  bound in its adoption manifest, applies RT-026 to every destination it
+  selects for a request meant for 2.0, and exercises `vectors/runtime-v1`,
+  `vectors/runtime-v2` and `vectors/runtime-negotiation-v1`
   ([runtime-tools profile](profiles/runtime-tools.md)).
+- A sender that requires Runtime Binding 2.0 selects destinations by RT-026.
 
-**Coexistence.** The two versions are valid at the same time. A component
-may publish catalogs of both versions, each with its profile; the
-operation identities they share keep one meaning. An artifact states which
-runtime binding it follows in its capability document; because the wire
-format is the same, runtime-tools routes requests of both versions with
-capability version `1`, and an artifact of 2.0 also satisfies every rule of
-1.0. An adoption manifest declares each contract identifier it claims
-(`plenora-public-catalog-v1` or `-v2`, `plenora-runtime-binding-v1` or
-`-v2`), with its own verification.
+**Coexistence.** The two versions are valid at the same time, under
+conditions:
+
+- a component may publish catalogs of both versions, each with its profile;
+  the operation identities they share keep one meaning;
+- an artifact states the runtime binding it follows in its capability
+  document. A request carries wire version `1` under both (RT-025), so a
+  destination accepts it whatever its contract version, and an artifact of
+  2.0 satisfies every rule of 1.0 except RT-002, which RT-025 replaces;
+- the contract that governs an exchange is decided by the sender before
+  sending (RT-026): a sender of 1.0 may use a destination of 2.0; a sender
+  of 2.0 uses a destination of 1.0 only after declaring that it accepts the
+  downgrade, and otherwise refuses before sending; a request meant for 2.0
+  routed to a destination of 1.0 is detectable only by that selection, so a
+  transport that routes such requests checks each destination's capability
+  document and refuses when it cannot read it. The vectors of
+  `vectors/runtime-negotiation-v1` state each case;
+- an adoption manifest declares each contract identifier it claims
+  (`plenora-public-catalog-v1` or `-v2`, `plenora-runtime-binding-v1` or
+  `-v2`), with its own verification.
+
+There is no unconditional compatibility: a sender that requires 2.0 and a
+destination of 1.0 do not exchange without an explicit downgrade.
 
 **Exit of 1.0.** No 1.0 document, schema, catalog or vector is ever removed
 or changed: a pin to a revision that adopts 1.0 stays valid. Version 1.0

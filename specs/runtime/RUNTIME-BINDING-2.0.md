@@ -10,8 +10,8 @@ not adapters, handlers, queues or worker implementation.
 
 Version 2.0 keeps every rule of
 [Runtime Binding 1.0](RUNTIME-BINDING-1.0.md) and the wire format of its
-requests and results, and adds RT-024 (section 14). Section 15 lists what
-differs; the transition is in
+requests and results, and adds RT-024 (section 14) and the negotiation
+between the two versions (section 15). Section 16 lists what differs; the transition is in
 [COMPATIBILITY.md](../../COMPATIBILITY.md#public-catalogs-and-runtime-binding-10-to-20).
 
 ## 1. Applicability
@@ -45,7 +45,7 @@ A runtime request carries these reserved metadata values:
 | Key | Meaning |
 |---|---|
 | `plenora.capability.name` | runtime capability identity |
-| `plenora.capability.version` | runtime binding version |
+| `plenora.capability.version` | wire format version, `1` in this version (RT-025); never the contract version |
 | `plenora.capability.operation` | stable public operation identifier |
 | `plenora.operation.version` | operation contract version |
 | `plenora.input.contract` | versioned input contract identifier |
@@ -195,14 +195,20 @@ outside the grammar is never normalized into a value inside it: `"01"`,
 
 1. `protocol`, by RT-017;
 2. `unsupported`, when every reserved value is well-formed but the capability
-   name, binding version, operation, operation version or input contract does
-   not agree with one available operation advertised on the runtime surface
-   (RT-004, RT-011), the content type is not advertised (RT-005), or a control
-   is present that the operation declares unsupported (RT-006);
+   name, the wire version, operation, operation version or input contract
+   does not agree with one available operation advertised on the runtime
+   surface (RT-004, RT-011), the content type is not advertised (RT-005), or
+   a control is present that the operation declares unsupported (RT-006);
 3. `timeout`, when the deadline has elapsed at entry (RT-021).
 
-A binding version such as `"2"` is well-formed and unsupported; `"01"` is
-malformed.
+The wire version is `plenora.capability.version`, compared with the wire
+version this binding defines, `1` (RT-025): a value such as `"2"` is
+well-formed and unsupported; `"01"` is malformed. The contract version is
+not a request value and is never compared with one: a destination that
+advertises `plenora-runtime-binding-v2` accepts a well-formed request with
+wire version `"1"`, as one that advertises `-v1` does. Which contract
+governs an exchange is decided before sending, by the selection of the
+destination (RT-026).
 
 **RT-019** — The result of a rejection carries the content type and output
 contract of section 7 and a new `plenora.message.id` (RT-020). It reflects
@@ -272,7 +278,44 @@ and
 are illustrative error results: they carry neither the request, nor the
 bound, nor the size, and the validator does not derive RT-024 from them.
 
-## 15. Changes from version 1.0
+## 15. Negotiation between 1.0 and 2.0
+
+A request is byte for byte the same under both versions (RT-025), so no
+destination can tell from a request which contract its sender requires.
+The contract is negotiated where the sender, or the transport that routes
+on its behalf, chooses the destination.
+
+**RT-026** — Before sending, the sender reads the `runtime` interface of the
+destination's capability document (CAP-003) and decides:
+
+1. a sender that requires 1.0 sends to a destination that advertises
+   `plenora-runtime-binding-v1` or `plenora-runtime-binding-v2`: every result
+   of 2.0 is one that 1.0 admits, RT-024's error being a typed error of
+   1.0;
+2. a sender that requires 2.0 sends to a destination that advertises
+   `plenora-runtime-binding-v2`, under 2.0. To a destination that advertises
+   only `plenora-runtime-binding-v1` it sends only when it has declared that
+   it accepts the downgrade, and the exchange is then governed by 1.0,
+   without RT-024; without that declaration it refuses before sending. The
+   downgrade is never implicit;
+3. a request meant for 2.0 that reaches a destination of 1.0 is detectable
+   only by this selection, never by the destination: a transport that
+   routes requests meant for 2.0 applies 2. to each destination it selects,
+   and refuses when it cannot read the destination's capability document;
+4. a destination whose runtime interface names another contract, or a
+   version that is not that of its contract (`1` for `-v1`, `2` for `-v2`),
+   is refused before sending.
+
+A refusal before sending is a typed error of the sender: `unsupported`,
+`phase: validate`, `remote_effect: none`, `retry.kind: never`. A sender
+written for 1.0 that requires exactly `plenora-runtime-binding-v1` refuses a
+destination of 2.0: a refusal, never a misread result. The vectors in
+[`vectors/runtime-negotiation-v1`](../../vectors/runtime-negotiation-v1/)
+(schema
+[`runtime-negotiation-vector-v1.schema.json`](../../schemas/runtime-negotiation-vector-v1.schema.json))
+state each decision, which the validator derives from this rule.
+
+## 16. Changes from version 1.0
 
 - RT-024 is new: under 1.0 a result beyond a bound had no stated outcome,
   and a truncated success was excluded only by SURF-014.
@@ -280,5 +323,8 @@ bound, nor the size, and the validator does not derive RT-024 from them.
   version `1`, from the contract version, which the capability document
   states; under 1.0 the capability version named the contract version. A
   request and a result of 2.0 are byte for byte those of 1.0, so a consumer
-  of 1.0 reads them.
+  of 1.0 reads them. RT-018 compares the wire version with the wire version
+  and never the contract version, which RT-026 negotiates before sending.
+- RT-026 is new: the selection of the destination decides which contract
+  governs an exchange, and a downgrade from 2.0 to 1.0 is explicit.
 - Every other rule, key, grammar and vector of 1.0 applies unchanged.

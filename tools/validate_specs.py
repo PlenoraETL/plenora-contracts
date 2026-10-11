@@ -58,6 +58,7 @@ EXPECTED_SCHEMAS = {
     "row-diagnostics-v1.schema.json",
     "runtime-probe-v1.schema.json",
     "runtime-vector-v1.schema.json",
+    "runtime-negotiation-vector-v1.schema.json",
     "surface-bindings-v1.schema.json",
 }
 
@@ -582,6 +583,9 @@ def validate_machine_documents(
         "runtime-probe-v1.schema.json": sorted(
             (ROOT / "vectors/runtime-probes-v1").glob("*.json")
         ),
+        "runtime-negotiation-vector-v1.schema.json": sorted(
+            (ROOT / RUNTIME_NEGOTIATION_DIRECTORY).glob("*.json")
+        ),
     })
     failures: list[str] = []
     for schema_name, paths in groups.items():
@@ -717,6 +721,62 @@ CATALOG_SCHEMAS = {
 # Runtime Binding 2.0 section 10: the fixtures of a rule of 2.0 only, same
 # shape and same checks as those of Runtime Vectors 1.0.
 RUNTIME_VECTOR_DIRECTORIES = ("vectors/runtime-v1", "vectors/runtime-v2")
+
+
+RUNTIME_NEGOTIATION_DIRECTORY = "vectors/runtime-negotiation-v1"
+RUNTIME_BINDINGS = {"plenora-runtime-binding-v1": 1, "plenora-runtime-binding-v2": 2}
+REFUSED_BEFORE_SENDING = {
+    "decision": "refuse", "category": "unsupported", "phase": "validate",
+    "remote_effect": "none", "retry": "never",
+}
+
+
+def runtime_negotiation_decision(sender: dict[str, Any], interface: Any) -> dict[str, Any]:
+    """Runtime Binding 2.0 RT-026: the decision of the sender, or of the
+    transport that routes for it, from the runtime interface of the
+    destination's capability document (None: the document cannot be read)."""
+    if not isinstance(interface, dict):
+        return dict(REFUSED_BEFORE_SENDING)
+    advertised = interface.get("contract")
+    if RUNTIME_BINDINGS.get(advertised) != interface.get("version") or isinstance(interface.get("version"), bool):
+        # Another contract, or a version that is not that of its contract.
+        return dict(REFUSED_BEFORE_SENDING)
+    if sender["requires"] == "plenora-runtime-binding-v1":
+        return {"decision": "send", "governed_by": advertised}
+    if advertised == "plenora-runtime-binding-v2":
+        return {"decision": "send", "governed_by": advertised}
+    if sender["accepts_downgrade"] is True:
+        return {"decision": "send", "governed_by": advertised}
+    # The downgrade from 2.0 to 1.0 is never implicit.
+    return dict(REFUSED_BEFORE_SENDING)
+
+
+def validate_runtime_negotiation_vectors() -> list[str]:
+    """Each negotiation vector states the decision RT-026 gives, for a
+    request vector of wire version 1 (RT-025)."""
+    failures: list[str] = []
+    paths = sorted((ROOT / RUNTIME_NEGOTIATION_DIRECTORY).glob("*.json"))
+    if not paths:
+        return [f"{RUNTIME_NEGOTIATION_DIRECTORY} has no vectors"]
+    for path in paths:
+        label = path.relative_to(ROOT).as_posix()
+        vector = load_json(path)
+        request_path = (path.parent / vector["request"]).resolve()
+        if not request_path.is_file():
+            failures.append(f"{label} names a request vector that does not exist")
+            continue
+        request = load_json(request_path)
+        metadata = member(request, "metadata")
+        if member(request, "kind") != "request" or not isinstance(metadata, dict):
+            failures.append(f"{label} names a runtime vector that is not a request")
+            continue
+        if metadata.get("plenora.capability.version") != "1":
+            failures.append(f"{label} names a request whose wire version is not 1 (RT-025)")
+            continue
+        expected = runtime_negotiation_decision(vector["sender"], vector["destination"]["interface"])
+        if vector["expect"] != expected:
+            failures.append(f"{label} states a decision other than the one RT-026 gives")
+    return failures
 
 
 def catalog_schema_name(document: Any) -> str:
@@ -3052,6 +3112,7 @@ def run_gate() -> int:
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
+    failures.extend(validate_runtime_negotiation_vectors())
     failures.extend(validate_runtime_probes(catalogs, schemas, registry))
     failures.extend(validate_plan_budget(schemas, registry))
     failures.extend(validate_data_plan(schemas, registry))
