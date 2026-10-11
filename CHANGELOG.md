@@ -20,7 +20,10 @@ full commit SHA; a release tag names one of those commits.
   runtime result beyond a bound of the transport or of the component fails
   with `resource_limit`, never a truncated success (RT-024), with two error
   vectors in `vectors/runtime-v2`; RT-025 replaces RT-002 and keeps the wire
-  of 1.0 (capability version `1`). COMPATIBILITY.md states the transition
+  of 1.0 (capability version `1`), and RT-018 compares that wire version
+  only; RT-026 negotiates the contract at the selection of the destination,
+  with an explicit downgrade from 2.0 to 1.0 and seven vectors in
+  `vectors/runtime-negotiation-v1` (schema `runtime-negotiation-vector-v1`). COMPATIBILITY.md states the transition
   (what changes, who adopts, coexistence, exit of 1.0); the runtime-tools
   profile and ADOPTION.md name the claims of 2.0. The requirement of at most
   one start per request for mutating runtime operations without idempotency

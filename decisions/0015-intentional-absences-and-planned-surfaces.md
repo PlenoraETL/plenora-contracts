@@ -66,11 +66,21 @@ contract version. The repository owner chose that route (2026-10-11):
 - the 1.0 texts are unchanged except an informative pointer;
 - COMPATIBILITY.md states the transition: what changes, who adopts, how the
   versions coexist and when 1.0 stops being a target;
-- the published profiles are unchanged; the absences and the runtime
-  content types belong to new catalog and profile versions of the
+- the published domain profiles are unchanged; the absences and the
+  runtime rules belong to new catalog and profile versions of the
   components whose runtime the profiles stated as required, bound to the
   contracts 2.0 (stacked change: data-tools version 3, IO-tools version 3,
   database-tools version 2);
+- two published profile documents do change, each by additions that apply
+  only to the 2.0 contracts. The runtime-tools profile gains a section
+  "Runtime Binding 2.0" with obligations that bind runtime-tools only when
+  it claims that version (wire version, RT-026 on the destinations it
+  selects, its transport bound in the manifest, the vectors of
+  `vectors/runtime-v2` and `vectors/runtime-negotiation-v1`); a claim of 1.0
+  keeps exactly the obligations it had. The profile index adds, for a
+  catalog of Public Catalogs 2.0 only, that an omitted `conditional` surface
+  needs no deviation (CAT-002), and that a profile may name Runtime Binding
+  2.0;
 - DB-RT-001 is withdrawn: `database.query` version 1 keeps on the runtime
   the content types its catalog declares, as Runtime Binding selects them.
 
@@ -102,9 +112,20 @@ Runtime Binding 2.0:
   manifest.
 - **RT-025** — capability version `1` names the wire format, which 2.0 keeps;
   the contract version is the `runtime` interface of the capability
-  document (CAP-003). Introducing a capability version `2` for an unchanged
+  document (CAP-003). RT-018 compares the wire version with the wire
+  version, never the contract version. Introducing a capability version `2`
+  for an unchanged
   wire would have made every request of 2.0 unsupported by every 1.0
   artifact and duplicated every runtime vector, for no change of bytes.
+
+- **RT-026** — the contract that governs an exchange is negotiated where
+  the sender, or the transport that routes for it, selects the destination:
+  a sender of 1.0 may use a destination of 2.0; a sender of 2.0 uses one of
+  1.0 only after declaring that it accepts the downgrade, and otherwise
+  refuses before sending; a request meant for 2.0 that reaches a destination
+  of 1.0 is detectable only there, because the request is the same bytes.
+  `vectors/runtime-negotiation-v1` states each case and the validator
+  derives the decision.
 
 The absences the profiles of version 2 declare: **DB-ABS-001**
 (transactions: no CLI, because a handle does not survive the process and
@@ -128,6 +149,19 @@ other line breaks and a line made only of non-ASCII white space are
 explicit errors, each with its test. The fifth reading (Codex) found that
 the first form changed published obligations in place, which this revision
 corrects.
+
+A sixth reading (Codex) of the versions 2.0 found that RT-025 was not
+carried through: the metadata table still called the capability version the
+"runtime binding version", RT-018 compared it with the advertised binding
+version and called `"2"` unsupported, and COMPATIBILITY.md said that an
+artifact of 2.0 satisfies every rule of 1.0, while 2.0 excludes RT-002. A
+server advertising `plenora-runtime-binding-v2` and a request with `"1"`
+were refused under the table and RT-018 and accepted under RT-025. The
+table and RT-018 of 2.0 now compare the wire version with the wire version,
+the contract is compared only with the capability document's interface
+(RT-026), COMPATIBILITY.md states the exception of RT-002 and conditions
+instead of an unconditional compatibility, and the negotiation cases have
+vectors.
 
 ### Content types on the runtime (database-tools)
 
@@ -176,15 +210,17 @@ be ratified there (issue
 - **Before:** catalog surfaces could be read as availability; four absences
   had no stated reason; a result beyond a bound had no stated outcome.
 - **After:** Public Catalogs 2.0 (CAT-001 to CAT-003) and Runtime Binding
-  2.0 (RT-024, RT-025), with the transition in COMPATIBILITY.md; 1.0
-  unchanged.
+  2.0 (RT-024, RT-025, RT-026), with the transition in COMPATIBILITY.md;
+  1.0 unchanged.
 - **Compatible:** yes for every existing document: two new contract
   versions, a new schema and two vectors next to the existing ones; no
   published text, schema, catalog, binding or vector changes meaning.
-- **Schemas, examples and profiles:** new `public-catalog-v2.schema.json`;
-  `vectors/runtime-v2` with two error vectors; the profile index and the
-  runtime-tools profile name the 2.0 versions where they apply, without
-  changing a 1.0 claim; the validator checks catalogs against the schema of
+- **Schemas, examples and profiles:** new `public-catalog-v2.schema.json`
+  and `runtime-negotiation-vector-v1.schema.json`; `vectors/runtime-v2`
+  with two error vectors; `vectors/runtime-negotiation-v1` with the
+  negotiation cases of RT-026; the profile index and the runtime-tools
+  profile add obligations conditioned on the 2.0 versions, without changing
+  a 1.0 claim; the validator checks catalogs against the schema of
   their contract, CAT-003 on catalogs of version 2, and `vectors/runtime-v2`
   like `vectors/runtime-v1`.
 - **Adoption impact:** none until a component publishes a catalog of
