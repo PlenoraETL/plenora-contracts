@@ -8,6 +8,12 @@ This contract maps public operations to the transport-neutral capability
 boundary exposed by runtime-tools. It governs serialized requests and results,
 not adapters, handlers, queues or worker implementation.
 
+Informative: [Runtime Binding 2.0](RUNTIME-BINDING-2.0.md)
+(`plenora-runtime-binding-v2`) adds RT-024 and keeps the wire format of this
+version; this text is unchanged and keeps governing the artifacts that
+advertise `plenora-runtime-binding-v1`
+([COMPATIBILITY.md](../../COMPATIBILITY.md#public-catalogs-and-runtime-binding-10-to-20)).
+
 ## 1. Applicability
 
 An operation follows this contract only when its capability descriptor lists the

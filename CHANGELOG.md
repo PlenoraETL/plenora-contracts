@@ -8,6 +8,36 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- Public Catalogs 2.0 (`plenora-public-catalog-v2`, schema
+  `public-catalog-v2`) and Runtime Binding 2.0 (`plenora-runtime-binding-v2`)
+  next to their 1.0 versions, which are unchanged except an informative
+  pointer. Catalog surfaces are the target, never availability: a consumer
+  selects surfaces from the artifact's capability document, a cataloged
+  surface it does not list is planned for that artifact, no surface is
+  removed and no marker added, and a surface the profile of a catalog of
+  version 2 declares intentionally absent is never added to that operation
+  identity, with a reason the validator checks (CAT-001 to CAT-003). A
+  runtime result beyond a bound of the transport or of the component fails
+  with `resource_limit`, never a truncated success (RT-024), with two error
+  vectors in `vectors/runtime-v2`; RT-025 replaces RT-002 and keeps the wire
+  of 1.0 (capability version `1`), and RT-018 compares that wire version
+  only; RT-026 negotiates the contract at the selection of the destination,
+  with an explicit downgrade from 2.0 to 1.0, and RT-027 carries the
+  negotiation context outside the envelope from the ingress of a new
+  request to the hop that selects the destination, with an acceptance
+  record per message identity that makes every retry, redrive or resend a
+  forwarding and refuses a lost or altered context; an ingress may require
+  2.0, and without it the requirement of a silent sender of 2.0 is taken
+  as 1.0 and the selection does not guarantee RT-024, while a destination
+  of 2.0, if chosen, still applies it: a stated limit. Twenty-one vectors in `vectors/runtime-negotiation-v1` (schema
+  `runtime-negotiation-vector-v1`) are sequences of hops from which the
+  validator derives the decision. COMPATIBILITY.md states the transition
+  (what changes, who adopts, coexistence, exit of 1.0); the runtime-tools
+  profile and ADOPTION.md name the claims of 2.0. The requirement of at most
+  one start per request for mutating runtime operations without idempotency
+  key is recorded for the runtime-tools profile (issue #35). No published
+  text, schema, catalog, binding or vector changes. See
+  [decision 0015](decisions/0015-intentional-absences-and-planned-surfaces.md).
 - Arrow Geometry Semantics 1.0 (`plenora-arrow-geometry-semantics-v1`), an
   opt-in contract next to Arrow Vocabulary 1.0 that changes neither keys,
   values nor `plenora.contract.version` (GEO-000 to GEO-020): input

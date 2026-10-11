@@ -57,11 +57,13 @@ EXPECTED_SCHEMAS = {
     "operation-registry-v1.schema.json",
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
+    "public-catalog-v2.schema.json",
     "rest-arrow-adapter-v1.schema.json",
     "rest-arrow-adapter-vector-v1.schema.json",
     "row-diagnostics-v1.schema.json",
     "runtime-probe-v1.schema.json",
     "runtime-vector-v1.schema.json",
+    "runtime-negotiation-vector-v1.schema.json",
     "surface-bindings-v1.schema.json",
 }
 
@@ -461,6 +463,7 @@ def validate_example_inventory() -> list[str]:
     registrations.extend((path, "invalid", "data-plan") for path in DATA_PLAN_VIOLATING)
     registrations.extend((path, "invalid", "data-plan-number") for path in DATA_PLAN_NUMBER_VIOLATING)
     registrations.extend((path, "invalid", "public-semantics") for path in PUBLIC_SEMANTIC_CASES)
+    registrations.extend((path, "invalid", "runtime-negotiation") for path in NEGOTIATION_VIOLATING)
     return example_inventory_errors(ROOT, registrations)
 
 
@@ -576,10 +579,15 @@ def validate_error_bound_vectors(
 def validate_machine_documents(
     schemas: dict[str, dict[str, Any]], registry: Registry
 ) -> list[str]:
-    groups = {
-        "public-catalog-v1.schema.json": sorted(
-            (ROOT / "catalogs").glob("*-tools-v*.json")
-        ),
+    groups: dict[str, list[Path]] = {
+        "public-catalog-v1.schema.json": [],
+        "public-catalog-v2.schema.json": [],
+    }
+    # Each catalog against the schema of the contract version it declares
+    # (Public Catalogs 1.0 or 2.0).
+    for path in sorted((ROOT / "catalogs").glob("*-tools-v*.json")):
+        groups[catalog_schema_name(load_json(path))].append(path)
+    groups.update({
         "operation-registry-v1.schema.json": sorted(
             (ROOT / "catalogs").glob("data-kernels-v*.json")
         ),
@@ -591,16 +599,17 @@ def validate_machine_documents(
         "arrow-data-vector-v1.schema.json": sorted(
             (ROOT / "vectors/arrow-data-v1").glob("*.json")
         ),
-        "runtime-vector-v1.schema.json": sorted(
-            (ROOT / "vectors/runtime-v1").glob("*.json")
-        ),
+        "runtime-vector-v1.schema.json": runtime_vector_paths(),
         "runtime-probe-v1.schema.json": sorted(
             (ROOT / "vectors/runtime-probes-v1").glob("*.json")
+        ),
+        "runtime-negotiation-vector-v1.schema.json": sorted(
+            (ROOT / RUNTIME_NEGOTIATION_DIRECTORY).glob("*.json")
         ),
         "rest-arrow-adapter-vector-v1.schema.json": sorted(
             (ROOT / "vectors/rest-arrow-adapter-v1").glob("*.json")
         ),
-    }
+    })
     failures: list[str] = []
     for schema_name, paths in groups.items():
         for path in paths:
@@ -727,6 +736,320 @@ def repeated_identity_errors(
     return failures
 
 
+CATALOG_V2 = "plenora-public-catalog-v2"
+CATALOG_SCHEMAS = {
+    "plenora-public-catalog-v1": "public-catalog-v1.schema.json",
+    CATALOG_V2: "public-catalog-v2.schema.json",
+}
+# Runtime Binding 2.0 section 10: the fixtures of a rule of 2.0 only, same
+# shape and same checks as those of Runtime Vectors 1.0.
+RUNTIME_VECTOR_DIRECTORIES = ("vectors/runtime-v1", "vectors/runtime-v2")
+
+
+RUNTIME_NEGOTIATION_DIRECTORY = "vectors/runtime-negotiation-v1"
+RUNTIME_BINDINGS = {"plenora-runtime-binding-v1": 1, "plenora-runtime-binding-v2": 2}
+DEFAULT_CONTEXT = {"requires": "plenora-runtime-binding-v1", "accepts_downgrade": False}
+# Every branch of the derivation of RT-026 and RT-027; the tests require the
+# published vectors to take each one.
+NEGOTIATION_BRANCHES = frozenset({
+    "ingress-stated", "ingress-default-1.0", "ingress-minimum-met", "ingress-minimum-silent",
+    "ingress-minimum-below", "first-reception-from-a-hop", "record-unreadable", "forwarding",
+    "resend-from-outside", "context-lost", "context-altered", "cannot-carry",
+    "select-send-required", "select-downgrade", "select-refuse-no-downgrade",
+    "select-capabilities-unreadable", "select-interface-mismatch",
+})
+
+
+def _refusal(at_hop: int) -> dict[str, Any]:
+    return {
+        "decision": "refuse", "at_hop": at_hop, "category": "unsupported", "phase": "validate",
+        "remote_effect": "none", "retry": "never",
+    }
+
+
+def runtime_negotiation_outcome(vector: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Runtime Binding 2.0 RT-026 and RT-027 on a sequence of hops: the
+    decision, and the branches taken. The acceptance record is the context of
+    the first acceptance; a hop is the ingress of a new request only when it
+    receives it from outside and no record exists."""
+    hops = vector["hops"]
+    minimum = vector["ingress"]["minimum"]
+    record: dict[str, Any] | None = None
+    branches: list[str] = []
+    for position, hop in enumerate(hops):
+        if hop["record"] != "readable":
+            # It cannot tell a new request from a retry, a redrive or a resend.
+            return _refusal(position), branches + ["record-unreadable"]
+        received = hop["receives"]
+        if record is None:
+            if hop["from"] != "sender":
+                return _refusal(position), branches + ["first-reception-from-a-hop"]
+            if received is None:
+                if minimum == "plenora-runtime-binding-v2":
+                    return _refusal(position), branches + ["ingress-minimum-silent"]
+                record = dict(DEFAULT_CONTEXT)
+                branches.append("ingress-default-1.0")
+            elif minimum == "plenora-runtime-binding-v2" and received["requires"] != minimum:
+                return _refusal(position), branches + ["ingress-minimum-below"]
+            else:
+                record = dict(received)
+                branches.append("ingress-minimum-met" if minimum else "ingress-stated")
+        else:
+            # A retry, a redrive or a resend: never an ingress.
+            branches.append("resend-from-outside" if hop["from"] == "sender" else "forwarding")
+            if received is None:
+                return _refusal(position), branches + ["context-lost"]
+            if received != record:
+                return _refusal(position), branches + ["context-altered"]
+        if not hop["carries"]:
+            # Every hop of the route carries the context, the selecting one
+            # into its decision.
+            return _refusal(position), branches + ["cannot-carry"]
+    selector = len(hops) - 1
+    interface = vector["destination"]["interface"]
+    if not isinstance(interface, dict):
+        return _refusal(selector), branches + ["select-capabilities-unreadable"]
+    advertised = interface.get("contract")
+    version = interface.get("version")
+    if isinstance(version, bool) or RUNTIME_BINDINGS.get(advertised) != version:
+        return _refusal(selector), branches + ["select-interface-mismatch"]
+    if record is None:
+        # No hop: the schema requires one; never a decision without a context.
+        return _refusal(selector), branches + ["first-reception-from-a-hop"]
+    if record["requires"] == "plenora-runtime-binding-v1" or advertised == "plenora-runtime-binding-v2":
+        return {"decision": "send", "governed_by": advertised}, branches + ["select-send-required"]
+    if record["accepts_downgrade"] is True:
+        return {"decision": "send", "governed_by": advertised}, branches + ["select-downgrade"]
+    # The downgrade from 2.0 to 1.0 is never implicit.
+    return _refusal(selector), branches + ["select-refuse-no-downgrade"]
+
+
+def negotiation_route_errors(vector: dict[str, Any]) -> list[str]:
+    """A vector is a route: a hop receives from another hop what that hop
+    forwarded, and the hop that selects the destination forwards nothing."""
+    errors = []
+    hops = vector["hops"]
+    for position, hop in enumerate(hops):
+        if position > 0 and hop["from"] == "hop" and hop["receives"] != hops[position - 1]["forwards"]:
+            errors.append(f"hop {position} receives a context other than the one hop {position - 1} forwards")
+    if hops and hops[-1]["forwards"] is not None:
+        errors.append("the last hop, which selects the destination or refuses, forwards a context")
+    return errors
+
+
+def negotiation_vector_errors(vector: dict[str, Any]) -> list[str]:
+    """One negotiation vector, its request resolved from the published
+    directory: a route of hops that states the decision RT-026 and RT-027
+    give, for a request vector of wire version 1."""
+    request_path = (ROOT / RUNTIME_NEGOTIATION_DIRECTORY / vector["request"]).resolve()
+    if not request_path.is_file():
+        return ["names a request vector that does not exist"]
+    request = load_json(request_path)
+    metadata = member(request, "metadata")
+    if member(request, "kind") != "request" or not isinstance(metadata, dict):
+        return ["names a runtime vector that is not a request"]
+    if metadata.get("plenora.capability.version") != "1":
+        return ["names a request whose wire version is not 1 (RT-025)"]
+    route = negotiation_route_errors(vector)
+    if route:
+        return route[:1]
+    derived = runtime_negotiation_outcome(vector)[0]
+    if derived["decision"] == "refuse" and derived["at_hop"] != len(vector["hops"]) - 1:
+        # Nothing travels past a refusal: the refusing hop ends the route,
+        # and no later hop receives or forwards a context.
+        return ["hops follow the hop that refuses the request (RT-027)"]
+    if vector["expect"] != derived:
+        return ["states a decision other than the one RT-026 and RT-027 give"]
+    return []
+
+
+def validate_runtime_negotiation_vectors() -> list[str]:
+    failures: list[str] = []
+    paths = sorted((ROOT / RUNTIME_NEGOTIATION_DIRECTORY).glob("*.json"))
+    if not paths:
+        return [f"{RUNTIME_NEGOTIATION_DIRECTORY} has no vectors"]
+    for path in paths:
+        label = path.relative_to(ROOT).as_posix()
+        for error in negotiation_vector_errors(load_json(path)):
+            failures.append(f"{label}: {error}")
+    return failures
+
+
+# Accepted by the schema and refused by the negotiation gate for the rule
+# their value names: without them, a check could vanish while every
+# published vector, all conforming, stays green.
+NEGOTIATION_VIOLATING = {
+    "examples/invalid/runtime-negotiation-hops-after-refusal.json": "hops follow the hop that refuses",
+}
+
+
+def validate_negotiation_violating(schemas: dict[str, dict[str, Any]], registry: Registry) -> list[str]:
+    failures: list[str] = []
+    for relative, expected in NEGOTIATION_VIOLATING.items():
+        document = load_json(ROOT / relative)
+        if instance_errors(schemas["runtime-negotiation-vector-v1.schema.json"], document, registry):
+            failures.append(f"{relative} must be accepted by the schema so that it probes the gate")
+            continue
+        errors = negotiation_vector_errors(document)
+        if not errors or not all(expected in error for error in errors):
+            failures.append(f"{relative} must be refused only because {expected}")
+    return failures
+
+
+def catalog_schema_name(document: Any) -> str:
+    """The schema of the contract version a catalog declares; an unknown one
+    gets version 1, whose `const` refuses it."""
+    contract = document.get("contract") if isinstance(document, dict) else None
+    return CATALOG_SCHEMAS.get(contract, "public-catalog-v1.schema.json")
+
+
+def runtime_vector_paths() -> list[Path]:
+    return sorted(
+        path for directory in RUNTIME_VECTOR_DIRECTORIES for path in (ROOT / directory).glob("*.json")
+    )
+
+
+# Public Catalogs 2.0 CAT-003: surfaces the profile of a catalog of contract
+# version 2 declares intentionally absent, with the rule that gives the
+# reason. No catalog of version 2 may list them for that operation identity,
+# so no binding map can bind them either. Catalogs of version 1 keep Public
+# Catalogs 1.0, which has no such rule.
+INTENTIONAL_ABSENCES: dict[tuple[str, str, int], tuple[set[str], str]] = {}
+
+
+# CAT-003: the characters Unicode gives the White_Space property.
+WHITE_SPACE = frozenset(
+    "\t\n\x0b\x0c\r \x85\xa0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006"
+    "\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
+)
+# CAT-003: characters a profile never contains: the byte order mark (also
+# as a zero-width no-break space) and every line break other than LF and
+# CR LF. A CR that does not precede an LF is checked separately.
+FORBIDDEN_IN_PROFILE = {
+    "\ufeff": "byte order mark",
+    "\x0b": "vertical tab",
+    "\x0c": "form feed",
+    "\x85": "next line",
+    "\u2028": "line separator",
+    "\u2029": "paragraph separator",
+}
+
+
+class ProfileTextError(ValueError):
+    """A profile outside the text rules of CAT-003. The message names the
+    kind of defect, never the text."""
+
+
+def profile_lines(profile: str) -> list[str]:
+    """The lines of a profile (CAT-003): LF and CR LF end a line; a CR alone,
+    a byte order mark and any other line break are refused."""
+    for character, name in FORBIDDEN_IN_PROFILE.items():
+        if character in profile:
+            raise ProfileTextError(f"the profile contains a {name}")
+    if "\r" in profile.replace("\r\n", ""):
+        raise ProfileTextError("the profile contains a CR that does not end a line")
+    return profile.replace("\r\n", "\n").split("\n")
+
+
+def read_profile(path: Path) -> str:
+    """A profile file as written, line terminators included: no newline
+    translation, strict UTF-8."""
+    try:
+        return path.read_bytes().decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ProfileTextError("the profile is not UTF-8") from error
+
+
+def stated_reason(profile: str, rule: str) -> str:
+    """The text after `**RULE** — ` up to the first blank line or the end of
+    the file (CAT-003); empty when the marker or the dash is missing. Raises
+    `ProfileTextError` for a profile outside the text rules."""
+    lines = profile_lines(profile)
+    marker = f"**{rule}** \u2014 "
+    text = "\n".join(lines)
+    start = text.find(marker)
+    if start < 0:
+        return ""
+    reason = []
+    for line in text[start + len(marker):].split("\n"):
+        # CAT-003: a blank line is empty once ASCII spaces and tabs go.
+        if not line.strip(" \t"):
+            break
+        if all(character in WHITE_SPACE for character in line):
+            raise ProfileTextError("a line of the reason is only white space other than spaces and tabs")
+        reason.append(line)
+    return "\n".join(reason)
+
+
+def reason_is_stated(profile: str, rule: str) -> bool:
+    """CAT-003: at least one ASCII letter, and a final period whose preceding
+    character is neither a period nor white space."""
+    text = stated_reason(profile, rule)
+    return (
+        len(text) >= 2
+        and text[-1] == "."
+        and text[-2] != "."
+        and text[-2] not in WHITE_SPACE
+        and any("A" <= character <= "Z" or "a" <= character <= "z" for character in text)
+    )
+
+
+def intentional_absence_errors(
+    versions: dict[str, dict[int, dict[str, Any]]],
+) -> list[str]:
+    """CAT-003: a declared absence holds in every catalog of contract version
+    2, and the profile of each such catalog that lists the operation states
+    its rule."""
+    failures: list[str] = []
+    found: set[tuple[str, str, int]] = set()
+    for component, by_version in versions.items():
+        for version, catalog in sorted(by_version.items()):
+            if catalog.get("contract") != CATALOG_V2:
+                continue
+            profile: str | bool | None = None
+            for operation in catalog["operations"]:
+                key = (component, operation["id"], operation["version"])
+                if key not in INTENTIONAL_ABSENCES:
+                    continue
+                found.add(key)
+                absent, rule = INTENTIONAL_ABSENCES[key]
+                listed = sorted(absent & set(operation["surfaces"]))
+                if listed:
+                    failures.append(
+                        f"{component} catalog v{version} lists {listed} for "
+                        f"{key[1]}@{key[2]}, which {rule} declares absent"
+                    )
+                if profile is None:
+                    path = profile_path(component, catalog["profile"])
+                    try:
+                        profile = read_profile(path) if path.exists() else ""
+                        profile_lines(profile)
+                    except ProfileTextError as error:
+                        # Reported once per profile; its rules are not read.
+                        failures.append(f"{component} profile v{version}: {error} (CAT-003)")
+                        profile = False
+                if profile is False:
+                    continue
+                if f"**{rule}**" not in profile:
+                    failures.append(
+                        f"{component} profile v{version} does not state {rule} "
+                        f"for {key[1]}@{key[2]}"
+                    )
+                    continue
+                try:
+                    stated = reason_is_stated(profile, rule)
+                except ProfileTextError as error:
+                    failures.append(f"{component} profile v{version}: {error} (CAT-003)")
+                    continue
+                if not stated:
+                    failures.append(
+                        f"{component} profile v{version} states {rule} without a reason"
+                    )
+    for key in sorted(set(INTENTIONAL_ABSENCES) - found):
+        failures.append(f"declared absence for unknown operation {key}")
+    return failures
+
+
 def catalog_versions(
     catalogs: dict[str, dict[str, Any]],
 ) -> dict[str, dict[int, dict[str, Any]]]:
@@ -796,6 +1119,7 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
             )
 
     failures.extend(repeated_identity_errors(versions))
+    failures.extend(intentional_absence_errors(versions))
 
     for component, version, catalog in every_version:
         identities = [(item["id"], item["version"]) for item in catalog["operations"]]
@@ -2082,7 +2406,7 @@ def validate_runtime_vectors(
     storage_coverage = set()
     data_run_3_coverage: set[str] = set()
     data_run_3_vectors: list[dict[str, Any]] = []
-    for path in sorted((ROOT / "vectors/runtime-v1").glob("*.json")):
+    for path in runtime_vector_paths():
         vector = load_json(path)
         metadata = vector["metadata"]
         operation_id = metadata.get("plenora.capability.operation")
@@ -2949,6 +3273,8 @@ def run_gate() -> int:
     failures.extend(validate_arrow_data_vectors())
     failures.extend(validate_rest_adapter_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
+    failures.extend(validate_runtime_negotiation_vectors())
+    failures.extend(validate_negotiation_violating(schemas, registry))
     failures.extend(validate_runtime_probes(catalogs, schemas, registry))
     failures.extend(validate_plan_budget(schemas, registry))
     failures.extend(validate_data_plan(schemas, registry))

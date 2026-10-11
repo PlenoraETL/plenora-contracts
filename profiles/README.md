@@ -9,7 +9,10 @@ current implementation status.
 - **required**: the component profile expects a released public artifact on this
   surface.
 - **conditional**: required for each operation intentionally exposed on that
-  surface.
+  surface. For a catalog of Public Catalogs 2.0, an artifact that does not
+  expose the surface omits it from its capability document and records no
+  deviation; until it does, the surface is planned for that artifact
+  (CAT-001, CAT-002).
 - **not required**: the profile does not require this surface; if published, it
   must still follow the applicable common contract.
 - **undecided**: no stable public product decision has been made.
@@ -54,7 +57,8 @@ Every domain profile requires:
 Arrow and row diagnostics apply only to operations declaring those public
 representations.
 
-Operations listing the `runtime` surface follow Runtime Binding 1.0.
+Operations listing the `runtime` surface follow Runtime Binding 1.0, or
+Runtime Binding 2.0 where the profile says so.
 The transport that consumes those operations follows the separate
 [runtime-tools profile](runtime-tools.md); it is not a sixth domain profile.
 

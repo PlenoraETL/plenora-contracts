@@ -14,6 +14,8 @@ These schemas are normative and use JSON Schema draft 2020-12.
 | `adoption-manifest-v3.schema.json` | Superseded immutable format that introduced Python sync/async API modes |
 | `adoption-manifest-v4.schema.json` | Current adoption format with Python API modes and immutable artifact identity |
 | `public-catalog-v1.schema.json` | Normative target operations and boundary contracts per component |
+| `runtime-negotiation-vector-v1.schema.json` | The negotiation between Runtime Binding 1.0 and 2.0 at the selection of the destination (RT-026) |
+| `public-catalog-v2.schema.json` | The same shape for catalogs of Public Catalogs 2.0 (`contract` `plenora-public-catalog-v2`) |
 | `operation-registry-v1.schema.json` | Stable embedded operation identities, including data kernels |
 | `surface-bindings-v1.schema.json` | Exact CLI, Python SDK and runtime entrypoint mappings |
 | `composition-v1.schema.json` | Cross-component direct and adapter-required handoffs |

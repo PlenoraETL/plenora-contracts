@@ -67,6 +67,17 @@ deviation can describe a missing surface and does not require inventing an
 artifact for it. These cross-reference checks supplement structural schema
 validation; they do not change the retained JSON Schemas.
 
+## Contract versions
+
+A manifest names each contract by its versioned identifier, and a version
+is claimed only by name: `plenora-public-catalog-v2` and
+`plenora-runtime-binding-v2` are separate claims from their version 1
+([COMPATIBILITY.md](COMPATIBILITY.md#public-catalogs-and-runtime-binding-10-to-20)).
+A component whose current catalog is of Public Catalogs 2.0 claims
+`plenora-public-catalog-v2` for it; a runtime artifact claims the runtime
+binding version its capability document advertises for the `runtime`
+interface (CAP-003), and a claim of 2.0 records its result bounds (RT-024).
+
 ## No central implementation harness
 
 This repository provides schemas, examples and black-box vectors. Each
