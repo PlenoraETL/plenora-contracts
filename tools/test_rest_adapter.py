@@ -146,6 +146,24 @@ class AdaptTests(unittest.TestCase):
         self.assertFalse(adapter._same(0.0, -0.0))
         self.assertTrue(adapter._same(-0.0, -0.0))
 
+    def test_the_difference_path_in_linear_time(self):
+        """One walk: a wide and deep outcome is not compared again at every
+        level (the old descent compared each subtree once per ancestor)."""
+        import copy
+        import time
+        left = {"rows": [{"v": index} for index in range(3000)]}
+        right = copy.deepcopy(left)
+        right["rows"][-1]["v"] = -1
+        for _ in range(900):
+            left, right = {"k": [left]}, {"k": [right]}
+        started = time.perf_counter()
+        path = adapter.difference(left, right)
+        self.assertLess(time.perf_counter() - started, 0.5)
+        self.assertEqual(path, "/#0/0" * 900 + "/rows/2999/#0")
+        self.assertEqual(adapter.difference({"a": 1, "b": 2}, {"a": 1}), "/#1")
+        self.assertEqual(adapter.difference([1, [2, 3]], [1, [2, 4]]), "/1/1")
+        self.assertEqual(adapter.difference([1], [1, 2]), " (length)")
+
     def test_deep_outcomes_compare_without_recursion(self):
         def nested(leaf):
             value = leaf

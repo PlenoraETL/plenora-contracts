@@ -20,7 +20,7 @@ from pathlib import Path
 from decimal import Decimal
 from typing import Any, NamedTuple
 
-from json_values import decimal_text, json_key, same_json
+from json_values import decimal_text, document_key, same_document, same_schema_value
 
 ROOT = Path(__file__).resolve().parents[1]
 # The main revision every later check starts from (merge of PR #12,
@@ -119,8 +119,8 @@ def canonical_text(value: Any) -> str:
     """Compact JSON with sorted member names, written with an explicit
     stack. Without decimal numbers it is the text of `json.dumps(value,
     sort_keys=True, separators=(",", ":"))`, so the published errata digests
-    keep their value; a decimal number is written by its exact value, so
-    `1.0`, `1.00` and `1e0` have one text and `1.0000000000000001` another."""
+    keep their value; a decimal number is written with its exact representation
+    (`-0.0` and `0.0`, `1.0` and `1.00` have two texts: `json_values`)."""
     parts: list[str] = []
     stack: list[Any] = [value]
     close = object()
@@ -232,7 +232,7 @@ def changed(previous: dict, current: dict, key: Any) -> bool:
     `true` differ: `==` would take them for the same)."""
     if (key in previous) != (key in current):
         return True
-    return key in previous and not same_json(previous[key], current[key])
+    return key in previous and not same_document(previous[key], current[key])
 
 
 def fixed_fields(previous: dict, current: dict, open_fields: set[str], label: str) -> list[str]:
@@ -257,7 +257,7 @@ def entries_by(items: Any, key: Callable[[dict], Any], label: str) -> tuple[dict
             errors.append(f"{label} has an entry that is not an object")
             continue
         identity = key(item)
-        typed = json_key(identity)
+        typed = document_key(identity)
         if typed in index:
             errors.append(f"{label} repeats {identity}")
         index[typed] = (identity, item)
@@ -307,7 +307,7 @@ def registry_changes(previous: dict, current: dict) -> list[str]:
     for typed, (identity, entry) in before.items():
         if typed not in after:
             errors.append(f"kernel {identity} removed")
-        elif not same_json(after[typed][1], entry):
+        elif not same_document(after[typed][1], entry):
             errors.append(f"kernel {identity} changes")
     return errors
 
@@ -342,7 +342,7 @@ def binding_changes(previous: dict, current: dict) -> list[str]:
         for typed, (identity, binding) in old_bindings.items():
             if typed not in new_bindings:
                 errors.append(f"{component} binding {identity[0]}@{identity[1]} removed")
-            elif not same_json(new_bindings[typed][1], binding):
+            elif not same_document(new_bindings[typed][1], binding):
                 errors.append(f"{component} binding {identity[0]}@{identity[1]} changes")
     return errors
 
@@ -351,7 +351,9 @@ def document_changes(relative: str, previous: Any, current: Any) -> list[str]:
     """The kind is decided by the base document; a protected document of no
     recognized kind is compared whole (fail closed)."""
     if relative.startswith("schemas/"):
-        return [] if same_json(assertions(previous), assertions(current)) else ["assertions changed"]
+        # JSON Schema compares numbers by value: a respelled assertion
+        # (`1.0` as `1.00`, `-0.0` as `0.0`) validates the same instances.
+        return [] if same_schema_value(assertions(previous), assertions(current)) else ["assertions changed"]
     if isinstance(previous, dict) and isinstance(current, dict):
         contract = previous.get("contract")
         if relative.startswith("catalogs/") and contract == "plenora-public-catalog-v1":
@@ -360,7 +362,7 @@ def document_changes(relative: str, previous: Any, current: Any) -> list[str]:
             return registry_changes(previous, current)
         if relative.startswith("bindings/") and contract == "plenora-surface-bindings-v1":
             return binding_changes(previous, current)
-    return [] if same_json(previous, current) else ["document changed"]
+    return [] if same_document(previous, current) else ["document changed"]
 
 
 def is_protected(relative: str) -> bool:

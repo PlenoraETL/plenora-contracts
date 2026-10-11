@@ -14,7 +14,7 @@ import math
 import re
 from typing import Any
 
-from json_values import same_json
+from json_values import same_document
 
 INT64 = 2**63
 # Matched with `fullmatch`: `$` would admit a final line feed.
@@ -233,7 +233,7 @@ def adapt(declaration: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
 def _same(left: Any, right: Any) -> bool:
     """Equality that tells 1 from 1.0, True from 1 and 0.0 from -0.0, by type
     and value at every depth, walked without recursion (`json_values`)."""
-    return same_json(left, right)
+    return same_document(left, right)
 
 
 def vector_errors(vector: dict[str, Any]) -> list[str]:
@@ -273,35 +273,50 @@ def _segment(key: Any, position: int, structural: bool) -> str:
     return str(key) if structural and key in STRUCTURAL_KEYS else f"#{position}"
 
 
+_MISSING = object()
+
+
+def _member_tasks(left: dict, right: dict, path: str, structural: bool):
+    """The members of two objects in sorted-key order, as tasks; a key
+    present in one only ends the walk at its path."""
+    inner = structural and not path.endswith(("/counts", "/metadata", "/schema_metadata")) \
+        and "/rows/" not in path + "/"
+    for position, key in enumerate(sorted(set(left) | set(right), key=str)):
+        segment = _segment(key, position, inner)
+        if key not in left or key not in right:
+            yield (_MISSING, f"{path}/{segment}", None, None)
+            return
+        yield (left[key], right[key], f"{path}/{segment}", structural)
+
+
+def _element_tasks(left: list, right: list, path: str):
+    """The elements of two arrays of one length, as tasks, in order."""
+    for index, (one, other) in enumerate(zip(left, right)):
+        yield (one, other, f"{path}/{index}", True)
+
+
 def difference(left: Any, right: Any, path: str = "", structural: bool = True) -> str:
     """The path of the first difference of two values that are not `_same`.
     Inside a row, a count map or a metadata map, a member is named by its
-    position among the sorted keys, never by its key. It descends the one
-    differing branch in a loop, never by recursion."""
-    while True:
-        if type(left) is type(right) and isinstance(left, dict):
-            inner = structural and not path.endswith(("/counts", "/metadata", "/schema_metadata")) \
-                and "/rows/" not in path + "/"
-            keys = sorted(set(left) | set(right), key=str)
-            for position, key in enumerate(keys):
-                segment = _segment(key, position, inner)
-                if key not in left or key not in right:
-                    return f"{path}/{segment}"
-                if not _same(left[key], right[key]):
-                    left, right, path = left[key], right[key], f"{path}/{segment}"
-                    break
-            else:
-                return path or "/"
+    position among the sorted keys, never by its key. One depth-first walk
+    in document order, with an explicit stack: linear in the size of the
+    values (no subtree is compared twice) and never recursive."""
+    stack = [iter([(left, right, path, structural)])]
+    while stack:
+        task = next(stack[-1], None)
+        if task is None:
+            stack.pop()
             continue
-        if type(left) is type(right) and isinstance(left, list):
-            if len(left) != len(right):
-                return f"{path} (length)"
-            for index, (one, other) in enumerate(zip(left, right)):
-                if not _same(one, other):
-                    # An array element is named as the recursion named it.
-                    left, right, path, structural = one, other, f"{path}/{index}", True
-                    break
-            else:
-                return path or "/"
-            continue
-        return path or "/"
+        one, other, where, flag = task
+        if one is _MISSING:
+            return other
+        if type(one) is type(other) and isinstance(one, dict):
+            stack.append(_member_tasks(one, other, where, flag))
+        elif type(one) is type(other) and isinstance(one, list):
+            if len(one) != len(other):
+                return f"{where} (length)"
+            # An array element is named as the recursion named it.
+            stack.append(_element_tasks(one, other, where))
+        elif not _same(one, other):
+            return where or "/"
+    return path or "/"

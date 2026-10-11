@@ -14,7 +14,7 @@ import check_schema_immutability as immutability
 import messages
 import validate_specs as validator
 from conformance_checks import adoption_errors
-from json_values import json_key, same_json
+from json_values import document_key, same_document, same_schema_value, schema_value_key
 
 ROOT = Path(__file__).resolve().parents[1]
 DIFFERENT = (
@@ -28,22 +28,22 @@ class JsonValuesTests(unittest.TestCase):
     def test_types_are_distinct_at_every_depth(self):
         for left, right in DIFFERENT:
             with self.subTest(left=left, right=right):
-                self.assertFalse(same_json(left, right))
-                self.assertFalse(same_json(right, left))
-                self.assertNotEqual(json_key(left), json_key(right))
+                self.assertFalse(same_document(left, right))
+                self.assertFalse(same_document(right, left))
+                self.assertNotEqual(document_key(left), document_key(right))
 
     def test_equal_data_is_the_same(self):
         for value in (None, True, 0, 1.5, "x", [1, "a"], {"a": [1, {"b": True}]}, Decimal("2.0")):
             with self.subTest(value=value):
-                self.assertTrue(same_json(value, copy.deepcopy(value)))
+                self.assertTrue(same_document(value, copy.deepcopy(value)))
         # Member order is not JSON data; an array and a tuple are arrays.
-        self.assertTrue(same_json({"a": 1, "b": 2}, {"b": 2, "a": 1}))
-        self.assertTrue(same_json([("a", 1)], [["a", 1]]))
+        self.assertTrue(same_document({"a": 1, "b": 2}, {"b": 2, "a": 1}))
+        self.assertTrue(same_document([("a", 1)], [["a", 1]]))
 
     def test_anything_else_is_refused(self):
         for value in (object(), {1, 2}, b"x", Path("x")):
             with self.subTest(value=value), self.assertRaises(TypeError):
-                json_key(value)
+                document_key(value)
 
 
 def nested(depth, leaf, kind="object"):
@@ -65,22 +65,22 @@ class ScaleTests(unittest.TestCase):
         for kind in ("object", "array"):
             with self.subTest(kind=kind):
                 started = time.perf_counter()
-                self.assertTrue(same_json(nested(10_000, 1, kind), nested(10_000, 1, kind)))
-                self.assertFalse(same_json(nested(10_000, 1, kind), nested(10_000, True, kind)))
-                self.assertEqual(json_key(nested(10_000, 1, kind)), json_key(nested(10_000, 1, kind)))
-                self.assertNotEqual(json_key(nested(10_000, 1, kind)), json_key(nested(10_000, 1.0, kind)))
-                hash(json_key(nested(10_000, 1, kind)))
+                self.assertTrue(same_document(nested(10_000, 1, kind), nested(10_000, 1, kind)))
+                self.assertFalse(same_document(nested(10_000, 1, kind), nested(10_000, True, kind)))
+                self.assertEqual(document_key(nested(10_000, 1, kind)), document_key(nested(10_000, 1, kind)))
+                self.assertNotEqual(document_key(nested(10_000, 1, kind)), document_key(nested(10_000, 1.0, kind)))
+                hash(document_key(nested(10_000, 1, kind)))
                 self.assertFast(started, 5)
 
     def test_wide_documents(self):
         wide = {f"k{index}": [index, {"v": [True, None, "x"] * 10}] for index in range(20_000)}
         started = time.perf_counter()
-        self.assertTrue(same_json(wide, copy.deepcopy(wide)))
+        self.assertTrue(same_document(wide, copy.deepcopy(wide)))
         changed = copy.deepcopy(wide)
         changed["k19999"][1]["v"][0] = 1
-        self.assertFalse(same_json(wide, changed))
-        self.assertEqual(json_key(wide), json_key(copy.deepcopy(wide)))
-        self.assertNotEqual(json_key(wide), json_key(changed))
+        self.assertFalse(same_document(wide, changed))
+        self.assertEqual(document_key(wide), document_key(copy.deepcopy(wide)))
+        self.assertNotEqual(document_key(wide), document_key(changed))
         self.assertFast(started, 10)
 
     def test_the_immutability_guard_on_deep_documents(self):
@@ -117,13 +117,13 @@ class DecimalValueTests(unittest.TestCase):
                            ("1.5e300", "15E299")):
             with self.subTest(one=one, other=other):
                 left, right = parse(one, "x"), parse(other, "x")
-                self.assertTrue(same_json(left, right))
-                self.assertEqual(json_key(left), json_key(right))
-                self.assertEqual(immutability.digest(left), immutability.digest(right))
+                self.assertTrue(same_schema_value(left, right))
+                self.assertEqual(schema_value_key(left), schema_value_key(right))
         self.assertEqual(immutability.document_changes(
             "schemas/x-v1.schema.json", parse('{"minimum": 1.0}', "x"), parse('{"minimum": 1.00}', "x")), [])
+        # A vector keeps the exact representation of its numbers.
         self.assertEqual(immutability.document_changes(
-            "vectors/x.json", parse('[1e0]', "x"), parse('[1.0]', "x")), [])
+            "vectors/x.json", parse('[1e0]', "x"), parse('[1.0]', "x")), ["document changed"])
 
     def test_other_values_stay_other(self):
         parse = immutability.strict_json
@@ -131,12 +131,66 @@ class DecimalValueTests(unittest.TestCase):
                            ("0.1", "0.10000000000000000000000000000001")):
             with self.subTest(one=one, other=other):
                 left, right = parse(one, "x"), parse(other, "x")
-                self.assertFalse(same_json(left, right))
-                self.assertNotEqual(json_key(left), json_key(right))
+                self.assertFalse(same_schema_value(left, right))
+                self.assertNotEqual(schema_value_key(left), schema_value_key(right))
                 self.assertNotEqual(immutability.digest(left), immutability.digest(right))
         self.assertEqual(immutability.document_changes(
             "schemas/x-v1.schema.json", parse('{"minimum": 1}', "x"), parse('{"minimum": 1.0}', "x")),
             ["assertions changed"])
+
+
+class TwoContextsTests(unittest.TestCase):
+    """A numeric assertion of a schema is compared by value (JSON Schema
+    compares numbers by value: `0.0` and `-0.0`, `1.0` and `1.00` validate
+    the same instances); a published document that is not a schema
+    assertion (a vector, an example, a catalog) is compared by the exact
+    representation of each number (COMPATIBILITY.md: published vectors are
+    not modified), so the sign of a zero and the written digits count."""
+
+    def test_the_reported_negative_zero_of_a_vector(self):
+        relative = "vectors/rest-arrow-adapter-v1/float-at-the-overflow-boundary.json"
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        # Only the numbers (lines 34 and 62), not the description.
+        self.assertEqual(text.count('"v": -0.0'), 2)
+        before = immutability.strict_json(text, relative)
+        after = immutability.strict_json(text.replace('"v": -0.0', '"v": 0.0'), relative)
+        self.assertEqual(immutability.document_changes(relative, before, after), ["document changed"])
+
+    def test_negative_zero_in_a_schema_and_in_a_vector(self):
+        parse = immutability.strict_json
+        schema = '{"type": "number", "minimum": %s, "const": %s}'
+        self.assertEqual(immutability.document_changes(
+            "schemas/x-v1.schema.json", parse(schema % ("-0.0", "-0.0"), "x"), parse(schema % ("0.0", "0.0"), "x")),
+            [])
+        for one, other in (("-0.0", "0.0"), ("1.0", "1.00"), ("2.5", "2.50")):
+            with self.subTest(one=one, other=other):
+                self.assertEqual(immutability.document_changes(
+                    "vectors/x.json", parse('{"v": %s}' % one, "x"), parse('{"v": %s}' % other, "x")),
+                    ["document changed"])
+                self.assertFalse(same_document(parse(one, "x"), parse(other, "x")))
+                self.assertNotEqual(document_key(parse(one, "x")), document_key(parse(other, "x")))
+                self.assertTrue(same_schema_value(parse(one, "x"), parse(other, "x")))
+                self.assertEqual(schema_value_key(parse(one, "x")), schema_value_key(parse(other, "x")))
+        # Formatting that the parser does not keep is not a change: the
+        # exponent letter, and the same coefficient and exponent.
+        self.assertTrue(same_document(parse("1e0", "x"), parse("1E0", "x")))
+        self.assertTrue(same_document(parse("1.0", "x"), parse("10e-1", "x")))
+        # A catalog is a document too.
+        catalog = json.loads((ROOT / "catalogs/database-tools-v1.json").read_text(encoding="utf-8"))
+        before = copy.deepcopy(catalog)
+        before["operations"][0]["attributes"] = {"limit": parse("-0.0", "x")}
+        after = copy.deepcopy(catalog)
+        after["operations"][0]["attributes"] = {"limit": parse("0.0", "x")}
+        self.assertTrue(immutability.catalog_changes(before, after))
+        # Floats (the validator's own parser): the sign of a zero counts in
+        # a document.
+        self.assertFalse(same_document(-0.0, 0.0))
+        self.assertTrue(same_schema_value(-0.0, 0.0))
+
+    def test_the_digest_is_exact(self):
+        parse = immutability.strict_json
+        self.assertNotEqual(immutability.digest(parse("-0.0", "x")), immutability.digest(parse("0.0", "x")))
+        self.assertNotEqual(immutability.digest(parse("1.0", "x")), immutability.digest(parse("1.00", "x")))
 
 
 class DeepTraversalTests(unittest.TestCase):
@@ -188,13 +242,13 @@ class StrictJsonTests(unittest.TestCase):
 
     def test_numbers_keep_their_exact_value(self):
         parse = immutability.strict_json
-        self.assertFalse(same_json(parse('{"a": 1.0}', "x"), parse('{"a": 1.0000000000000001}', "x")))
+        self.assertFalse(same_document(parse('{"a": 1.0}', "x"), parse('{"a": 1.0000000000000001}', "x")))
         self.assertEqual(immutability.document_changes(
             "vectors/x.json", parse('{"a": 1.0}', "x"), parse('{"a": 1.0000000000000001}', "x")),
             ["document changed"])
         self.assertIs(type(parse("1", "x")), int)
-        self.assertFalse(same_json(parse("1", "x"), parse("1.0", "x")))
-        self.assertTrue(same_json(parse('{"a": 2.5}', "x"), parse('{"a": 2.5}', "x")))
+        self.assertFalse(same_document(parse("1", "x"), parse("1.0", "x")))
+        self.assertTrue(same_document(parse('{"a": 2.5}', "x"), parse('{"a": 2.5}', "x")))
 
     def test_constants_that_are_not_json_are_refused(self):
         for text in ("NaN", "Infinity", "-Infinity", '{"a": NaN}'):

@@ -57,9 +57,12 @@ full commit SHA; a release tag names one of those commits.
   the gate harness answered such a mutation with the unmutated verdict. The
   comparisons walk the data with an explicit stack, in linear time, so a
   deeply nested document is compared like a flat one; the immutability
-  guard parses numbers as exact decimals compared by value (`1.0`, `1.00`
-  and `1e0` are one number, as COMPATIBILITY.md treats them; `1` and `1.0`,
-  `1.0` and `1.0000000000000001` differ) and refuses `NaN` and `Infinity`.
+  guard parses numbers as exact decimals and refuses `NaN` and `Infinity`.
+  Numbers compare in two named contexts: the assertions of a schema by value
+  (`1.0`, `1.00` and `1e0`, `0.0` and `-0.0` validate the same instances),
+  every other published document by its exact representation (a vector's
+  `-0.0` changed into `0.0`, or `1.0` into `1.00`, is a change); in both, `1`
+  and `1.0`, `1.0` and `1.0000000000000001` differ.
   The gate's other traversals (fuzz members, nested items and strings of
   payloads, the error size bound, the REST adapter's difference path) walk
   with an explicit stack too. No contract document changes.
