@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.plenora.dev/interop-vector-v1.schema.json",
   "title": "Plenora interoperability vector v1",
-  "description": "A chain of public operations and its exact expectation (Composition 1.0, section 6).",
+  "description": "A chain of public operations and its exact expectation (Interoperability Vectors 1.0).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -74,7 +74,7 @@
           }
         },
         "delegated_metadata": {
-          "description": "Prefixes of provider keys that steps add and that the provider's own vectors verify; the harness removes keys under them before the exact comparison (COMP-003).",
+          "description": "Prefixes of provider keys that steps add and that the provider's own vectors verify; the harness removes keys under them before the exact comparison (INTEROP-003).",
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,

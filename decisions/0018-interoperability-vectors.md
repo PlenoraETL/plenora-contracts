@@ -18,7 +18,8 @@ errors, into this repository.
 
 ## Decision
 
-Composition 1.0 gains section 6 (COMP-001 to COMP-005), schema
+A new opt-in contract, Interoperability Vectors 1.0
+(`plenora-interop-vectors-v1`, INTEROP-001 to INTEROP-005), with schema
 `interop-vector-v1` and 40 vectors in `vectors/interop-v1`:
 
 - **7 handoff vectors**: io→data→io on points, on several geometry types, on a
@@ -41,7 +42,7 @@ Composition 1.0 gains section 6 (COMP-001 to COMP-005), schema
   declare `OGC:CRS84` and `lon_lat` and deliver the stored ordinates
   (GEO-002, GEO-003), with a longitude beyond 90 degrees.
 
-The closed list of transformations (COMP-003) is what a step may change; each
+The closed list of transformations (INTEROP-003) is what a step may change; each
 has its basis in a rule: identifiers assigned (GEO-013), large types
 narrowed and `srid` added from `EPSG:<n>` (the data-tools output contract,
 ARROW-010), EWKB with the field's SRID (GEO-009), axis order `unknown` where
@@ -104,14 +105,14 @@ completion states `axis_order` `unknown` when a CRS is declared without it,
 with a chain; delegated provider keys are recorded where the provider
 delivers them and must survive every later step unchanged; the paths of the
 validator's messages name data keys by position. The vectors illustrate the
-rules and do not attest full coverage (COMP-005 lists what they leave out).
+rules and do not attest full coverage (INTEROP-005 lists what they leave out).
 
 ### Fifth reading (Codex)
 
 The validator names the steps of a chain by position, never by the
 operation spelling the vector carries, and the sentinel test of decision
 0021 runs on these vectors too. The observation of delegated provider keys
-along a chain needs the chain to run: COMP-003 assigns it to the
+along a chain needs the chain to run: INTEROP-003 assigns it to the
 interoperability suite and to the provider's vectors; this validator checks
 that the prefixes are declared.
 
@@ -146,15 +147,24 @@ own vectors own them.
   padding and metadata order differ between implementations; the vectors fix
   the logical table, which the suite canonicalizes.
 
+### Fourth reading
+
+The rules were first written as section 6 of Composition 1.0, under the
+same version: normative prescriptions added to a published 1.0 text. They
+are now a separate opt-in contract, Interoperability Vectors 1.0, with the
+rules renamed INTEROP-001 to INTEROP-005; Composition 1.0 is again the text
+of v1.1.0 with an informative pointer.
+
 ## Change statement
 
 - **Consumers affected:** the interoperability suite; each library, which can
   run the vectors through its public boundary.
 - **Before:** expectations owned by the suite.
-- **After:** COMP-001 to COMP-005, schema `interop-vector-v1`, 40 vectors.
+- **After:** INTEROP-001 to INTEROP-005, schema `interop-vector-v1`, 40 vectors.
 - **Compatible:** yes; nothing existing changes meaning.
 - **Schemas, examples and profiles:** one schema, one invalid example, 40
-  vectors; Composition 1.0 section 6. No catalog, binding or profile
+  vectors; Interoperability Vectors 1.0, a new contract; Composition 1.0
+  keeps its published text with an informative pointer. No catalog, binding or profile
   changes.
 - **Adoption impact:** the suite loads `vectors/interop-v1` at a pinned
   revision instead of `suite/attese.py` for these chains and keeps its own

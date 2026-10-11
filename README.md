@@ -49,6 +49,7 @@ The normative sources are:
 - [runtime binding contract](specs/runtime/RUNTIME-BINDING-1.0.md);
 - [runtime conformance vectors](specs/runtime/RUNTIME-VECTORS-1.0.md);
 - [cross-component composition contract](specs/composition/COMPOSITION-1.0.md);
+- [interoperability vectors](specs/composition/INTEROP-VECTORS-1.0.md), opt-in for the components that claim Arrow geometry semantics;
 - [CLI contract](specs/cli/CLI-2.0.md);
 - [Python SDK contract](specs/sdk/PYTHON-SDK-1.0.md);
 - the versioned JSON Schemas in [schemas](schemas/README.md);

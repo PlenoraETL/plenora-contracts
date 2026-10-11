@@ -1795,7 +1795,7 @@ def cited_rule_errors(label: str, rules: list[str], known: set[str]) -> list[str
 
 
 def validate_interop_vectors(catalogs: dict[str, dict[str, Any]]) -> list[str]:
-    """Composition 1.0 section 6: chains against the matrix, expectations
+    """Interoperability Vectors 1.0: chains against the matrix, expectations
     recomputed from the inputs (`interop_vectors`)."""
     operations = operation_index(catalogs)
     edges = load_json(ROOT / "composition/pipelines-v1.json")["edges"]

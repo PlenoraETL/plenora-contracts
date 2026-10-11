@@ -1,4 +1,4 @@
-"""Interoperability vectors (Composition 1.0 section 6, decision 0018): one
+"""Interoperability vectors (Interoperability Vectors 1.0, decision 0018): one
 ordered evaluation per step, expectations recomputed, chains checked against
 the matrix, messages without values."""
 

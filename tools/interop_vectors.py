@@ -1,4 +1,4 @@
-"""Interoperability vectors (Composition 1.0, section 6, COMP-001 to COMP-005).
+"""Interoperability vectors (Interoperability Vectors 1.0, INTEROP-001 to INTEROP-005).
 
 Each vector is checked against the rules, never trusted: every step of a
 chain is evaluated in the single order of Arrow Geometry Semantics 1.0
@@ -27,7 +27,7 @@ VALUE_RULES = {"GEO-008", "GEO-009", "GEO-011"}
 CLASS_CATEGORY = {"support": "unsupported", "crs": "crs"}
 DATA_RUN = ("plenora-data-tools", "data.run")
 DATABASE_READ = ("plenora-database-tools", "database.read")
-# COMP-003: who may declare each transformation; `None` is any step.
+# INTEROP-003: who may declare each transformation; `None` is any step.
 TRANSFORMATION_OWNERS: dict[str, set[tuple[str, str]] | None] = {
     "complete_missing_geometry_keys": {DATA_RUN},
     "assign_field_ids": None,
@@ -55,7 +55,7 @@ def _geometry(table: dict[str, Any]) -> list[dict[str, Any]]:
     return list(filter(arrow_data.is_geometry, table["fields"]))
 
 
-# --- transformations (COMP-003) ------------------------------------------------
+# --- transformations (INTEROP-003) ------------------------------------------------
 
 # DT-ARROW-003: what data-tools reads for a key the field omits.
 PROFILE_DEFAULTS = {
@@ -170,7 +170,7 @@ def several_types_to_mixed(table: dict[str, Any]) -> None:
 def provider_metadata(table: dict[str, Any]) -> None:
     """ARROW-009: provider keys are delegated (`delegated_metadata`). Their
     values and their survival along the chain are observed by the harness
-    that runs the chain and by the provider's own vectors (COMP-003); this
+    that runs the chain and by the provider's own vectors (INTEROP-003); this
     validator, which runs no component, only checks that the prefixes are
     declared."""
 
@@ -188,7 +188,7 @@ TRANSFORMATIONS: dict[str, Callable[[dict[str, Any]], None]] = {
 
 
 def apply(table: dict[str, Any], step: dict[str, Any]) -> None:
-    """COMP-003: a step applies its transformations in the order of the table."""
+    """INTEROP-003: a step applies its transformations in the order of the table."""
     for name in TRANSFORMATIONS:
         if name in step["transformations"]:
             TRANSFORMATIONS[name](table)
@@ -344,7 +344,7 @@ def step_rejection(table: dict[str, Any], step: dict[str, Any], kernels: set[str
     return None
 
 
-# --- chains (COMP-002) ---------------------------------------------------------
+# --- chains (INTEROP-002) ---------------------------------------------------------
 
 Key = tuple[str, str, int]
 
@@ -366,7 +366,7 @@ def chain_errors(
         for name in step["transformations"]:
             owners = TRANSFORMATION_OWNERS[name]
             if owners is not None and (step["component"], step["operation"]) not in owners:
-                errors.append(f"step {position} cannot declare {name} (COMP-003)")
+                errors.append(f"step {position} cannot declare {name} (INTEROP-003)")
         prefix = step.get("provider_prefix")
         if prefix is not None and prefix.startswith(RESERVED_PREFIXES):
             errors.append("a provider prefix is reserved for the shared vocabulary")
@@ -388,7 +388,7 @@ def chain_errors(
     return errors
 
 
-# --- rejections (COMP-004) -------------------------------------------------------
+# --- rejections (INTEROP-004) -------------------------------------------------------
 
 def rejection_errors(vector: dict[str, Any], table: dict[str, Any], kernels: set[str]) -> list[str]:
     expected = vector["expected_error"]

@@ -528,5 +528,5 @@ category (Python SDK 1.0 section 6).
 their class and cite the rules that decide it; the validator derives the
 category with the order of REJ-002. The classes that depend on the operation
 or on the component's support are exercised by the interoperability vectors
-of [Composition 1.0](../composition/COMPOSITION-1.0.md), which name the
+of [Interoperability Vectors 1.0](../composition/INTEROP-VECTORS-1.0.md), which name the
 operation.

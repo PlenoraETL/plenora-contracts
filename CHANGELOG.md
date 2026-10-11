@@ -40,8 +40,10 @@ full commit SHA; a release tag names one of those commits.
   with informative pointers. Nine vectors in `vectors/arrow-data-v1`, four
   with two defects. See
   [decision 0014](decisions/0014-arrow-input-rejection-categories.md).
-- Interoperability vectors (Composition 1.0 section 6, COMP-001 to COMP-005)
-  for components that claim Arrow Geometry Semantics 1.0: new schema
+- Interoperability Vectors 1.0 (`plenora-interop-vectors-v1`, INTEROP-001 to
+  INTEROP-005), an opt-in contract for components that claim Arrow Geometry
+  Semantics 1.0; Composition 1.0 keeps its published text with an
+  informative pointer: new schema
   `interop-vector-v1` and 40 vectors in `vectors/interop-v1`: 10 handoff
   chains among IO-tools, data-tools and database-tools whose expected table
   the validator recomputes from the input and a closed list of declared
