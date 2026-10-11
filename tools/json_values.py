@@ -8,14 +8,14 @@ same value and passes in silence.
 
 Numbers are compared in one of two contexts, which every caller names:
 
-- `same_document` / `document_key`: a published document that is not a
-  schema assertion (a vector, an example, a catalog, a binding, an expected
-  value). COMPATIBILITY.md forbids modifying a published vector, and a
-  consumer reads each number as written: the sign of a zero is data (RA-003
-  keeps it), and `1.0` against `1.00` is another text. A decimal is
-  compared by its exact representation, the coefficient digits and the
-  exponent the parser keeps, so only formatting the parser does not keep
-  (the exponent letter, `10e-1` against `1.0`) is not a change.
+- `same_document` / `document_key`: data of a published document that is
+  not a schema assertion (catalog entries, expected values). COMPATIBILITY.md
+  forbids modifying a published vector, and a consumer reads each number as
+  written: the sign of a zero is data (RA-003 keeps it), and `1.0` against
+  `1.00`, `10e-1` or `1.0000000000000001` is another number. A number read
+  by `loads` keeps its exact text (`JsonNumber`) and is compared by it; no
+  spelling is tolerated. (A whole published document that may not grow is
+  compared by its bytes, without parsing: `check_schema_immutability`.)
 - `same_schema_value` / `schema_value_key`: the numeric assertions of a
   JSON Schema, which compares numbers by value: `1.0`, `1.00` and `1e0`,
   `0.0` and `-0.0` validate the same instances (COMPATIBILITY.md: a schema
@@ -32,8 +32,46 @@ is serialized.
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from typing import Any
+
+
+class JsonNumber(Decimal):
+    """A JSON number as written: its exact value (a `Decimal`, so JSON
+    Schema and arithmetic read it as a number) and its exact text, which
+    `same_document` compares. `parse_float` gives it for every number with a
+    fraction or an exponent; `parse_integer` for `-0`, the only integer
+    whose text an `int` would lose."""
+
+    def __new__(cls, text: str) -> "JsonNumber":
+        number = super().__new__(cls, text)
+        number.text = text
+        return number
+
+    def __reduce__(self):
+        return (type(self), (self.text,))
+
+    def __copy__(self) -> "JsonNumber":
+        return self
+
+    def __deepcopy__(self, memo: Any) -> "JsonNumber":
+        return self
+
+
+def parse_integer(text: str) -> Any:
+    return JsonNumber(text) if text == "-0" else int(text)
+
+
+def number_text(value: Decimal) -> str:
+    """The exact text of a parsed number; `str` of any other decimal."""
+    return value.text if isinstance(value, JsonNumber) else str(value)
+
+
+def loads(text: str, **options: Any) -> Any:
+    """`json.loads` with exact numbers: every decimal a `JsonNumber`, every
+    integer an `int` (`-0` a `JsonNumber`). No binary float is produced."""
+    return json.loads(text, parse_float=JsonNumber, parse_int=parse_integer, **options)
 
 
 class _Member:
@@ -62,8 +100,9 @@ def _scalar(value: Any, by_value: bool) -> tuple[str, Any] | None:
             return ("float", value if value == value else "nan")
         # `repr` tells -0.0 from 0.0; a NaN is the same as itself.
         return ("float", repr(value))
-    if kind is Decimal:
-        return ("decimal", decimal_value(value) if by_value else decimal_representation(value))
+    if kind is Decimal or kind is JsonNumber:
+        # A document's number by its exact text; an assertion's by value.
+        return ("decimal", decimal_value(value) if by_value else number_text(value))
     if kind is str:
         return ("string", value)
     if kind in (list, tuple, dict):
@@ -99,16 +138,58 @@ def decimal_value(value: Decimal) -> tuple:
 
 
 def decimal_text(value: Decimal) -> str:
-    """A JSON number text of the exact representation of a decimal (the
-    digest of a published document): `-0.0` and `0.0`, `1.0` and `1.00`
-    have two texts."""
-    image = decimal_representation(value)
+    """A JSON number text of the exact value of a decimal (the digest of
+    schema assertions, compared by value): `1.0`, `1.00` and `10e-1` have
+    one text, `1.0000000000000001` another."""
+    image = decimal_value(value)
     if image[0] == "special":
         raise TypeError("not JSON data: a decimal that is not a finite number")
     sign, digits, exponent = image
     # Always with an exponent: an integer is never written so, and stays
     # another value (`1` against `1.0`).
     return ("-" if sign else "") + "".join(map(str, digits)) + f"E{exponent}"
+
+
+def canonical_text(value: Any, sort_keys: bool = True, by_value: bool = True) -> str:
+    """Compact JSON written with an explicit stack (a value deeper than the
+    recursion limit is written like a flat one). With sorted member names
+    and without decimal numbers it is the text of `json.dumps(value,
+    sort_keys=True, separators=(",", ":"))`. A decimal is written by its
+    value (`decimal_text`) or, with `by_value=False`, by its exact text; a
+    binary float as `json.dumps` writes it. Unsorted, it keeps the member
+    order: a key for data whose order matters."""
+    parts: list[str] = []
+    stack: list[Any] = [value]
+    close = object()
+    while stack:
+        item = stack.pop()
+        if type(item) is tuple and len(item) == 2 and item[0] is close:
+            parts.append(item[1])
+        elif item is None or type(item) in (bool, int, str, float):
+            parts.append(json.dumps(item))
+        elif type(item) is Decimal or type(item) is JsonNumber:
+            parts.append(decimal_text(item) if by_value else number_text(item))
+        elif type(item) is dict:
+            names = _names(item)
+            if sort_keys:
+                names.sort()
+            parts.append("{")
+            stack.append((close, "}"))
+            for index in range(len(names) - 1, -1, -1):
+                stack.append(item[names[index]])
+                stack.append((close, json.dumps(names[index]) + ":"))
+                if index:
+                    stack.append((close, ","))
+        elif type(item) in (list, tuple):
+            parts.append("[")
+            stack.append((close, "]"))
+            for index in range(len(item) - 1, -1, -1):
+                stack.append(item[index])
+                if index:
+                    stack.append((close, ","))
+        else:
+            raise TypeError(f"not JSON data: {type(item).__name__}")
+    return "".join(parts)
 
 
 def _names(value: dict) -> list[str]:

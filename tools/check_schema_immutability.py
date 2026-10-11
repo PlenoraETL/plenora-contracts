@@ -17,10 +17,9 @@ import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
-from decimal import Decimal
 from typing import Any, NamedTuple
 
-from json_values import decimal_text, document_key, same_document, same_schema_value
+from json_values import canonical_text, document_key, loads, same_document, same_schema_value
 
 ROOT = Path(__file__).resolve().parents[1]
 # The main revision every later check starts from (merge of PR #12,
@@ -81,7 +80,7 @@ def assertions(schema: Any) -> Any:
 class Erratum(NamedTuple):
     """A declared erratum (COMPATIBILITY.md, «Errata before adoption»).
 
-    `before` and `after` are digests of the comparable form (`comparable`);
+    `before` and `after` are digests of the declared form (`erratum_digest`);
     `decision` must exist and name the file in its `## Erratum` section;
     `last_base` is the last main revision that published `before`: the
     transition is admitted only against that revision or its ancestors, never
@@ -100,61 +99,39 @@ ERRATA: dict[str, Erratum] = {
         "decisions/0008-data-run-runtime.md",
         "4c1569d4b7fb7f0b451566b71e0f01165f9d6bcc",
     ),
+    # A document other than a schema is compared by its bytes: its digests
+    # are those of its bytes (line ends normalized), the same two states
+    # 5ac9ab0d (before) and 8ac451ba (after) as the parsed digests they
+    # replace (28047084..., 18455d1e...).
     "vectors/runtime-v1/data-run-success-v3.json": Erratum(
-        "28047084abc9651998208af0461146bfd21ed5636cf2d2e80faecf50c7a333ef",
-        "18455d1e2c7f19e8379b6c63c72a4e8538e2da0d7bcd4789765220e2c0672413",
+        "d86fe1fbb314fcc26fb2e7f190f2ca1e469f4c56b9f2d066933b8d9df1fa7b3d",
+        "c8576bc8cc025f009bf55762ac1a2b911c91977e8a849a568c92768424284ee1",
         "decisions/0008-data-run-runtime.md",
         "4c1569d4b7fb7f0b451566b71e0f01165f9d6bcc",
     ),
 }
 
 
-def comparable(relative: str, document: Any) -> Any:
-    """What the guard compares: assertions of a schema, the whole document
-    of anything else."""
-    return assertions(document) if relative.startswith("schemas/") else document
-
-
-def canonical_text(value: Any) -> str:
-    """Compact JSON with sorted member names, written with an explicit
-    stack. Without decimal numbers it is the text of `json.dumps(value,
-    sort_keys=True, separators=(",", ":"))`, so the published errata digests
-    keep their value; a decimal number is written with its exact representation
-    (`-0.0` and `0.0`, `1.0` and `1.00` have two texts: `json_values`)."""
-    parts: list[str] = []
-    stack: list[Any] = [value]
-    close = object()
-    while stack:
-        item = stack.pop()
-        if isinstance(item, tuple) and len(item) == 2 and item[0] is close:
-            parts.append(item[1])
-        elif item is None or type(item) in (bool, int, str):
-            parts.append(json.dumps(item))
-        elif type(item) is Decimal:
-            parts.append(decimal_text(item))
-        elif type(item) is dict:
-            names = sorted(item)
-            parts.append("{")
-            stack.append((close, "}"))
-            for index in range(len(names) - 1, -1, -1):
-                stack.append(item[names[index]])
-                stack.append((close, json.dumps(names[index]) + ":"))
-                if index:
-                    stack.append((close, ","))
-        elif type(item) is list:
-            parts.append("[")
-            stack.append((close, "]"))
-            for index in range(len(item) - 1, -1, -1):
-                stack.append(item[index])
-                if index:
-                    stack.append((close, ","))
-        else:
-            raise TypeError(f"not JSON data: {type(item).__name__}")
-    return "".join(parts)
-
-
 def digest(value: Any) -> str:
+    """The digest of schema assertions: their canonical text, numbers by
+    value (as they are compared). Without decimal numbers it is the digest
+    of `json.dumps(value, sort_keys=True, separators=(",", ":"))`."""
     return hashlib.sha256(canonical_text(value).encode("utf-8")).hexdigest()
+
+
+def normalized(data: bytes) -> bytes:
+    """The bytes of a published document as the repository stores them:
+    `.gitattributes` keeps JSON with LF line ends, so a CRLF checkout is the
+    same document. Nothing else is normalized."""
+    return data.replace(b"\r\n", b"\n")
+
+
+def erratum_digest(relative: str, data: bytes) -> str:
+    """What an erratum declares: the digest of a schema's assertions, or of
+    any other document's bytes."""
+    if relative.startswith("schemas/"):
+        return digest(assertions(strict_json(data.decode("utf-8"), relative)))
+    return hashlib.sha256(normalized(data)).hexdigest()
 
 
 def assertions_digest(schema: Any) -> str:
@@ -172,10 +149,14 @@ def strict_json(text: str, relative: str) -> Any:
     def constant(name: str) -> Any:
         raise ValueError(f"{relative} holds {name}, which is not JSON")
 
-    # Decimal numbers keep their exact value: a binary float would make
-    # `1.0` and `1.0000000000000001` one number and hide the change.
+    # Every number keeps its exact text (`JsonNumber`): a binary float would
+    # make `1.0` and `1.0000000000000001` one number and hide the change.
     # Integers stay integers, so `1` and `1.0` stay two values.
-    return json.loads(text, object_pairs_hook=unique, parse_float=Decimal, parse_constant=constant)
+    return loads(text, object_pairs_hook=unique, parse_constant=constant)
+
+
+def git_bytes(root: Path, *arguments: str) -> bytes:
+    return subprocess.check_output(["git", "-C", str(root), *arguments], stderr=subprocess.PIPE)
 
 
 def git(root: Path, *arguments: str) -> str:
@@ -211,14 +192,14 @@ def erratum_errors(relative: str, erratum: Erratum, read_text: Callable[[str], s
 
 
 def declared_erratum(
-    root: Path, base: str, relative: str, previous: Any, current: Any,
+    root: Path, base: str, relative: str, previous: bytes, current: bytes,
     read_text: Callable[[str], str | None],
 ) -> bool:
     erratum = ERRATA.get(relative)
     if erratum is None or erratum_errors(relative, erratum, read_text):
         return False
     return (
-        (digest(comparable(relative, previous)), digest(comparable(relative, current)))
+        (erratum_digest(relative, previous), erratum_digest(relative, current))
         == (erratum.before, erratum.after)
         and is_ancestor(root, base, erratum.last_base)
     )
@@ -347,6 +328,33 @@ def binding_changes(previous: dict, current: dict) -> list[str]:
     return errors
 
 
+STRUCTURED = {
+    ("catalogs/", "plenora-public-catalog-v1"),
+    ("catalogs/", "plenora-operation-registry-v1"),
+    ("bindings/", "plenora-surface-bindings-v1"),
+}
+
+
+def published_changes(relative: str, previous: bytes, current: bytes) -> list[str]:
+    """How a published document changed, from its bytes. A schema compares
+    its assertions by value; a catalog, a registry or a binding map, which
+    may grow, compares its entries with each number's exact text; any other
+    document (a vector, an example) compares its bytes, line ends
+    normalized, without parsing: COMPATIBILITY.md forbids modifying it, so
+    no spelling (`-0e-1` for `-0.0`, `10e-1` for `1.0`) is tolerated."""
+    if relative.startswith("schemas/"):
+        return document_changes(
+            relative, strict_json(previous.decode("utf-8"), relative), strict_json(current.decode("utf-8"), relative)
+        )
+    if normalized(previous) == normalized(current):
+        return []
+    document = strict_json(previous.decode("utf-8"), relative)
+    contract = document.get("contract") if isinstance(document, dict) else None
+    if any(relative.startswith(prefix) and contract == kind for prefix, kind in STRUCTURED):
+        return document_changes(relative, document, strict_json(current.decode("utf-8"), relative))
+    return ["document changed"]
+
+
 def document_changes(relative: str, previous: Any, current: Any) -> list[str]:
     """The kind is decided by the base document; a protected document of no
     recognized kind is compared whole (fail closed)."""
@@ -407,14 +415,25 @@ def check(
         except subprocess.CalledProcessError:
             return None
 
+    def read_bytes(relative: str) -> bytes | None:
+        if present is not None:
+            return (root / relative).read_bytes() if relative in present else None
+        try:
+            return git_bytes(root, "show", f"{head}:{relative}")
+        except subprocess.CalledProcessError:
+            return None
+
     def untouched(relative: str) -> bool:
         if touched_since is None:
             return False
         try:
-            before = git(root, "show", f"{touched_since}:{relative}")
+            before = git_bytes(root, "show", f"{touched_since}:{relative}")
         except subprocess.CalledProcessError:
             before = None
-        return read_text(relative) == before
+        current = read_bytes(relative)
+        if before is None or current is None:
+            return before is current
+        return normalized(current) == normalized(before)
 
     errors = []
     # Every declaration for a document this base or tree publishes must be
@@ -427,14 +446,13 @@ def check(
     for relative in paths:
         if untouched(relative):
             continue
-        text = read_text(relative)
+        current = read_bytes(relative)
         kind = "schema" if relative.startswith("schemas/") else "document"
-        if text is None:
+        if current is None:
             errors.append(f"published {kind} removed: {relative}")
             continue
-        previous = strict_json(git(root, "show", f"{base}:{relative}"), relative)
-        current = strict_json(text, relative)
-        changes = document_changes(relative, previous, current)
+        previous = git_bytes(root, "show", f"{base}:{relative}")
+        changes = published_changes(relative, previous, current)
         if not changes or declared_erratum(root, base, relative, previous, current, read_text):
             continue
         if kind == "schema":

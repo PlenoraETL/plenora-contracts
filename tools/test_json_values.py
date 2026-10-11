@@ -171,10 +171,11 @@ class TwoContextsTests(unittest.TestCase):
                 self.assertNotEqual(document_key(parse(one, "x")), document_key(parse(other, "x")))
                 self.assertTrue(same_schema_value(parse(one, "x"), parse(other, "x")))
                 self.assertEqual(schema_value_key(parse(one, "x")), schema_value_key(parse(other, "x")))
-        # Formatting that the parser does not keep is not a change: the
-        # exponent letter, and the same coefficient and exponent.
-        self.assertTrue(same_document(parse("1e0", "x"), parse("1E0", "x")))
-        self.assertTrue(same_document(parse("1.0", "x"), parse("10e-1", "x")))
+        # No spelling is tolerated in a document: the number's own text.
+        for one, other in (("-0.0", "-0e-1"), ("1.0", "10e-1"), ("1e0", "1E0"), ("-0", "0")):
+            with self.subTest(one=one, other=other):
+                self.assertFalse(same_document(parse(one, "x"), parse(other, "x")))
+                self.assertNotEqual(document_key(parse(one, "x")), document_key(parse(other, "x")))
         # A catalog is a document too.
         catalog = json.loads((ROOT / "catalogs/database-tools-v1.json").read_text(encoding="utf-8"))
         before = copy.deepcopy(catalog)
@@ -187,10 +188,119 @@ class TwoContextsTests(unittest.TestCase):
         self.assertFalse(same_document(-0.0, 0.0))
         self.assertTrue(same_schema_value(-0.0, 0.0))
 
-    def test_the_digest_is_exact(self):
-        parse = immutability.strict_json
-        self.assertNotEqual(immutability.digest(parse("-0.0", "x")), immutability.digest(parse("0.0", "x")))
-        self.assertNotEqual(immutability.digest(parse("1.0", "x")), immutability.digest(parse("1.00", "x")))
+    def test_the_digests_follow_the_comparisons(self):
+        """A document's erratum digest is that of its bytes; a schema's, that
+        of its assertions by value."""
+        digest = immutability.erratum_digest
+        for one, other in (("-0.0", "0.0"), ("-0.0", "-0e-1"), ("1.0", "1.00"), ("1.0", "10e-1")):
+            with self.subTest(one=one, other=other):
+                self.assertNotEqual(digest("vectors/x.json", b'[%s]' % one.encode()),
+                                    digest("vectors/x.json", b'[%s]' % other.encode()))
+                self.assertEqual(digest("schemas/x-v1.schema.json", b'{"minimum": %s}' % one.encode()),
+                                 digest("schemas/x-v1.schema.json", b'{"minimum": %s}' % other.encode()))
+        self.assertNotEqual(digest("schemas/x-v1.schema.json", b'{"minimum": 1}'),
+                            digest("schemas/x-v1.schema.json", b'{"minimum": 1.0}'))
+
+
+class PublishedBytesTests(unittest.TestCase):
+    """A published document that is not a schema is compared by its bytes
+    (line ends normalized, as `.gitattributes` stores them): no parsing, no
+    spelling tolerated. Catalogs, registries and bindings, which may grow,
+    compare their entries with each number's exact text. Schemas compare
+    their assertions by value."""
+
+    def test_vectors_by_their_bytes(self):
+        changes = immutability.published_changes
+        for one, other in (("-0.0", "-0e-1"), ("1.0", "10e-1"), ("-0.0", "0.0"), ("1.0", "1.00")):
+            with self.subTest(one=one, other=other):
+                self.assertEqual(changes("vectors/x.json", b'{"v": %s}\n' % one.encode(),
+                                         b'{"v": %s}\n' % other.encode()), ["document changed"])
+        self.assertEqual(changes("vectors/x.json", b'{"v": 1}\n', b'{"v":  1}\n'), ["document changed"])
+        self.assertEqual(changes("vectors/x.json", b'{"v": 1}\n', b'{"v": 1}\r\n'), [])
+        self.assertEqual(changes("examples/valid/x.json", b'[1.0]', b'[1.0]'), [])
+
+    def test_schemas_by_value(self):
+        changes = immutability.published_changes
+        for one, other in (("-0.0", "-0e-1"), ("1.0", "10e-1"), ("1.0", "1.00")):
+            with self.subTest(one=one, other=other):
+                self.assertEqual(changes("schemas/x-v1.schema.json", b'{"minimum": %s}' % one.encode(),
+                                         b'{"minimum": %s}' % other.encode()), [])
+        self.assertEqual(changes("schemas/x-v1.schema.json", b'{"minimum": 1}', b'{"minimum": 1.0}'),
+                         ["assertions changed"])
+
+    def test_catalog_entries_by_exact_text(self):
+        text = (ROOT / "catalogs/database-tools-v1.json").read_text(encoding="utf-8")
+        catalog = json.loads(text)
+        catalog["operations"][0]["attributes"] = {"limit": "@"}
+        base = json.dumps(catalog, indent=2)
+        for one, other in (("-0.0", "-0e-1"), ("1.0", "10e-1"), ("1.0", "1.0000000000000001")):
+            with self.subTest(one=one, other=other):
+                before = base.replace('"@"', one).encode()
+                after = base.replace('"@"', other).encode()
+                self.assertTrue(immutability.published_changes("catalogs/database-tools-v1.json", before, after))
+        self.assertEqual(immutability.published_changes(
+            "catalogs/database-tools-v1.json", base.encode(), json.dumps(json.loads(base)).encode()), [])
+
+    def test_the_errata_digests(self):
+        for relative, erratum in immutability.ERRATA.items():
+            with self.subTest(relative):
+                data = (ROOT / relative).read_bytes()
+                self.assertEqual(immutability.erratum_digest(relative, data), erratum.after)
+
+
+class CatalogVersionsTests(unittest.TestCase):
+    """The validator parses numbers exactly, and a repeated identity is
+    compared with the version just before it."""
+
+    def versions(self, *attributes):
+        def catalog(value):
+            return {"operations": [{
+                "id": "a.b", "version": 1, "requirement": "required", "input": {}, "output": {},
+                "side_effect": "none", "controls": {}, "surfaces": ["rust"], "attributes": {"x": value}}]}
+        return {"c": {index + 1: catalog(value) for index, value in enumerate(attributes)}}
+
+    def test_exact_numbers_from_the_parser(self):
+        for one, other in (("1.0", "1.0000000000000001"), ("1.0", "1.00"), ("-0.0", "0.0"), ("1.0", "10e-1")):
+            with self.subTest(one=one, other=other):
+                left, right = validator.loads_json(one), validator.loads_json(other)
+                self.assertFalse(same_document(left, right))
+                self.assertEqual(len(validator.repeated_identity_errors(self.versions(left, right))), 1)
+        self.assertEqual(validator.repeated_identity_errors(
+            self.versions(validator.loads_json("1.0"), validator.loads_json("1.0"))), [])
+
+    def test_each_version_against_the_one_before(self):
+        # v2 changes the attribute once; v3 keeps v2's value: one change.
+        self.assertEqual(len(validator.repeated_identity_errors(self.versions(1, 2, 2))), 1)
+        self.assertEqual(len(validator.repeated_identity_errors(self.versions(1, 2, 3))), 2)
+
+
+class BoundedMemoryTests(unittest.TestCase):
+    def test_the_difference_path_in_linear_memory(self):
+        import tracemalloc
+        import rest_adapter
+        depth = 8_000
+        left, right = 1, 2
+        for _ in range(depth):
+            left, right = {"k": [left]}, {"k": [right]}
+        tracemalloc.start()
+        try:
+            path = rest_adapter.difference(left, right)
+            _, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        self.assertEqual(path.count("/"), 2 * depth)
+        # Linear: about 1.4 KiB per level (11 MiB here); the quadratic walk
+        # took over 300 MiB under tracemalloc.
+        self.assertLess(peak, 32 * 2**20)
+
+    def test_the_cache_key_of_a_deep_document(self):
+        import gate_fuzz
+        gate = gate_fuzz.Gate()
+        for depth in (1_100, 10_000):
+            with self.subTest(depth=depth):
+                self.assertEqual(gate._content(nested(depth, 1)), gate._content(nested(depth, 1)))
+                self.assertNotEqual(gate._content(nested(depth, 1)), gate._content(nested(depth, True)))
+                self.assertNotEqual(gate._content({"a": 1, "b": 2}), gate._content({"b": 2, "a": 1}))
 
 
 class DeepTraversalTests(unittest.TestCase):

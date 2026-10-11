@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import decimal
 import json
 import posixpath
 import re
@@ -12,9 +13,10 @@ from uuid import UUID
 import arrow_data
 import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
-from json_values import document_key, same_document
+from json_values import document_key, loads, number_text, same_document
 from messages import contract_name, differing_members
 
+import jsonschema.validators
 from jsonschema import Draft202012Validator
 import referencing.exceptions
 import referencing.jsonschema
@@ -335,7 +337,44 @@ def unique_members(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def loads_json(text: str) -> Any:
-    return json.loads(text, parse_constant=reject_constant, object_pairs_hook=unique_members)
+    """Every number exactly as written (`json_values.loads`): a decimal is a
+    `JsonNumber`, never a binary float, so `1.0` and `1.0000000000000001`
+    (or `1.00`) stay two numbers in every comparison."""
+    return loads(text, parse_constant=reject_constant, object_pairs_hook=unique_members)
+
+
+def _is_integer(checker: Any, instance: Any) -> bool:
+    """JSON Schema's `integer` for exact numbers: an integral decimal is an
+    integer, as an integral binary float was (`1.0`); the parser now gives a
+    decimal where it gave a float, and the schema verdicts stay the same."""
+    if isinstance(instance, decimal.Decimal) and not isinstance(instance, bool):
+        return instance.is_finite() and instance == instance.to_integral_value()
+    return Draft202012Validator.TYPE_CHECKER.is_type(instance, "integer")
+
+
+InstanceValidator = jsonschema.validators.extend(
+    Draft202012Validator,
+    type_checker=Draft202012Validator.TYPE_CHECKER.redefine("integer", _is_integer),
+)
+
+
+
+def _evolve(self: Any, **changes: Any) -> Any:
+    """`evolve` that keeps this class across a `$ref`. jsonschema's own picks
+    the class from the referenced schema's `$schema`, which would drop the
+    exact-number type checker; every schema here is 2020-12, and a schema of
+    another dialect is refused rather than validated with the wrong one."""
+    cls = type(self)
+    schema = changes.setdefault("schema", self.schema)
+    if jsonschema.validators.validator_for(schema, default=Draft202012Validator) is not Draft202012Validator:
+        raise SpecError("a referenced schema is not JSON Schema 2020-12")
+    for field in cls.__attrs_attrs__:
+        if field.init and field.alias not in changes:
+            changes[field.alias] = getattr(self, field.name)
+    return cls(**changes)
+
+
+InstanceValidator.evolve = _evolve
 
 
 def load_json(path: Path) -> Any:
@@ -376,7 +415,7 @@ def instance_errors(
     schema and an anonymized place in the instance (array indices only;
     an object member is `*`, its key being possibly data). jsonschema's own
     message can quote the rejected instance, values and keys included."""
-    validator = Draft202012Validator(schema, registry=registry)
+    validator = InstanceValidator(schema, registry=registry)
     try:
         return _instance_errors(validator, instance)
     except SCHEMA_FAILURES as error:
@@ -487,6 +526,9 @@ def compact_json_size(value: Any) -> int:
         elif isinstance(item, (list, tuple)):
             size += 2 + max(len(item) - 1, 0)
             stack.extend(item)
+        elif isinstance(item, decimal.Decimal):
+            # A parsed number as written, which is its size in the text.
+            size += len(number_text(item).encode("utf-8"))
         else:
             size += len(json.dumps(item, ensure_ascii=False).encode("utf-8"))
     return size
@@ -728,6 +770,9 @@ def repeated_identity_errors(
                     seen[typed] = (version, operation)
                     continue
                 earlier_version, earlier = seen[typed]
+                # The next version is compared with this one, not with the
+                # first that carried the identity.
+                seen[typed] = (version, operation)
                 label = f"{component} {contract_name(f'{key[0]}@{key[1]}')} in catalog v{version}"
                 for field in fixed:
                     if not same_document(operation[field], earlier[field]):
@@ -746,7 +791,6 @@ def repeated_identity_errors(
                         failures.append(
                             f"{label} changes attribute {contract_name(name)} of catalog v{earlier_version}"
                         )
-                seen[key] = (version, operation)
     return failures
 
 

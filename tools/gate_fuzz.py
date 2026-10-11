@@ -30,6 +30,7 @@ from unittest.mock import patch
 from referencing import Registry
 
 import validate_specs as validator
+from json_values import JsonNumber, canonical_text
 
 ROOT = validator.ROOT.resolve()
 DATA_DIRECTORIES = ("vectors", "examples")
@@ -194,10 +195,12 @@ class Gate:
         """A key for a document: its identity when it is shared (unchanged,
         never mutated), otherwise its whole text. The text keeps the member
         order, which orders the errors of a verdict, and the JSON type of
-        every value (`1`, `1.0` and `true` differ)."""
+        every value (`1`, `1.0` and `true` differ; a number by its exact
+        text), written with an explicit stack (`canonical_text`), so a
+        document deeper than the recursion limit has a key too."""
         if id(document) in self.shared:
             return ("shared", id(document))
-        return ("text", json.dumps(document))
+        return ("text", canonical_text(document, sort_keys=False, by_value=False))
 
     def _registry_key(self, registry: Any) -> Any:
         """Every schema a `$ref` can reach: a mutation of a referenced schema
@@ -410,6 +413,8 @@ def _scalar_image(value: Any) -> Any:
         return ("float", repr(value))
     if kind is Decimal:
         return ("Decimal", str(value))
+    if kind is JsonNumber:
+        return ("JsonNumber", value.text)
     if kind is Raw:
         return ("Raw", value.text)
     if kind in (set, frozenset):

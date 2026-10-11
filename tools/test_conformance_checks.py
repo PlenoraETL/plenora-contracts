@@ -265,9 +265,8 @@ class SchemaImmutabilityTests(unittest.TestCase):
                 self.assertEqual(immutability.erratum_errors(
                     relative, erratum, lambda path: (ROOT / path).read_text(encoding="utf-8")
                 ), [])
-                document = json.loads((ROOT / relative).read_text(encoding="utf-8"))
                 self.assertEqual(
-                    immutability.digest(immutability.comparable(relative, document)), erratum.after
+                    immutability.erratum_digest(relative, (ROOT / relative).read_bytes()), erratum.after
                 )
 
     def test_main_checks_the_fork_point_without_an_event_base(self):

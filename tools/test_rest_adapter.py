@@ -109,7 +109,10 @@ class ConversionTests(unittest.TestCase):
         self.assertEqual(adapter.adapt(good, records)["schema"]["fields"][0]["metadata"],
                          {"plenora.field_id": "9007199254740991"})
         published = vector("error-field-identifier-not-an-integer-literal.json")
-        self.assertIsInstance(published["declaration"]["fields"][0]["field_id"], float)
+        # Parsed exactly (`JsonNumber`): a decimal, never an `int`.
+        identity = published["declaration"]["fields"][0]["field_id"]
+        self.assertNotIsInstance(identity, int)
+        self.assertEqual(str(identity), "123.0")
         self.assertEqual(adapter.vector_errors(published), [])
 
 

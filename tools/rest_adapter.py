@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import math
 import re
+from decimal import Decimal
 from typing import Any
 
 from json_values import same_document
@@ -93,7 +94,9 @@ def convert(value: Any, kind: str, nullable: bool) -> Any:
                 raise RecordError("adapter.not_representable")
             return value
     elif kind == "float64":
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
+        # A decimal is the exact number the parser read (`JsonNumber`); its
+        # nearest binary64 is the one a float parse would give.
+        if isinstance(value, (int, float, Decimal)) and not isinstance(value, bool):
             try:
                 converted = float(value)
             except OverflowError as overflow:
@@ -245,7 +248,7 @@ def vector_errors(vector: dict[str, Any]) -> list[str]:
         expected = dict(expected)
         expected["rows"] = [
             {
-                name: float(value) if kinds.get(name) == "float64" and isinstance(value, int)
+                name: float(value) if kinds.get(name) == "float64" and isinstance(value, (int, Decimal))
                 and not isinstance(value, bool) else value
                 for name, value in row.items()
             }
@@ -274,49 +277,73 @@ def _segment(key: Any, position: int, structural: bool) -> str:
 
 
 _MISSING = object()
+_MAPS = ("counts", "metadata", "schema_metadata")
 
 
-def _member_tasks(left: dict, right: dict, path: str, structural: bool):
-    """The members of two objects in sorted-key order, as tasks; a key
-    present in one only ends the walk at its path."""
-    inner = structural and not path.endswith(("/counts", "/metadata", "/schema_metadata")) \
-        and "/rows/" not in path + "/"
+def _member_tasks(left: dict, right: dict, structural: bool, inner: bool):
+    """The members of two objects in sorted-key order, as `(segment, left,
+    right, structural)`; a key present in one only yields `_MISSING`."""
     for position, key in enumerate(sorted(set(left) | set(right), key=str)):
         segment = _segment(key, position, inner)
         if key not in left or key not in right:
-            yield (_MISSING, f"{path}/{segment}", None, None)
+            yield (segment, _MISSING, None, None)
             return
-        yield (left[key], right[key], f"{path}/{segment}", structural)
+        yield (segment, left[key], right[key], structural)
 
 
-def _element_tasks(left: list, right: list, path: str):
-    """The elements of two arrays of one length, as tasks, in order."""
+def _element_tasks(left: list, right: list):
+    """The elements of two arrays of one length, in order. An array element
+    is named, and its structure judged, as the recursion did."""
     for index, (one, other) in enumerate(zip(left, right)):
-        yield (one, other, f"{path}/{index}", True)
+        yield (str(index), one, other, True)
 
 
 def difference(left: Any, right: Any, path: str = "", structural: bool = True) -> str:
     """The path of the first difference of two values that are not `_same`.
     Inside a row, a count map or a metadata map, a member is named by its
     position among the sorted keys, never by its key. One depth-first walk
-    in document order, with an explicit stack: linear in the size of the
-    values (no subtree is compared twice) and never recursive."""
-    stack = [iter([(left, right, path, structural)])]
-    while stack:
-        task = next(stack[-1], None)
-        if task is None:
-            stack.pop()
-            continue
-        one, other, where, flag = task
-        if one is _MISSING:
-            return other
+    in document order, with an explicit stack: linear in time (no subtree is
+    compared twice) and in memory, the path being one shared list of
+    segments (`trail`) joined only for the answer, never a string copied at
+    every level."""
+    root_rows = "/rows/" in path + "/"
+    root_last = path.rsplit("/", 1)[-1] if path else ""
+    trail: list[str] = []
+    rows = 0
+
+    def where() -> str:
+        return path + "".join("/" + segment for segment in trail)
+
+    def expand(one: Any, other: Any, flag: bool) -> str | None:
+        """Push the children of a node, or answer when the node differs."""
         if type(one) is type(other) and isinstance(one, dict):
-            stack.append(_member_tasks(one, other, where, flag))
-        elif type(one) is type(other) and isinstance(one, list):
+            last = trail[-1] if trail else root_last
+            inner = flag and last not in _MAPS and not rows and not root_rows
+            frames.append(_member_tasks(one, other, flag, inner))
+            trail.append("")
+            return None
+        if type(one) is type(other) and isinstance(one, list):
             if len(one) != len(other):
-                return f"{where} (length)"
-            # An array element is named as the recursion named it.
-            stack.append(_element_tasks(one, other, where))
-        elif not _same(one, other):
-            return where or "/"
-    return path or "/"
+                return f"{where()} (length)"
+            frames.append(_element_tasks(one, other))
+            trail.append("")
+            return None
+        if not _same(one, other):
+            return where() or "/"
+        return None
+
+    frames: list[Any] = []
+    found = expand(left, right, structural)
+    while found is None and frames:
+        task = next(frames[-1], None)
+        if task is None:
+            frames.pop()
+            rows -= trail.pop() == "rows"
+            continue
+        segment, one, other, flag = task
+        rows += (segment == "rows") - (trail[-1] == "rows")
+        trail[-1] = segment
+        if one is _MISSING:
+            return where()
+        found = expand(one, other, flag)
+    return found if found is not None else (path or "/")
