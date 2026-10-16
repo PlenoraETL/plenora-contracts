@@ -1056,7 +1056,7 @@ def _cell(position: int, field: dict[str, Any], value: Any) -> bytes | None:
         bound = INTEGER_RANGES[kind]
         ok = isinstance(value, int) and not isinstance(value, bool) and -bound <= value < bound
     elif kind == "float64":
-        ok = isinstance(value, (int, float)) and not isinstance(value, bool)
+        ok = isinstance(value, (int, float, Decimal)) and not isinstance(value, bool)
     elif kind in ("utf8", "large_utf8"):
         ok = isinstance(value, str)
     else:

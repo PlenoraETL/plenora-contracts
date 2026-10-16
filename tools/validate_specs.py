@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import decimal
 import json
 import posixpath
 import re
@@ -13,8 +14,11 @@ import arrow_data
 import interop_vectors
 import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
+from json_values import JsonInteger, document_key, loads, number_text, same_document, same_value
 from messages import contract_name, differing_members
 
+import jsonschema.exceptions
+import jsonschema.validators
 from jsonschema import Draft202012Validator
 import referencing.exceptions
 import referencing.jsonschema
@@ -341,7 +345,58 @@ def unique_members(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def loads_json(text: str) -> Any:
-    return json.loads(text, parse_constant=reject_constant, object_pairs_hook=unique_members)
+    """Every number exactly as written (`json_values.loads`): a decimal is a
+    `JsonNumber`, never a binary float, so `1.0` and `1.0000000000000001`
+    (or `1.00`) stay two numbers in every comparison."""
+    return loads(text, parse_constant=reject_constant, object_pairs_hook=unique_members)
+
+
+def _is_integer(checker: Any, instance: Any) -> bool:
+    """JSON Schema's `integer` for exact numbers: an integral decimal is an
+    integer, as an integral binary float was (`1.0`); the parser now gives a
+    decimal where it gave a float, and the schema verdicts stay the same."""
+    if isinstance(instance, decimal.Decimal) and not isinstance(instance, bool):
+        return instance.is_finite() and instance == instance.to_integral_value()
+    return Draft202012Validator.TYPE_CHECKER.is_type(instance, "integer")
+
+
+InstanceValidator = jsonschema.validators.extend(
+    Draft202012Validator,
+    type_checker=Draft202012Validator.TYPE_CHECKER.redefine("integer", _is_integer),
+)
+
+
+
+def _evolve(self: Any, **changes: Any) -> Any:
+    """`evolve` that keeps this class across a `$ref`. jsonschema's own picks
+    the class from the referenced schema's `$schema`, which would drop the
+    exact-number type checker; every schema here is 2020-12, and a schema of
+    another dialect is refused rather than validated with the wrong one."""
+    cls = type(self)
+    schema = changes.setdefault("schema", self.schema)
+    if jsonschema.validators.validator_for(schema, default=Draft202012Validator) is not Draft202012Validator:
+        raise SpecError("a referenced schema is not JSON Schema 2020-12")
+    for field in cls.__attrs_attrs__:
+        if field.init and field.alias not in changes:
+            changes[field.alias] = getattr(self, field.name)
+    return cls(**changes)
+
+
+InstanceValidator.evolve = _evolve
+
+
+def _check_schema(cls: Any, schema: Any) -> None:
+    """A schema against the 2020-12 metaschema with the same exact-number
+    type checker (and jsonschema's format checker, as `check_schema` uses):
+    `{"minItems": 1.0}` is an integer there as on main, where the parser
+    gave a float. jsonschema's own `check_schema` would pick the plain
+    Draft 2020-12 class from the metaschema's `$schema`."""
+    validator = cls(schema=cls.META_SCHEMA, format_checker=Draft202012Validator.FORMAT_CHECKER)
+    for error in validator.iter_errors(schema):
+        raise jsonschema.exceptions.SchemaError.create_from(error)
+
+
+InstanceValidator.check_schema = classmethod(_check_schema)
 
 
 def load_json(path: Path) -> Any:
@@ -382,7 +437,7 @@ def instance_errors(
     schema and an anonymized place in the instance (array indices only;
     an object member is `*`, its key being possibly data). jsonschema's own
     message can quote the rejected instance, values and keys included."""
-    validator = Draft202012Validator(schema, registry=registry)
+    validator = InstanceValidator(schema, registry=registry)
     try:
         return _instance_errors(validator, instance)
     except SCHEMA_FAILURES as error:
@@ -473,10 +528,34 @@ def validate_example_inventory() -> list[str]:
     return example_inventory_errors(ROOT, registrations)
 
 
+def _json_key_text(key: Any) -> str:
+    """The member name `json.dumps` writes for a dictionary key."""
+    return key if isinstance(key, str) else json.dumps(key)
+
+
 def compact_json_size(value: Any) -> int:
-    return len(
-        json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    )
+    """The UTF-8 size of `json.dumps(value, ensure_ascii=False,
+    separators=(",", ":"))`, counted with an explicit stack: a value nested
+    deeper than the recursion limit is measured, not an internal error."""
+    size = 0
+    stack = [value]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, dict):
+            # Braces, a colon per member and a comma between members.
+            size += 2 + len(item) + max(len(item) - 1, 0)
+            for key, child in item.items():
+                size += len(json.dumps(_json_key_text(key), ensure_ascii=False).encode("utf-8"))
+                stack.append(child)
+        elif isinstance(item, (list, tuple)):
+            size += 2 + max(len(item) - 1, 0)
+            stack.extend(item)
+        elif isinstance(item, (decimal.Decimal, JsonInteger)):
+            # A parsed number as written, which is its size in the text.
+            size += len(number_text(item).encode("utf-8"))
+        else:
+            size += len(json.dumps(item, ensure_ascii=False).encode("utf-8"))
+    return size
 
 
 def error_bound_errors(error: dict[str, Any]) -> list[str]:
@@ -719,13 +798,19 @@ def repeated_identity_errors(
         for version in sorted(by_version):
             for operation in by_version[version]["operations"]:
                 key = (operation["id"], operation["version"])
-                if key not in seen:
-                    seen[key] = (version, operation)
+                # DOCUMENT: a published catalog's identity and fields, compared
+                # with an earlier version's by the exact text of each number.
+                typed = document_key(key)
+                if typed not in seen:
+                    seen[typed] = (version, operation)
                     continue
-                earlier_version, earlier = seen[key]
+                earlier_version, earlier = seen[typed]
+                # The next version is compared with this one, not with the
+                # first that carried the identity.
+                seen[typed] = (version, operation)
                 label = f"{component} {contract_name(f'{key[0]}@{key[1]}')} in catalog v{version}"
                 for field in fixed:
-                    if operation[field] != earlier[field]:
+                    if not same_document(operation[field], earlier[field]):
                         failures.append(f"{label} changes {field} from catalog v{earlier_version}")
                 if not set(earlier["surfaces"]) <= set(operation["surfaces"]):
                     failures.append(f"{label} drops surfaces of catalog v{earlier_version}")
@@ -737,11 +822,10 @@ def repeated_identity_errors(
                 # Membership first: a null attribute that disappears is a
                 # change, not an equal `None`.
                 for name, value in earlier_attributes.items():
-                    if name not in attributes or attributes[name] != value:
+                    if name not in attributes or not same_document(attributes[name], value):
                         failures.append(
                             f"{label} changes attribute {contract_name(name)} of catalog v{earlier_version}"
                         )
-                seen[key] = (version, operation)
     return failures
 
 
@@ -1299,11 +1383,12 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
                 failures.append(
                     f"{named} must not imply an unreviewed interchange contract"
                 )
-        if operation["controls"] != {
+        # VALUE: a field against the value the rule requires.
+        if not same_value(operation["controls"], {
             "cancellation": True,
             "deadline": True,
             "idempotency_key": False,
-        }:
+        }):
             failures.append(f"{named} has the wrong execution controls")
         attributes = operation.get("attributes")
         if (
@@ -1418,8 +1503,9 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     # 2 and 3, and an order or a lookup by identifier alone would check the
     # wrong one.
     expected = DATA_OPERATION_VERSIONS[generation]
-    found = sorted((item["id"], item["version"]) for item in catalog["operations"])
-    if found != sorted(expected):
+    found = sorted(((item["id"], item["version"]) for item in catalog["operations"]), key=repr)
+    # VALUE: the identities against those the rule requires.
+    if not same_value(found, sorted(expected, key=repr)):
         return [f"data-tools v{version} must declare exactly {sorted(expected)}"]
     # Catalog version N checks data.catalog, data.validate and data.run at
     # operation version N (DATA_OPERATION_VERSIONS); data.run 3 has its own
@@ -1498,7 +1584,8 @@ def data_run_3_errors(catalog: dict[str, Any], version: int, registry_id: str) -
     failures = [
         f"data-tools v{version} data.run 3 has the wrong {field}"
         for field, expected in DATA_RUN_3.items()
-        if run.get(field) != expected
+        # VALUE: each field against the value DATA_RUN_3 requires.
+        if not same_value(run.get(field), expected)
     ]
     attributes = run.get("attributes")
     if not isinstance(attributes, dict):
@@ -1839,30 +1926,46 @@ def rest_capability_errors(
             errors.append(
                 f"{named} side-effect class differs from the REST catalog"
             )
-        if operation["controls"] != target["controls"]:
+        # DOCUMENT: two published catalogs' fields, one against the other.
+        if not same_document(operation["controls"], target["controls"]):
             errors.append(f"{named} controls differ from the REST catalog")
     return errors
 
 
+def _walk(value: Any):
+    """Every member (`(key, child)`, `key` None for an array element) of a
+    JSON value at any depth, in document order, with an explicit stack: a
+    document deeper than the recursion limit is read like a flat one."""
+    def children(node: Any):
+        if isinstance(node, dict):
+            return iter(node.items())
+        if isinstance(node, list):
+            return ((None, child) for child in node)
+        return iter(())
+
+    stack = [children(value)]
+    while stack:
+        found = next(stack[-1], None)
+        if found is None:
+            stack.pop()
+            continue
+        yield found
+        stack.append(children(found[1]))
+
+
 def nested_items(value: Any):
-    if isinstance(value, dict):
-        for key, child in value.items():
-            yield key, child
-            yield from nested_items(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from nested_items(child)
+    """Every object member `(key, value)` at any depth, in document order."""
+    return ((key, child) for key, child in _walk(value) if key is not None)
 
 
 def artifact_strings(value: Any):
+    """Every string value at any depth, in document order."""
     if isinstance(value, str):
         yield value
-    elif isinstance(value, dict):
-        for child in value.values():
-            yield from artifact_strings(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from artifact_strings(child)
+        return
+    for _, child in _walk(value):
+        if isinstance(child, str):
+            yield child
 
 
 # Fixture guards for private local paths and inline credentials (RT-008,
@@ -2449,7 +2552,8 @@ def storage_vector_errors(
         if isinstance(artifact, dict) and isinstance(checksum, dict):
             if artifact.get("sha256") != checksum.get("value"):
                 errors.append("storage transfer artifact SHA-256 conflicts with checksum")
-            if artifact.get("size") != payload.get("bytes_transferred"):
+            # VALUE: two fields of one vector, as numbers (`-0` is 0).
+            if not same_value(artifact.get("size"), payload.get("bytes_transferred")):
                 errors.append("storage transfer artifact size conflicts with byte count")
     if vector["kind"] == "success" and operation_id == "storage.list":
         cursor = payload.get("next_cursor")
@@ -2856,7 +2960,8 @@ def runtime_probe_errors(
         del metadata[key]
     else:
         ((key, value),) = mutation["set"].items()
-        if key in metadata and metadata[key] == value and type(metadata[key]) is type(value):
+        # VALUE: the mutation against the value the base carries.
+        if key in metadata and same_value(metadata[key], value):
             return ["sets a key to the value the base already carries"]
         metadata[key] = value
     try:
@@ -2875,14 +2980,16 @@ def runtime_probe_errors(
     )
     if schema_errors:
         errors.append(f"expected error is not a plenora-error-v1 value: {schema_errors[0]}")
-    if declared_error != expected_error:
+    # VALUE: the declared expectation against what RT-016 computes.
+    if not same_value(declared_error, expected_error):
         errors.append(
             f"expects an error that RT-016 and {rule} do not give "
             f"(members {differing_members(declared_error, expected_error, ERROR_AXES)})"
         )
     if probe["rule"] != rule:
         errors.append(f"names another rule, but the rejection follows {rule}")
-    if probe["expected"]["metadata"] != expected_metadata:
+    # VALUE: as above, for RT-019.
+    if not same_value(probe["expected"]["metadata"], expected_metadata):
         errors.append(
             "expects result metadata that RT-019 does not give (members "
             f"{differing_members(probe['expected']['metadata'], expected_metadata, RESERVED_METADATA)})"
@@ -3003,12 +3110,13 @@ def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
             (member(item, "name"), member(item, "reference"), member(member(item, "artifact"), "content_type"))
             for item in outputs
         ]
-        if found != expected:
+        # VALUE: a manifest against its request (DT-RUN-005).
+        if not same_value(found, expected):
             failures.append(
                 "a data.run 3 manifest differs from the plan outputs and sinks of its request (DT-RUN-005)"
             )
         steps = [(member(item, "out"), member(item, "op")) for item in result_steps]
-        if steps != [(member(step, "out"), member(step, "op")) for step in plan_steps]:
+        if not same_value(steps, [(member(step, "out"), member(step, "op")) for step in plan_steps]):
             failures.append(
                 "a data.run 3 manifest differs from the plan steps of its request (DT-RUN-005)"
             )
@@ -3356,7 +3464,7 @@ def run_gate() -> int:
 
     for name, schema in schemas.items():
         try:
-            Draft202012Validator.check_schema(schema)
+            InstanceValidator.check_schema(schema)
         except Exception as error:
             print(f"invalid schema {name}: {schema_error(error)}", file=sys.stderr)
             return 1

@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
+from json_values import same_value
+
 
 def position(index: int) -> str:
     return f"#{index}"
@@ -33,7 +35,9 @@ def differing_members(declared: Any, expected: Any, allowed: Iterable[str]) -> s
     differing = [
         structural(name, allowed, index)
         for index, name in enumerate(names)
-        if declared.get(name, object()) != expected.get(name, object())
+        if (name in declared) != (name in expected)
+        # VALUE: the callers compare expectations with computed values.
+        or (name in declared and not same_value(declared[name], expected[name]))
     ]
     return ", ".join(differing) or "none"
 

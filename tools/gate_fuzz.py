@@ -22,11 +22,15 @@ import contextlib
 import io
 import json
 import re
-from pathlib import Path
+from decimal import Decimal
+from pathlib import Path, PurePath
 from typing import Any, Callable, Iterator
 from unittest.mock import patch
 
+from referencing import Registry
+
 import validate_specs as validator
+from json_values import JsonInteger, JsonNumber, canonical_text
 
 ROOT = validator.ROOT.resolve()
 DATA_DIRECTORIES = ("vectors", "examples")
@@ -67,16 +71,26 @@ def serialize(document: Any) -> bytes:
     return (text + "\n").encode("utf-8")
 
 
-def members(value: Any, prefix: tuple[Any, ...] = ()) -> Iterator[tuple[Any, ...]]:
-    """Every object member and every array element, at any depth."""
+def _children(value: Any, prefix: tuple[Any, ...]) -> Iterator[tuple[tuple[Any, ...], Any]]:
     if isinstance(value, dict):
-        for key, child in value.items():
-            yield prefix + (key,)
-            yield from members(child, prefix + (key,))
-    elif isinstance(value, list):
-        for index, child in enumerate(value):
-            yield prefix + (index,)
-            yield from members(child, prefix + (index,))
+        return ((prefix + (key,), child) for key, child in value.items())
+    if isinstance(value, list):
+        return ((prefix + (index,), child) for index, child in enumerate(value))
+    return iter(())
+
+
+def members(value: Any, prefix: tuple[Any, ...] = ()) -> Iterator[tuple[Any, ...]]:
+    """Every object member and every array element, at any depth, in
+    document order; walked with an explicit stack, never by recursion."""
+    stack = [_children(value, prefix)]
+    while stack:
+        found = next(stack[-1], None)
+        if found is None:
+            stack.pop()
+            continue
+        path, child = found
+        yield path
+        stack.append(_children(child, path))
 
 
 def is_data(path: Path) -> bool:
@@ -98,6 +112,9 @@ class Gate:
         self.parsed: dict[str, Any] = {}
         self.shared: set[int] = set()
         self.verdicts: dict[Any, list[str]] = {}
+        # A registry's content, by the registry kept alive: an `id` alone
+        # could be reused by the registry of a later run.
+        self.registries: dict[int, tuple[Any, Any]] = {}
         self.checked: set[int] = set()
         self.target_texts: set[str] = set()
         self.resolved: dict[str, Path | None] = {}
@@ -163,7 +180,9 @@ class Gate:
 
     def _loads(self, text: str) -> Any:
         """Unchanged texts parse to one shared object, which the gate must
-        not mutate (`check_unmutated`)."""
+        not mutate (`check_unmutated`). The complete run parses every text."""
+        if not self.memo:
+            return self._real_loads(text)
         if text in self.parsed:
             return self.parsed[text]
         document = self._real_loads(text)
@@ -172,16 +191,40 @@ class Gate:
             self.shared.add(id(document))
         return document
 
+    def _content(self, document: Any) -> Any:
+        """A key for a document: its identity when it is shared (unchanged,
+        never mutated), otherwise its whole text. The text keeps the member
+        order, which orders the errors of a verdict, and the JSON type of
+        every value (`1`, `1.0` and `true` differ; a number by its exact
+        text), written with an explicit stack (`canonical_text`), so a
+        document deeper than the recursion limit has a key too."""
+        if id(document) in self.shared:
+            return ("shared", id(document))
+        return ("text", canonical_text(document, sort_keys=False, by_value=False))
+
+    def _registry_key(self, registry: Any) -> Any:
+        """Every schema a `$ref` can reach: a mutation of a referenced schema
+        changes the verdict of a schema that refers to it."""
+        entry = self.registries.get(id(registry))
+        if entry is None or entry[0] is not registry:
+            key = tuple(sorted((uri, self._content(registry[uri].contents)) for uri in registry))
+            entry = (registry, key)
+            self.registries[id(registry)] = entry
+        return entry[1]
+
     def _instance_errors(self, schema: Any, instance: Any, registry: Any) -> list[str]:
-        if id(schema) in self.shared and id(instance) in self.shared:
-            key: Any = (id(schema), id(instance))
-        else:
-            key = (json.dumps(schema, sort_keys=True), json.dumps(instance, sort_keys=True))
+        if not self.memo:
+            # The oracle of the memoized path computes every verdict.
+            return self._real_instance_errors(schema, instance, registry)
+        key = (self._content(schema), self._content(instance), self._registry_key(registry))
         if key not in self.verdicts:
             self.verdicts[key] = self._real_instance_errors(schema, instance, registry)
         return list(self.verdicts[key])
 
     def _check_schema(self, schema: Any, *args: Any, **kwargs: Any) -> None:
+        if not self.memo:
+            self._real_check_schema(schema, *args, **kwargs)
+            return
         if id(schema) in self.shared and id(schema) in self.checked:
             return
         self._real_check_schema(schema, *args, **kwargs)
@@ -213,7 +256,7 @@ class Gate:
         self._real_open = builtins.open
         self._real_loads = validator.loads_json
         self._real_instance_errors = validator.instance_errors
-        self._real_check_schema = validator.Draft202012Validator.check_schema
+        self._real_check_schema = validator.InstanceValidator.check_schema
         stack = contextlib.ExitStack()
         stack.enter_context(patch.object(builtins, "open", self._open))
         stack.enter_context(patch.object(io, "open", self._open))
@@ -248,7 +291,7 @@ class Gate:
         stack.enter_context(patch.object(Path, "exists", exists))
         stack.enter_context(patch.object(validator, "loads_json", self._loads))
         stack.enter_context(patch.object(validator, "instance_errors", self._instance_errors))
-        stack.enter_context(patch.object(validator.Draft202012Validator, "check_schema",
+        stack.enter_context(patch.object(validator.InstanceValidator, "check_schema",
                                          staticmethod(self._check_schema)))
         for name in validator.run_gate.__code__.co_names:
             function = getattr(validator, name, None)
@@ -280,7 +323,10 @@ class Gate:
         return status, out.getvalue() + err.getvalue()
 
     def run_complete(self, target: tuple[Path, bytes] | None) -> tuple[Any, str]:
-        """The same run with every validator executed."""
+        """The same run with every validator executed and without the caches
+        of parses, verdicts and schema checks: an independent oracle. Only
+        the listings and the existence of files are reused, which a mutation
+        never changes."""
         self.memo = False
         try:
             return self.run(target)
@@ -298,7 +344,7 @@ class Gate:
         for path in self.inputs():
             if path.suffix == ".json":
                 document = parse(self.original[path].decode("utf-8"))
-                if self.run((path, serialize(document))) != self.baseline_output:
+                if not _same(self.run((path, serialize(document))), self.baseline_output):
                     problems.append(f"{path.relative_to(ROOT).as_posix()} does not re-serialize unchanged")
         return problems
 
@@ -307,15 +353,75 @@ class Gate:
         return [
             "the gate mutated a shared document"
             for text, document in self.parsed.items()
-            if self._real_loads(text) != document
+            if not _same(self._real_loads(text), document)
         ]
 
 
 def _same(left: Any, right: Any) -> bool:
+    """The same data, by type and by value at every depth. Python's `==`
+    is not: `1 == True == 1.0`, also inside a dictionary or a list, so a
+    schema whose `const` 1 became `true` compared equal to the unmutated
+    one and its validators returned the unmutated result."""
     try:
-        return bool(left == right)
+        return _typed_equal(left, right)
     except Exception:  # noqa: BLE001 - an incomparable argument is a different one
         return False
+
+
+def _typed_equal(left: Any, right: Any) -> bool:
+    """The same type and value at every depth, in member order, walked with
+    an explicit stack (a document deeper than the recursion limit compares
+    like a flat one). The same object is the same value, so an unchanged
+    shared document is not walked again."""
+    stack = [(left, right)]
+    while stack:
+        one, other = stack.pop()
+        if one is other:
+            continue
+        kind = type(one)
+        if kind is not type(other):
+            return False
+        if kind is dict:
+            if len(one) != len(other):
+                return False
+            for (key, item), (other_key, other_item) in zip(one.items(), other.items()):
+                stack.append((key, other_key))
+                stack.append((item, other_item))
+        elif kind in (list, tuple):
+            if len(one) != len(other):
+                return False
+            stack.extend(zip(one, other))
+        elif kind is Registry:
+            # Every schema a `$ref` can reach, as the verdict cache keys it.
+            uris = sorted(one)
+            if uris != sorted(other):
+                return False
+            stack.extend((one[uri].contents, other[uri].contents) for uri in uris)
+        elif _scalar_image(one) != _scalar_image(other):
+            return False
+    return True
+
+
+def _scalar_image(value: Any) -> Any:
+    """A typed image of a value that holds no document: a scalar, a set of
+    scalars or a path. A value of any other kind is the same only as itself."""
+    kind = type(value)
+    if value is None or kind in (bool, int, str, bytes):
+        return (kind.__name__, value)
+    if kind is float:
+        # `repr` tells -0.0 from 0.0 and makes a NaN the same as itself.
+        return ("float", repr(value))
+    if kind is Decimal:
+        return ("Decimal", str(value))
+    if kind is JsonNumber or kind is JsonInteger:
+        return (kind.__name__, value.text)
+    if kind is Raw:
+        return ("Raw", value.text)
+    if kind in (set, frozenset):
+        return (kind.__name__, frozenset(_scalar_image(item) for item in value))
+    if isinstance(value, PurePath):
+        return (kind.__name__, str(value))
+    return ("object", id(value))
 
 
 def _copy(value: Any) -> Any:

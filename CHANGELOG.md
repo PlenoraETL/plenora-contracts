@@ -145,6 +145,35 @@ full commit SHA; a release tag names one of those commits.
   vector or an example, nor a contract name outside its quotes; the null
   fuzz covers every JSON input the same way. No contract document changes. See
   [decision 0021](decisions/0021-messages-without-data.md).
+- The tools compare JSON data by type and value (`tools/json_values.py`):
+  `1`, `1.0` and `true` differ, also inside an array or an object. Python's
+  `==` took them for one value, so the immutability guard accepted a
+  published `const` 1 changed into `true`, a catalog operation version or
+  attribute, a registry kernel or a binding changed in the same way, and
+  the gate harness answered such a mutation with the unmutated verdict. The
+  comparisons walk the data with an explicit stack, in linear time, so a
+  deeply nested document is compared like a flat one. Every JSON the tools
+  read keeps each number exactly as written (a decimal, never a binary
+  float; JSON Schema's `integer`, in instances and in the metaschema, still
+  admits an integral decimal, as on main), and `NaN` and `Infinity` are
+  refused. The exact text of a number is compared only between published
+  documents (immutability, catalog identities and fields, digests); every
+  other check compares values (`-0` is the integer 0, integer and decimal
+  kept apart, a float's sign kept). The immutability guard compares a
+  published normative vector by its bytes (line ends
+  normalized as `.gitattributes` stores them): no spelling is tolerated
+  (`-0e-1` for `-0.0`, `10e-1` for `1.0`); catalogs, registries and binding
+  maps, which may grow, compare their entries with each number's exact
+  text; schemas compare their assertions by value (`1.0`, `1.00` and `1e0`,
+  `0.0` and `-0.0` validate the same instances). The erratum of
+  `data-run-success-v3.json` declares the digests of its bytes, for the
+  same two states. A repeated catalog identity is compared with the
+  version just before it. The integer literal `-0` stays the integer 0 for
+  every consumer (RA-005), with its text kept for the exact comparison. The
+  gate's other traversals (fuzz members and
+  cache keys, nested items and strings of payloads, the error size bound,
+  the REST adapter's difference path, now linear in time and memory) walk
+  with an explicit stack too. No contract document changes.
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
   universal from Python 3.10: `rpds-py` keeps 0.30.0, its last release for
   Python 3.10, under `python_full_version < '3.11'` and 2026.9.1 above; the

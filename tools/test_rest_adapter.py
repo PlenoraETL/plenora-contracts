@@ -36,6 +36,35 @@ def result(*records, status="success"):
 
 
 class ConversionTests(unittest.TestCase):
+    def test_the_integer_literal_minus_zero(self):
+        """RA-005: `-0` is an integer literal (the integer 0), read exactly by
+        the validator's parser; `0.0`, `-0.0` and `0e0` are not."""
+        import math
+        import validate_specs as validator
+        expected = {"int64": 0, "float64": 0.0}
+        for kind, value in expected.items():
+            with self.subTest(kind=kind):
+                out = adapter.adapt(declaration(("n", "/n", kind, True)), result(validator.loads_json('{"n": -0}')))
+                self.assertEqual(out["outcome"], "table", out)
+                found = out["rows"][0]["n"]
+                self.assertIs(type(found), type(value))
+                self.assertEqual(found, value)
+                if kind == "float64":
+                    self.assertEqual(math.copysign(1.0, found), 1.0)
+        for text in ("0.0", "-0.0", "0e0"):
+            with self.subTest(text=text):
+                out = adapter.adapt(declaration(("n", "/n", "int64", True)),
+                                    result(validator.loads_json('{"n": %s}' % text)))
+                self.assertEqual(out.get("cause"), "adapter.type_mismatch")
+        negative = adapter.adapt(declaration(("n", "/n", "float64", True)),
+                                 result(validator.loads_json('{"n": -0.0}')))
+        self.assertEqual(math.copysign(1.0, negative["rows"][0]["n"]), -1.0)
+        # The identity -0 is the integer 0.
+        identity = declaration(("n", "/n", "int64", True))
+        identity["fields"][0]["field_id"] = validator.loads_json("-0")
+        self.assertEqual(adapter.adapt(identity, result({"n": 1}))["schema"]["fields"][0]["metadata"],
+                         {"plenora.field_id": "0"})
+
     def test_types_without_coercion(self):
         cases = [
             ("bool", True, True), ("bool", 1, None),
@@ -109,7 +138,10 @@ class ConversionTests(unittest.TestCase):
         self.assertEqual(adapter.adapt(good, records)["schema"]["fields"][0]["metadata"],
                          {"plenora.field_id": "9007199254740991"})
         published = vector("error-field-identifier-not-an-integer-literal.json")
-        self.assertIsInstance(published["declaration"]["fields"][0]["field_id"], float)
+        # Parsed exactly (`JsonNumber`): a decimal, never an `int`.
+        identity = published["declaration"]["fields"][0]["field_id"]
+        self.assertNotIsInstance(identity, int)
+        self.assertEqual(str(identity), "123.0")
         self.assertEqual(adapter.vector_errors(published), [])
 
 
@@ -145,6 +177,35 @@ class AdaptTests(unittest.TestCase):
     def test_signed_zero(self):
         self.assertFalse(adapter._same(0.0, -0.0))
         self.assertTrue(adapter._same(-0.0, -0.0))
+
+    def test_the_difference_path_in_linear_time(self):
+        """One walk: a wide and deep outcome is not compared again at every
+        level (the old descent compared each subtree once per ancestor)."""
+        import copy
+        import time
+        left = {"rows": [{"v": index} for index in range(3000)]}
+        right = copy.deepcopy(left)
+        right["rows"][-1]["v"] = -1
+        for _ in range(900):
+            left, right = {"k": [left]}, {"k": [right]}
+        started = time.perf_counter()
+        path = adapter.difference(left, right)
+        self.assertLess(time.perf_counter() - started, 0.5)
+        self.assertEqual(path, "/#0/0" * 900 + "/rows/2999/#0")
+        self.assertEqual(adapter.difference({"a": 1, "b": 2}, {"a": 1}), "/#1")
+        self.assertEqual(adapter.difference([1, [2, 3]], [1, [2, 4]]), "/1/1")
+        self.assertEqual(adapter.difference([1], [1, 2]), " (length)")
+
+    def test_deep_outcomes_compare_without_recursion(self):
+        def nested(leaf):
+            value = leaf
+            for _ in range(10_000):
+                value = {"a": [value]}
+            return value
+
+        self.assertTrue(adapter._same(nested(1), nested(1)))
+        self.assertFalse(adapter._same(nested(1), nested(True)))
+        self.assertFalse(adapter._same(nested(1), nested(1.0)))
 
     def test_output_without_records(self):
         missing = {"schema_version": 1, "status": "success", "output": {"type": "records"}, "errors": []}
