@@ -11,6 +11,7 @@ from typing import Any
 from uuid import UUID
 
 import arrow_data
+import interop_vectors
 import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
 from json_values import JsonInteger, document_key, loads, number_text, same_document, same_value
@@ -58,6 +59,7 @@ EXPECTED_SCHEMAS = {
     "data-execution-result-v3.schema.json",
     "data-plan-v1.schema.json",
     "error-v1.schema.json",
+    "interop-vector-v1.schema.json",
     "operation-registry-v1.schema.json",
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
@@ -141,6 +143,9 @@ CASES = {
         ],
         "runtime-probe-v1.schema.json": [
             "examples/invalid/runtime-probe-two-mutations.json",
+        ],
+        "interop-vector-v1.schema.json": [
+            "examples/invalid/interop-vector-handoff-with-error.json",
         ],
         "arrow-data-vector-v1.schema.json": [
             "examples/invalid/arrow-data-vector-valid-with-category.json",
@@ -518,6 +523,7 @@ def validate_example_inventory() -> list[str]:
     registrations.extend((path, "invalid", "data-plan") for path in DATA_PLAN_VIOLATING)
     registrations.extend((path, "invalid", "data-plan-number") for path in DATA_PLAN_NUMBER_VIOLATING)
     registrations.extend((path, "invalid", "public-semantics") for path in PUBLIC_SEMANTIC_CASES)
+    registrations.extend((path, "invalid", "interop") for path in INTEROP_VIOLATING)
     registrations.extend((path, "invalid", "runtime-negotiation") for path in NEGOTIATION_VIOLATING)
     return example_inventory_errors(ROOT, registrations)
 
@@ -677,6 +683,9 @@ def validate_machine_documents(
         ),
         "arrow-data-vector-v1.schema.json": sorted(
             (ROOT / "vectors/arrow-data-v1").glob("*.json")
+        ),
+        "interop-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/interop-v1").glob("*.json")
         ),
         "runtime-vector-v1.schema.json": runtime_vector_paths(),
         "runtime-probe-v1.schema.json": sorted(
@@ -998,7 +1007,15 @@ def runtime_vector_paths() -> list[Path]:
 # reason. No catalog of version 2 may list them for that operation identity,
 # so no binding map can bind them either. Catalogs of version 1 keep Public
 # Catalogs 1.0, which has no such rule.
-INTENTIONAL_ABSENCES: dict[tuple[str, str, int], tuple[set[str], str]] = {}
+INTENTIONAL_ABSENCES: dict[tuple[str, str, int], tuple[set[str], str]] = {
+    (DATABASE_COMPONENT, "database.transaction.begin", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.commit", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.rollback", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.savepoint", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.execute", 1): ({"runtime"}, "DB-ABS-002"),
+    (DATA_COMPONENT, "data.run", 3): ({"cli", "python_sdk"}, "DT-ABS-001"),
+    (DATA_COMPONENT, "data.run", 2): ({"runtime"}, "DT-ABS-002"),
+}
 
 
 # CAT-003: the characters Unicode gives the White_Space property.
@@ -1464,6 +1481,10 @@ DATA_OPERATION_VERSIONS = {
     ],
 }
 
+# The operation versions each data-tools catalog version carries: version 3
+# (Public Catalogs 2.0) lists those of version 2 unchanged (decision 0015).
+DATA_CATALOG_GENERATION = {1: 1, 2: 2, 3: 2}
+
 
 def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     """Each data-tools catalog version against its own expectations.
@@ -1475,10 +1496,13 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     files and is not bound on the runtime surface.
     """
     failures: list[str] = []
+    generation = DATA_CATALOG_GENERATION.get(version)
+    if generation is None:
+        return [f"data-tools v{version} has no stated operation versions"]
     # Every lookup names the operation version: catalog v2 carries `data.run`
     # 2 and 3, and an order or a lookup by identifier alone would check the
     # wrong one.
-    expected = DATA_OPERATION_VERSIONS[version]
+    expected = DATA_OPERATION_VERSIONS[generation]
     found = sorted(((item["id"], item["version"]) for item in catalog["operations"]), key=repr)
     # VALUE: the identities against those the rule requires.
     if not same_value(found, sorted(expected, key=repr)):
@@ -1487,8 +1511,8 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     # operation version N (DATA_OPERATION_VERSIONS); data.run 3 has its own
     # rule below. Each lookup names the version.
     by_identity = {(item["id"], item["version"]): item for item in catalog["operations"]}
-    catalog_operation = by_identity[("data.catalog", version)]
-    run = by_identity[("data.run", version)]
+    catalog_operation = by_identity[("data.catalog", generation)]
+    run = by_identity[("data.run", generation)]
     attributes = catalog_operation.get("attributes")
     if not isinstance(attributes, dict):
         return [f"data-tools v{version} data.catalog attributes are not an object"]
@@ -1497,18 +1521,18 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     if registry_path is None or not registry_path.is_file():
         return [f"data-tools v{version} data.catalog does not name an existing kernel registry"]
     registry_id = load_json(registry_path)["registry"]
-    if version == 1:
+    if generation == 1:
         if catalog_operation["output"]["contract"] != registry_id:
             failures.append("data-tools v1 data.catalog output contract differs from its registry")
         if member(run.get("attributes"), "kernel_registry") != registry_id:
             failures.append("data-tools v1 data.run names a different kernel registry")
         return failures
-    if catalog_operation["output"]["contract"] != DATA_CATALOG_RESULT.get(version):
+    if catalog_operation["output"]["contract"] != DATA_CATALOG_RESULT.get(generation):
         failures.append(f"data-tools v{version} data.catalog has the wrong result contract")
     if attributes.get("kernel_registry") != registry_id:
         failures.append(f"data-tools v{version} data.catalog names a different kernel registry")
     for operation_id in ("data.validate", "data.run"):
-        operation_attributes = by_identity[(operation_id, version)].get("attributes")
+        operation_attributes = by_identity[(operation_id, generation)].get("attributes")
         if member(operation_attributes, "kernel_registry") != registry_id:
             failures.append(f"data-tools v{version} {operation_id} names a different kernel registry")
         if member(operation_attributes, "plan_contract") != DATA_PLAN_CONTRACT:
@@ -1552,7 +1576,7 @@ def data_run_3_errors(catalog: dict[str, Any], version: int, registry_id: str) -
         item for item in catalog["operations"]
         if item["id"] == "data.run" and item["version"] == 3
     ]
-    if version < 2:
+    if DATA_CATALOG_GENERATION.get(version, version) < 2:
         return ["data-tools v1 cannot declare data.run 3"] if entries else []
     if len(entries) != 1:
         return [f"data-tools v{version} must declare data.run 3 once"]
@@ -2269,6 +2293,91 @@ def defined_rules() -> set[str]:
 
 def cited_rule_errors(label: str, rules: list[str], known: set[str]) -> list[str]:
     return [f"{label} cites {rule}, which no specification or profile defines" for rule in rules if rule not in known]
+
+
+def validate_interop_vectors(
+    catalogs: dict[str, dict[str, Any]],
+    schemas: dict[str, dict[str, Any]] | None = None,
+    registry: Registry | None = None,
+) -> list[str]:
+    """Interoperability Vectors 1.0: chains against the matrix, expectations
+    recomputed from the inputs (`interop_vectors`). A vector outside its
+    schema is reported by the schema check and never evaluated here: the
+    rules read only fields of the shape the schema fixes."""
+    operations = operation_index(catalogs)
+    edges = load_json(ROOT / "composition/pipelines-v1.json")["edges"]
+    direct = {
+        (
+            (edge["from"]["component"], edge["from"]["operation"], edge["from"]["version"]),
+            (edge["to"]["component"], edge["to"]["operation"], edge["to"]["version"]),
+        )
+        for edge in edges
+        if edge["mode"] == "direct"
+    }
+    paths = sorted((ROOT / "vectors/interop-v1").glob("*.json"))
+    if not paths:
+        return ["vectors/interop-v1 has no vectors"]
+    # The kernels of the current registry; none without one, which
+    # data_registry_errors reports (a geo plan then names no kernel).
+    kernels = latest_kernel_ids()
+    known = defined_rules()
+    if schemas is None:
+        schemas = {name: load_json(ROOT / "schemas" / name) for name in EXPECTED_SCHEMAS}
+        registry = schema_registry(schemas)
+    failures: list[str] = []
+    for path in paths:
+        label = path.relative_to(ROOT).as_posix()
+        vector = load_json(path)
+        if instance_errors(schemas["interop-vector-v1.schema.json"], vector, registry):
+            continue
+        for problem in interop_vectors.vector_errors(path, vector, operations, direct, load_json, kernels):
+            failures.append(f"{label} {problem}")
+        expected_error = vector.get("expected_error")
+        if isinstance(expected_error, dict):
+            failures.extend(cited_rule_errors(label, list(expected_error.get("rules") or []), known))
+    return failures
+
+
+# Accepted by the schema and refused by the interoperability gate, each for
+# the rule its value names: without them, a check of the gate could vanish
+# and the published vectors, all conforming, would stay green.
+INTEROP_VIOLATING = {
+    "examples/invalid/interop-vector-handoff-single-json-step.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-database-write-as-ipc.json": "INTEROP-002",
+    "examples/invalid/interop-vector-source-format-mismatch.json": "INTEROP-001",
+    "examples/invalid/interop-vector-handoff-target-read-in-another-format.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-unknown-format.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-limits-not-a-list.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-plan-not-a-string.json": "INTEROP-002",
+}
+
+
+def validate_interop_violating(
+    schemas: dict[str, dict[str, Any]], registry: Registry, catalogs: dict[str, dict[str, Any]]
+) -> list[str]:
+    operations = operation_index(catalogs)
+    edges = load_json(ROOT / "composition/pipelines-v1.json")["edges"]
+    direct = {
+        (
+            (edge["from"]["component"], edge["from"]["operation"], edge["from"]["version"]),
+            (edge["to"]["component"], edge["to"]["operation"], edge["to"]["version"]),
+        )
+        for edge in edges
+        if edge["mode"] == "direct"
+    }
+    failures: list[str] = []
+    for relative, rule in INTEROP_VIOLATING.items():
+        path = ROOT / relative
+        document = load_json(path)
+        if instance_errors(schemas["interop-vector-v1.schema.json"], document, registry):
+            failures.append(f"{relative} must be accepted by the schema so that it probes the gate")
+            continue
+        # Its input path is the schema's, relative to the published vectors.
+        published = ROOT / "vectors/interop-v1" / path.name
+        errors = interop_vectors.vector_errors(published, document, operations, direct, load_json, latest_kernel_ids())
+        if not errors or not all(rule in error for error in errors):
+            failures.append(f"{relative} must be refused by {rule} and by no other check")
+    return failures
 
 
 def validate_arrow_data_vectors() -> list[str]:
@@ -3379,6 +3488,8 @@ def run_gate() -> int:
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_arrow_data_vectors())
+    failures.extend(validate_interop_vectors(catalogs, schemas, registry))
+    failures.extend(validate_interop_violating(schemas, registry, catalogs))
     failures.extend(validate_rest_adapter_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
     failures.extend(validate_runtime_negotiation_vectors())

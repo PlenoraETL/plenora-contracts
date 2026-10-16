@@ -7,7 +7,8 @@ specific check they exercise.
 The executable inventory is maintained in
 [`tools/validate_specs.py`](../tools/validate_specs.py). `CASES` registers
 structural cases; the named semantic registries cover public capabilities,
-adoption manifests, error bounds, REST boundaries and plan budgets. The
+adoption manifests, error bounds, REST boundaries, plan budgets and
+interoperability vectors. The
 validator compares their union with every JSON example on disk and rejects
 unregistered files, missing files and conflicting classifications.
 

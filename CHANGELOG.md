@@ -8,6 +8,19 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- Catalogs and profiles of Public Catalogs 2.0 for the components whose
+  profiles stated the runtime as required: `database-tools-v2.json`,
+  `data-tools-v3.json` and `io-tools-v3.json`, each with the operation
+  identities of the previous version unchanged, and profiles
+  `database-tools-v2`, `data-tools-v3` and `io-tools-v3` with the runtime
+  `conditional` (CAT-001, CAT-002), the intentional absences DB-ABS-001 to
+  DB-ABS-003, DT-ABS-001 and DT-ABS-002 (CAT-003, checked by the validator),
+  and for database-tools the bound of a `database.query` result (DB-RT-003,
+  RT-024). No restriction is added to the content types of `database.query`
+  or `database.write` version 1. An artifact that exposes the runtime under
+  these catalogs follows Runtime Binding 2.0. The previous catalogs
+  and profiles are unchanged and remain available. See
+  [decision 0015](decisions/0015-intentional-absences-and-planned-surfaces.md).
 - Public Catalogs 2.0 (`plenora-public-catalog-v2`, schema
   `public-catalog-v2`) and Runtime Binding 2.0 (`plenora-runtime-binding-v2`)
   next to their 1.0 versions, which are unchanged except an informative
@@ -71,6 +84,26 @@ full commit SHA; a release tag names one of those commits.
   with informative pointers. Nine vectors in `vectors/arrow-data-v1`, four
   with two defects. See
   [decision 0014](decisions/0014-arrow-input-rejection-categories.md).
+- Interoperability Vectors 1.0 (`plenora-interop-vectors-v1`, INTEROP-001 to
+  INTEROP-005), an opt-in contract for components that claim Arrow Geometry
+  Semantics 1.0; Composition 1.0 keeps its published text with an
+  informative pointer: new schema
+  `interop-vector-v1` and 40 vectors in `vectors/interop-v1`: 10 handoff
+  chains among IO-tools, data-tools and database-tools whose expected table
+  the validator recomputes from the input and a closed list of declared
+  transformations, provider keys listed as delegated; 28 rejections, each
+  the first of one ordered evaluation that includes the operation; a GeoJSON
+  and a CSV source whose axis order and coordinates the validator reads.
+  Chains are checked against the composition matrix and at both ends (the
+  first step reads the input as Arrow IPC, the last delivers or writes a
+  table, as the catalog declares the step: a `format` counts only where the
+  input contract selects one), and a source's read request names the
+  document's format, a target is read in the format it was written from a
+  closed list of formats, a plan is `identity` or a registered kernel, every
+  parameter is validated before any step is evaluated, with seven negative
+  examples. No catalog, binding,
+  profile or published vector changes. See
+  [decision 0018](decisions/0018-interoperability-vectors.md).
 - REST-to-Arrow Adapter 1.0 (`plenora-rest-arrow-adapter-v1`): the adapter
   of the `rest.enrich` to `data.run` edges belongs to the application, and
   an adapter claiming the contract declares fields (name, identity, RFC 6901

@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "source",
+  "description": "Negative example: a GeoJSON source whose read request names the CSV format. The document is read by its own format, but the request contradicts it (INTEROP-001).",
+  "source": {
+    "format": "geojson",
+    "text": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"properties\":{\"id\":1},\"geometry\":{\"type\":\"Point\",\"coordinates\":[-120.5,45.25]}},{\"type\":\"Feature\",\"properties\":{\"id\":2},\"geometry\":{\"type\":\"Point\",\"coordinates\":[12.4964,41.9028]}}]}"
+  },
+  "chain": [
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.read",
+      "version": 2,
+      "params": {
+        "format": "wkt_csv",
+        "source": "points.geojson"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_geometry": {
+    "crs_id": "OGC:CRS84",
+    "axis_order": "lon_lat",
+    "coordinates": [
+      [
+        -120.5,
+        45.25
+      ],
+      [
+        12.4964,
+        41.9028
+      ]
+    ]
+  }
+}
