@@ -8,6 +8,17 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- IO-tools Python SDK as a declared surface: `io-tools-v3.json` selects
+  `python_sdk` as `conditional` for its six operations;
+  `bindings/python-sdk-v1.json` names `plenora-io / plenora_io`, its
+  discovery entrypoints and the `Client` methods for each operation; the profile
+  makes the SDK optional and adds IO-PY-001 (synchronous only, CLI
+  protocol semantics through native or process execution, the effect of
+  `Client.read`, typed refusal without PyArrow, cancellation and timeout
+  outcomes). Catalog and profile v2 retain their published content. The
+  validator checks the section; the immutability gate recognizes catalog
+  v2 bytes and applies the existing compatible-addition rules. No schema
+  or vector changes. See [decision 0016](decisions/0016-io-tools-python-sdk.md).
 - Catalogs and profiles of Public Catalogs 2.0 for the components whose
   profiles stated the runtime as required: `database-tools-v2.json`,
   `data-tools-v3.json` and `io-tools-v3.json`, each with the operation

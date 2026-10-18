@@ -334,6 +334,7 @@ def binding_changes(previous: dict, current: dict) -> list[str]:
 
 STRUCTURED = {
     ("catalogs/", "plenora-public-catalog-v1"),
+    ("catalogs/", "plenora-public-catalog-v2"),
     ("catalogs/", "plenora-operation-registry-v1"),
     ("bindings/", "plenora-surface-bindings-v1"),
 }
