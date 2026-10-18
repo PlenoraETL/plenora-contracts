@@ -53,6 +53,13 @@ partial errors, and must explicitly own field type inference or declaration,
 nullability, ordering and per-record error policy. No component may silently
 infer this edge from matching field names.
 
+Informative: the adapter belongs to the application that composes the two
+operations. The separate, opt-in
+[REST-to-Arrow Adapter 1.0](REST-ARROW-ADAPTER-1.0.md) fixes what an adapter
+claiming it declares and how it converts (types, nullability, order,
+per-record errors, partial results); this document keeps the meaning it was
+published with, and the edge stays `adapter_required`.
+
 Storage operations now define opaque artifact source and sink references, but
 those references and their bounded content type, size and optional SHA-256
 metadata do not define the bytes' semantic content. No storage edge is
@@ -75,3 +82,12 @@ For an `adapter_required` edge, the named contract MUST be either the source
 operation's output contract or an interchange contract declared by that
 output. The adapter owns the conversion from that complete source result to a
 contract accepted by the target.
+
+## 6. Informative: interoperability vectors
+
+This document keeps the meaning it was published with. What a pipeline of
+public operations must deliver between components that claim Arrow Geometry
+Semantics 1.0, checked by the vectors in `vectors/interop-v1`, is fixed by
+the separate, opt-in contract
+[Interoperability Vectors 1.0](INTEROP-VECTORS-1.0.md)
+(`plenora-interop-vectors-v1`).

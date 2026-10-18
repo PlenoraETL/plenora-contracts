@@ -2,76 +2,102 @@
 
 Status: accepted
 
-Date: 2026-10-10
+Date: 2026-10-10; revised 2026-10-18
 
 ## Context
 
-`io-tools-v2.json` selects the Python SDK as `not_applicable`, and the Python
-binding map has an empty IO-tools section. IO-tools nevertheless ships
-`plenora-io`, a pure-Python wrapper of the `plenora-io` CLI. Until now it was
-outside the profile by choice: it covered six operations of seven, had no
-capability discovery and exposed the error axes only inside an envelope
-object.
+Decision 0015 introduced Public Catalogs 2.0 and the current IO-tools catalog
+and profile v3. IO-tools PR #60 adopts those documents. The original draft
+of this decision added Python to v2; that addition has not been published
+on plenora-contracts main.
 
-plenora-IO-tools PR #44 (`sdk/capabilities-profilo-v1`, head `a2b5766`)
-writes the package against Python SDK 1.0: `Client.capabilities()`,
-`plenora_io.version()`, the five error axes as attributes of every public
-exception, a method-to-operation map (`OPERAZIONI`) checked against the real
-binary, Python 3.10 to 3.14, and an optional `plenora-io[pyarrow]` extra for
-Arrow objects. The package does not claim the contract while the catalog
-does not declare the surface.
+IO-tools PRs #44 and #50 are merged. The SDK was inspected with `git show
+origin/main:sdk/python/...` at IO-tools revision
+`80f2557c9214cadcf5c772acd0d383f91a834eb9`: `_client.py` supplies the method
+map, discovery and backend selection; `__init__.py` exports package version
+and errors; `_process.py` implements the runners. The SDK ships both a pure
+Python wheel using a CLI process and a native abi3 wheel using `NativeRunner`.
+Both execute the CLI protocol. Describing it as only a process wrapper would
+exclude the native implementation without a semantic reason.
 
 ## Decision
 
-- The catalog selects `python_sdk` as `conditional` and adds it to the six
-  operations of version 2. Both are additions COMPATIBILITY.md admits.
-  Catalog version 1 keeps `not_applicable`.
+- Catalog `io-tools-v3.json` selects `python_sdk` as `conditional` and adds it
+  to all six operations. These additions are permitted by COMPATIBILITY.md;
+  operation versions, payloads, controls and catalog side effects stay fixed.
+- Catalogs and profiles v1 and v2 retain their published content. In
+  particular, the unmerged Python additions to v2 are withdrawn from this
+  draft, not from a published contract. Decision 0015 makes v3 the current
+  target while preserving earlier pins. The global exit condition for 1.0
+  need not be assumed satisfied: coexistence permits the older catalogs,
+  but does not require backporting new surfaces to them.
 - `bindings/python-sdk-v1.json` names `plenora-io / plenora_io`, discovery
-  `plenora_io.version` and `Client.capabilities`, and one `Client` method
-  per operation, as `OPERAZIONI` maps them: `catalog`, `inspect`, `layers`,
-  `read` (with `read_table` and `validate`), `write`, `convert`.
-- The profile makes the SDK optional and adds **IO-PY-001**: synchronous only,
-  recorded in `api_modes`; the semantics of the operation on the CLI,
-  including the effect `Client.read` adds by writing where the caller names
-  (SB-001); `validate` and `read_table` bind `io.read`; without the PyArrow
-  extra an Arrow object is refused with a typed error.
-- The validator checks the IO-tools section like the data-tools one
-  (`io_python_errors`).
+  `plenora_io.version` and `Client.capabilities`, and the methods in the real
+  `OPERAZIONI` map: `Client.catalog` (io.catalog@2), `Client.inspect`
+  (io.inspect@1), `Client.layers` (io.layers@1), `Client.read`,
+  `Client.read_table`, `Client.validate` (io.read@2), `Client.write`
+  (io.write@2), and `Client.convert` (io.convert@1).
+- Profile v3 makes Python optional and adds **IO-PY-001**: `api_modes:
+  ["sync"]`, CLI protocol semantics through either backend, structured
+  discovery, Arrow adaptation and fidelity, and truthful effects and
+  cancellation/timeout outcomes. `Client.backend` distinguishes execution;
+  it is not a domain operation and needs no binding-map entry.
+- `plenora_io.version()` reads installed distribution metadata;
+  `Client.version()` describes the backend and is not a substitute.
+  `Client.capabilities()` already adds the Python interface and surface to
+  the backend document. Consumers select from that document, never from
+  the target catalog (CAT-001).
+- `io_python_errors` checks the artifact, discovery and method bindings.
+- The immutability gate recognizes Public Catalogs 2.0 in its byte-level
+  dispatch as well as its document comparator. The missing dispatch entry
+  rejected compatible surface additions; the fix applies the existing
+  compatibility rules, with tests that still reject removals and mutations.
 
-## Merge condition
+## Remaining IO adoption work
 
-This change is merged only after plenora-IO-tools PR #44. Merged earlier, the
-binding map would name methods (`Client.capabilities`, `Client.read_table`)
-that no released package has, and the catalog would select a surface whose
-only implementation does not yet expose the error axes as Python SDK 1.0
-section 6 requires. The surface stays `conditional`: an IO-tools artifact
-without the package remains conforming (CAT-001 of decision 0015, when
-merged).
+The declaration is a target, not a claim that an existing wheel conforms.
+The merge condition on PR #44 is satisfied; PR #50 is also present. Before
+IO-tools claims the Python contract at the new contracts pin it must:
 
-## Alternatives
+- complete the operation-version migration in IO PR #60: main's backend
+  capability document still advertises `io.catalog`, `io.read` and `io.write`
+  at version 1 with v1 result identifiers. The SDK forwards those identities;
+  its method map alone does not establish v3 conformance. The local #60 tree
+  advertises version 2 for those three operations. Keep the v2 bindings
+  required by catalog v3; do not downgrade them to match the old backend;
+- complete SB-001 in the backend and `Client.capabilities()`:
+  `crates/plenora-io-tools/src/capability.rs` currently gives `io.read` a
+  blanket `side_effect: local`, both on main and in the inspected #60 tree.
+  The catalog requires `none`, with the local materialization effect declared
+  per surface. Set the operation effect to `none` and add `cli: local` under
+  `plenora.surface_side_effects`; `con_superficie_python` must preserve it
+  and add `python_sdk: local`. Today that function adds only interface and
+  surface, not this attribute. Adding the attribute while leaving the blanket
+  effect `local` would also violate SB-001's strictly stronger override rule.
+  Keep this requirement; fix IO rather than change the catalog's meaning;
+- update the adoption manifest and copied catalog/profile at the new pin,
+  declare `plenora-python-sdk-v1` for Python artifacts with `api_modes:
+  ["sync"]`, and replace the old rationale excluding Python from the profile;
+- verify installed pure and native wheels, including capability effects,
+  package-version discovery, cooperative native timeout, SIGINT cancellation
+  and conservative error axes after a writing command starts.
 
-- **Keep `not_applicable`.** The package exists and is used by the
-  interoperability suite; leaving it outside the contracts leaves its
-  spellings and semantics unchecked.
-- **Require both API modes.** A wrapper of a process-level CLI gains nothing
-  from a nominal async API, and Python SDK 1.0 section 4 admits a single mode
-  recorded in the manifest.
+The current native timeout requests cancellation and waits, then raises
+`ProtocolError`; it is not a hard return-time limit or necessarily the
+operation's `TimeoutError`. A handled SIGINT delivers the operation's
+cancellation envelope as `CancelledError`. The process backend retains its
+platform/thread limitations. Neither behavior permits assuming rollback.
+These distinctions are recorded in IO-PY-001 without prescribing native
+implementation details or requiring a nominal asynchronous API.
 
 ## Change statement
 
-- **Consumers affected:** Python callers of IO-tools.
+- **Consumers affected:** Python callers of IO-tools adopting profile v3.
 - **Before:** no shared Python surface for IO-tools.
 - **After:** an optional SDK with canonical spellings and IO-PY-001.
-- **Compatible:** yes: a `not_applicable` target becomes decided and
-  operations gain a surface; an artifact without the package is still
-  conforming.
-- **Schemas, examples and profiles:** catalog version 2 and Python binding
-  map extended; IO-tools profile version 2 and Surface Bindings 1.0 section
-  4 updated; no schema or vector changes.
-- **Adoption impact:** IO-tools may declare `plenora-python-sdk-v1` for the
-  package after PR #44 and after moving its pin; its manifest records
-  `api_modes: ["sync"]`; `Client.capabilities()` must return a document
-  that lists the `python_sdk` interface and surface (CAP-003, CAP-007), and
-  `io.read` declares `{"python_sdk": "local"}` next to `{"cli": "local"}`
-  in `plenora.surface_side_effects`. PR #44 notes that the document of the
-  binary does not name the surface yet.
+- **Compatible:** an undecided/not-applicable target becomes selected and
+  operations gain a surface; an artifact without Python stays conforming
+  and omits it from discovery without a deviation (CAT-002).
+- **Documents:** catalog and profile v3, Python binding map, Surface Bindings
+  distribution table, validator and regression tests; no schema or vector
+  changes and no change to the published v2 catalog/profile.

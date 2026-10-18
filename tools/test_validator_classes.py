@@ -56,6 +56,22 @@ class RestBoundaryVersionTests(unittest.TestCase):
                 self.assertTrue(any("operation version" in error for error in errors), errors)
 
 
+class IntegerTextTests(unittest.TestCase):
+    """The class of `str` on a JSON number (decision 0017): JSON Schema's
+    `integer` admits `2.0`, whose text is `2.0`, never the `2` that runtime
+    metadata and probes compare with an operation version."""
+
+    def test_an_operation_version_is_an_integer_literal(self):
+        catalogs = validator.load_catalogs()
+        self.assertEqual(validator.validate_catalog_semantics(catalogs), [])
+        component = sorted(catalogs)[0]
+        mutated = copy.deepcopy(catalogs)
+        operation = mutated[component]["operations"][0]
+        operation["version"] = float(operation["version"])
+        errors = validator.validate_catalog_semantics(mutated)
+        self.assertTrue(any("version is not an integer literal" in error for error in errors), errors)
+
+
 class NullMemberTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -102,7 +118,7 @@ class NullMemberTests(unittest.TestCase):
         del later["attributes"]["limit"]
         versions = {"plenora-probe-tools": {1: {"operations": [operation]}, 2: {"operations": [later]}}}
         errors = validator.repeated_identity_errors(versions)
-        self.assertTrue(any("changes attribute limit" in error for error in errors), errors)
+        self.assertTrue(any("changes attribute «limit»" in error for error in errors), errors)
         later["attributes"] = None
         errors = validator.repeated_identity_errors(versions)
         self.assertTrue(any("attributes are not an object" in error for error in errors), errors)

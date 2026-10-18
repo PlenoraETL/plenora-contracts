@@ -19,6 +19,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from json_values import canonical_text, document_key, loads, same_document, same_schema_value
+
 ROOT = Path(__file__).resolve().parents[1]
 # The main revision every later check starts from (merge of PR #12,
 # 2026-10-05). A branch is also compared with the commit where it left
@@ -43,28 +45,42 @@ OPERATION_PROSE = {"summary"}
 
 
 def assertions(schema: Any) -> Any:
+    """The schema without its annotations, at every schema node. Walked with
+    an explicit stack: a schema nested deeper than the interpreter's
+    recursion limit is read like a flat one."""
     if not isinstance(schema, dict):
         return schema
-    result = {}
-    for key, value in schema.items():
-        if key in ANNOTATIONS:
-            continue
-        if key in SCHEMA_MAPS:
-            result[key] = {name: assertions(child) for name, child in value.items()}
-        elif key in SCHEMA_ARRAYS or (key == "items" and isinstance(value, list)):
-            result[key] = [assertions(child) for child in value]
-        elif key in SCHEMA_VALUES or key == "items":
-            result[key] = assertions(value)
-        else:
-            # Literal const/enum objects and unknown keywords are not schema nodes.
-            result[key] = value
-    return result
+    root: dict[str, Any] = {}
+    stack = [(schema, root)]
+
+    def node(child: Any) -> Any:
+        if not isinstance(child, dict):
+            return child
+        result: dict[str, Any] = {}
+        stack.append((child, result))
+        return result
+
+    while stack:
+        current, result = stack.pop()
+        for key, value in current.items():
+            if key in ANNOTATIONS:
+                continue
+            if key in SCHEMA_MAPS:
+                result[key] = {name: node(child) for name, child in value.items()}
+            elif key in SCHEMA_ARRAYS or (key == "items" and isinstance(value, list)):
+                result[key] = [node(child) for child in value]
+            elif key in SCHEMA_VALUES or key == "items":
+                result[key] = node(value)
+            else:
+                # Literal const/enum objects and unknown keywords are not schema nodes.
+                result[key] = value
+    return root
 
 
 class Erratum(NamedTuple):
     """A declared erratum (COMPATIBILITY.md, «Errata before adoption»).
 
-    `before` and `after` are digests of the comparable form (`comparable`);
+    `before` and `after` are digests of the declared form (`erratum_digest`);
     `decision` must exist and name the file in its `## Erratum` section;
     `last_base` is the last main revision that published `before`: the
     transition is admitted only against that revision or its ancestors, never
@@ -83,24 +99,39 @@ ERRATA: dict[str, Erratum] = {
         "decisions/0008-data-run-runtime.md",
         "4c1569d4b7fb7f0b451566b71e0f01165f9d6bcc",
     ),
+    # A document other than a schema is compared by its bytes: its digests
+    # are those of its bytes (line ends normalized), the same two states
+    # 5ac9ab0d (before) and 8ac451ba (after) as the parsed digests they
+    # replace (28047084..., 18455d1e...).
     "vectors/runtime-v1/data-run-success-v3.json": Erratum(
-        "28047084abc9651998208af0461146bfd21ed5636cf2d2e80faecf50c7a333ef",
-        "18455d1e2c7f19e8379b6c63c72a4e8538e2da0d7bcd4789765220e2c0672413",
+        "d86fe1fbb314fcc26fb2e7f190f2ca1e469f4c56b9f2d066933b8d9df1fa7b3d",
+        "c8576bc8cc025f009bf55762ac1a2b911c91977e8a849a568c92768424284ee1",
         "decisions/0008-data-run-runtime.md",
         "4c1569d4b7fb7f0b451566b71e0f01165f9d6bcc",
     ),
 }
 
 
-def comparable(relative: str, document: Any) -> Any:
-    """What the guard compares: assertions of a schema, the whole document
-    of anything else."""
-    return assertions(document) if relative.startswith("schemas/") else document
-
-
 def digest(value: Any) -> str:
-    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    """The digest of schema assertions: their canonical text, numbers by
+    value (as they are compared). Without decimal numbers it is the digest
+    of `json.dumps(value, sort_keys=True, separators=(",", ":"))`."""
+    return hashlib.sha256(canonical_text(value).encode("utf-8")).hexdigest()
+
+
+def normalized(data: bytes) -> bytes:
+    """The bytes of a published document as the repository stores them:
+    `.gitattributes` keeps JSON with LF line ends, so a CRLF checkout is the
+    same document. Nothing else is normalized."""
+    return data.replace(b"\r\n", b"\n")
+
+
+def erratum_digest(relative: str, data: bytes) -> str:
+    """What an erratum declares: the digest of a schema's assertions, or of
+    any other document's bytes."""
+    if relative.startswith("schemas/"):
+        return digest(assertions(strict_json(data.decode("utf-8"), relative)))
+    return hashlib.sha256(normalized(data)).hexdigest()
 
 
 def assertions_digest(schema: Any) -> str:
@@ -115,7 +146,17 @@ def strict_json(text: str, relative: str) -> Any:
             raise ValueError(f"{relative} repeats a JSON object key")
         return dict(pairs)
 
-    return json.loads(text, object_pairs_hook=unique)
+    def constant(name: str) -> Any:
+        raise ValueError(f"{relative} holds {name}, which is not JSON")
+
+    # Every number keeps its exact text (`JsonNumber`): a binary float would
+    # make `1.0` and `1.0000000000000001` one number and hide the change.
+    # Integers stay integers, so `1` and `1.0` stay two values.
+    return loads(text, object_pairs_hook=unique, parse_constant=constant)
+
+
+def git_bytes(root: Path, *arguments: str) -> bytes:
+    return subprocess.check_output(["git", "-C", str(root), *arguments], stderr=subprocess.PIPE)
 
 
 def git(root: Path, *arguments: str) -> str:
@@ -151,14 +192,14 @@ def erratum_errors(relative: str, erratum: Erratum, read_text: Callable[[str], s
 
 
 def declared_erratum(
-    root: Path, base: str, relative: str, previous: Any, current: Any,
+    root: Path, base: str, relative: str, previous: bytes, current: bytes,
     read_text: Callable[[str], str | None],
 ) -> bool:
     erratum = ERRATA.get(relative)
     if erratum is None or erratum_errors(relative, erratum, read_text):
         return False
     return (
-        (digest(comparable(relative, previous)), digest(comparable(relative, current)))
+        (erratum_digest(relative, previous), erratum_digest(relative, current))
         == (erratum.before, erratum.after)
         and is_ancestor(root, base, erratum.last_base)
     )
@@ -167,28 +208,42 @@ def declared_erratum(
 MISSING = object()
 
 
+def changed(previous: dict, current: dict, key: Any) -> bool:
+    """A member added, removed or of another JSON value (`1`, `1.0` and
+    `true` differ: `==` would take them for the same)."""
+    if (key in previous) != (key in current):
+        return True
+    # DOCUMENT: a published field against the same field of the base.
+    return key in previous and not same_document(previous[key], current[key])
+
+
 def fixed_fields(previous: dict, current: dict, open_fields: set[str], label: str) -> list[str]:
     return [
         f"{label} changes {key}"
         for key in sorted(set(previous) | set(current), key=str)
-        if key not in open_fields and previous.get(key, MISSING) != current.get(key, MISSING)
+        if key not in open_fields and changed(previous, current, key)
     ]
 
 
 def entries_by(items: Any, key: Callable[[dict], Any], label: str) -> tuple[dict, list[str]]:
-    """Index entries by identity; a repeated identity is ambiguous and fails."""
+    """Index entries by identity; a repeated identity is ambiguous and fails.
+    The index is keyed by the JSON image of the identity, so that a version
+    `1` and a version `true` or `1.0` are two identities, as in JSON, never
+    one dictionary key; each entry keeps its identity for the messages."""
     if not isinstance(items, list):
         return {}, [f"{label} is not a list"]
-    index: dict[Any, dict] = {}
+    index: dict[Any, tuple[Any, dict]] = {}
     errors = []
     for item in items:
         if not isinstance(item, dict):
             errors.append(f"{label} has an entry that is not an object")
             continue
         identity = key(item)
-        if identity in index:
+        # DOCUMENT: a published identity, indexed by its exact text.
+        typed = document_key(identity)
+        if typed in index:
             errors.append(f"{label} repeats {identity}")
-        index[identity] = item
+        index[typed] = (identity, item)
     return index, errors
 
 
@@ -206,19 +261,20 @@ def catalog_changes(previous: dict, current: dict) -> list[str]:
     else:
         for surface in sorted(set(before_surfaces) | set(after_surfaces)):
             applicability = before_surfaces.get(surface, MISSING)
-            if after_surfaces.get(surface, MISSING) != applicability and applicability not in OPEN_APPLICABILITY:
+            if changed(before_surfaces, after_surfaces, surface) and applicability not in OPEN_APPLICABILITY:
                 errors.append(f"catalog changes target surface {surface}")
     key = lambda item: (item.get("id"), item.get("version"))
     before, problems = entries_by(previous.get("operations"), key, "base catalog operations")
     after, current_problems = entries_by(current.get("operations"), key, "catalog operations")
     errors += problems + current_problems
-    for identity, operation in before.items():
+    for typed, (identity, operation) in before.items():
         label = f"operation {identity[0]}@{identity[1]}"
-        if identity not in after:
+        if typed not in after:
             errors.append(f"{label} removed")
             continue
-        errors += fixed_fields(operation, after[identity], {"surfaces"} | OPERATION_PROSE, label)
-        old, new = operation.get("surfaces"), after[identity].get("surfaces")
+        current_operation = after[typed][1]
+        errors += fixed_fields(operation, current_operation, {"surfaces"} | OPERATION_PROSE, label)
+        old, new = operation.get("surfaces"), current_operation.get("surfaces")
         if not isinstance(old, list) or not isinstance(new, list) or not set(old) <= set(new):
             errors.append(f"{label} drops a surface")
     return errors
@@ -231,10 +287,11 @@ def registry_changes(previous: dict, current: dict) -> list[str]:
     before, problems = entries_by(previous.get("operations"), key, "base registry operations")
     after, current_problems = entries_by(current.get("operations"), key, "registry operations")
     errors += problems + current_problems
-    for identity, entry in before.items():
-        if identity not in after:
+    for typed, (identity, entry) in before.items():
+        if typed not in after:
             errors.append(f"kernel {identity} removed")
-        elif after[identity] != entry:
+        # DOCUMENT: a published kernel entry against the base's.
+        elif not same_document(after[typed][1], entry):
             errors.append(f"kernel {identity} changes")
     return errors
 
@@ -248,13 +305,13 @@ def binding_changes(previous: dict, current: dict) -> list[str]:
     before, problems = entries_by(previous.get("components"), component_key, "base binding sections")
     after, current_problems = entries_by(current.get("components"), component_key, "binding sections")
     errors += problems + current_problems
-    for component, section in before.items():
-        if component not in after:
+    for typed_component, (component, section) in before.items():
+        if typed_component not in after:
             errors.append(f"binding section {component} removed")
             continue
-        new = after[component]
+        new = after[typed_component][1]
         errors += fixed_fields(section, new, {"artifact", "discovery", "bindings"}, component)
-        if section.get("artifact") is not None and new.get("artifact") != section.get("artifact"):
+        if section.get("artifact") is not None and changed(section, new, "artifact"):
             errors.append(f"{component} changes its artifact")
         old_discovery, new_discovery = section.get("discovery"), new.get("discovery")
         if (
@@ -266,31 +323,68 @@ def binding_changes(previous: dict, current: dict) -> list[str]:
         old_bindings, problems = entries_by(section.get("bindings"), key, f"base {component} bindings")
         new_bindings, current_problems = entries_by(new.get("bindings"), key, f"{component} bindings")
         errors += problems + current_problems
-        for identity, binding in old_bindings.items():
-            if identity not in new_bindings:
+        for typed, (identity, binding) in old_bindings.items():
+            if typed not in new_bindings:
                 errors.append(f"{component} binding {identity[0]}@{identity[1]} removed")
-            elif new_bindings[identity] != binding:
+            # DOCUMENT: a published binding against the base's.
+            elif not same_document(new_bindings[typed][1], binding):
                 errors.append(f"{component} binding {identity[0]}@{identity[1]} changes")
     return errors
+
+
+STRUCTURED = {
+    ("catalogs/", "plenora-public-catalog-v1"),
+    ("catalogs/", "plenora-public-catalog-v2"),
+    ("catalogs/", "plenora-operation-registry-v1"),
+    ("bindings/", "plenora-surface-bindings-v1"),
+}
+
+
+def published_changes(relative: str, previous: bytes, current: bytes) -> list[str]:
+    """How a published document changed, from its bytes. A schema compares
+    its assertions by value; a catalog, a registry or a binding map, which
+    may grow, compares its entries with each number's exact text; any other
+    document (a normative vector) compares its bytes, line ends
+    normalized, without parsing: COMPATIBILITY.md forbids modifying it, so
+    no spelling (`-0e-1` for `-0.0`, `10e-1` for `1.0`) is tolerated."""
+    if relative.startswith("schemas/"):
+        return document_changes(
+            relative, strict_json(previous.decode("utf-8"), relative), strict_json(current.decode("utf-8"), relative)
+        )
+    if normalized(previous) == normalized(current):
+        return []
+    document = strict_json(previous.decode("utf-8"), relative)
+    contract = document.get("contract") if isinstance(document, dict) else None
+    if any(relative.startswith(prefix) and contract == kind for prefix, kind in STRUCTURED):
+        return document_changes(relative, document, strict_json(current.decode("utf-8"), relative))
+    return ["document changed"]
 
 
 def document_changes(relative: str, previous: Any, current: Any) -> list[str]:
     """The kind is decided by the base document; a protected document of no
     recognized kind is compared whole (fail closed)."""
     if relative.startswith("schemas/"):
-        return [] if assertions(previous) == assertions(current) else ["assertions changed"]
+        # JSON Schema compares numbers by value: a respelled assertion
+        # (`1.0` as `1.00`, `-0.0` as `0.0`) validates the same instances.
+        return [] if same_schema_value(assertions(previous), assertions(current)) else ["assertions changed"]
     if isinstance(previous, dict) and isinstance(current, dict):
         contract = previous.get("contract")
-        if relative.startswith("catalogs/") and contract == "plenora-public-catalog-v1":
+        # Both contract versions share the rules of COMPATIBILITY.md for a
+        # published catalog (Public Catalogs 2.0 section 8).
+        if relative.startswith("catalogs/") and contract in ("plenora-public-catalog-v1", "plenora-public-catalog-v2"):
             return catalog_changes(previous, current)
         if relative.startswith("catalogs/") and contract == "plenora-operation-registry-v1":
             return registry_changes(previous, current)
         if relative.startswith("bindings/") and contract == "plenora-surface-bindings-v1":
             return binding_changes(previous, current)
-    return [] if previous == current else ["document changed"]
+    return [] if same_document(previous, current) else ["document changed"]
 
 
 def is_protected(relative: str) -> bool:
+    """The documents COMPATIBILITY.md fixes once published: versioned
+    schemas, catalogs, registries, binding maps and normative vectors.
+    Examples are not among them (they illustrate, README.md) and are not
+    guarded."""
     if relative.startswith("schemas/"):
         return relative.endswith(".schema.json") and relative.count("/") == 1
     if relative.startswith("vectors/"):
@@ -332,14 +426,25 @@ def check(
         except subprocess.CalledProcessError:
             return None
 
+    def read_bytes(relative: str) -> bytes | None:
+        if present is not None:
+            return (root / relative).read_bytes() if relative in present else None
+        try:
+            return git_bytes(root, "show", f"{head}:{relative}")
+        except subprocess.CalledProcessError:
+            return None
+
     def untouched(relative: str) -> bool:
         if touched_since is None:
             return False
         try:
-            before = git(root, "show", f"{touched_since}:{relative}")
+            before = git_bytes(root, "show", f"{touched_since}:{relative}")
         except subprocess.CalledProcessError:
             before = None
-        return read_text(relative) == before
+        current = read_bytes(relative)
+        if before is None or current is None:
+            return before is current
+        return normalized(current) == normalized(before)
 
     errors = []
     # Every declaration for a document this base or tree publishes must be
@@ -352,14 +457,13 @@ def check(
     for relative in paths:
         if untouched(relative):
             continue
-        text = read_text(relative)
+        current = read_bytes(relative)
         kind = "schema" if relative.startswith("schemas/") else "document"
-        if text is None:
+        if current is None:
             errors.append(f"published {kind} removed: {relative}")
             continue
-        previous = strict_json(git(root, "show", f"{base}:{relative}"), relative)
-        current = strict_json(text, relative)
-        changes = document_changes(relative, previous, current)
+        previous = git_bytes(root, "show", f"{base}:{relative}")
+        changes = published_changes(relative, previous, current)
         if not changes or declared_erratum(root, base, relative, previous, current, read_text):
             continue
         if kind == "schema":

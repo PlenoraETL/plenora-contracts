@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import decimal
 import json
 import posixpath
 import re
@@ -9,10 +10,27 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+import arrow_data
+import interop_vectors
+import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
+from json_values import JsonInteger, document_key, loads, number_text, same_document, same_value
+from messages import contract_name, differing_members
 
+import jsonschema.exceptions
+import jsonschema.validators
 from jsonschema import Draft202012Validator
+import referencing.exceptions
+import referencing.jsonschema
 from referencing import Registry, Resource
+
+# A schema the registry cannot use: an explicit failure, never an internal
+# error, and never the schema's text.
+SCHEMA_FAILURES = (
+    referencing.exceptions.Unresolvable,
+    referencing.exceptions.CannotDetermineSpecification,
+    referencing.jsonschema.UnknownDialect,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +49,7 @@ EXPECTED_SCHEMAS = {
     "adoption-manifest-v2.schema.json",
     "adoption-manifest-v3.schema.json",
     "adoption-manifest-v4.schema.json",
+    "arrow-data-vector-v1.schema.json",
     "arrow-metadata-vector-v1.schema.json",
     "capabilities-v1.schema.json",
     "capabilities-v2.schema.json",
@@ -40,12 +59,17 @@ EXPECTED_SCHEMAS = {
     "data-execution-result-v3.schema.json",
     "data-plan-v1.schema.json",
     "error-v1.schema.json",
+    "interop-vector-v1.schema.json",
     "operation-registry-v1.schema.json",
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
+    "public-catalog-v2.schema.json",
+    "rest-arrow-adapter-v1.schema.json",
+    "rest-arrow-adapter-vector-v1.schema.json",
     "row-diagnostics-v1.schema.json",
     "runtime-probe-v1.schema.json",
     "runtime-vector-v1.schema.json",
+    "runtime-negotiation-vector-v1.schema.json",
     "surface-bindings-v1.schema.json",
 }
 
@@ -119,6 +143,20 @@ CASES = {
         ],
         "runtime-probe-v1.schema.json": [
             "examples/invalid/runtime-probe-two-mutations.json",
+        ],
+        "interop-vector-v1.schema.json": [
+            "examples/invalid/interop-vector-handoff-with-error.json",
+        ],
+        "arrow-data-vector-v1.schema.json": [
+            "examples/invalid/arrow-data-vector-valid-with-category.json",
+            "examples/invalid/arrow-data-vector-invalid-with-computation.json",
+        ],
+        "rest-arrow-adapter-v1.schema.json": [
+            "examples/invalid/rest-arrow-adapter-unknown-type.json",
+            "examples/invalid/rest-arrow-adapter-reserved-name.json",
+        ],
+        "rest-arrow-adapter-vector-v1.schema.json": [
+            "examples/invalid/rest-arrow-adapter-vector-error-without-cause.json",
         ],
         "plan-budget-v1.schema.json": [
             "examples/invalid/plan-budget-v5-with-domain.json",
@@ -307,7 +345,58 @@ def unique_members(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def loads_json(text: str) -> Any:
-    return json.loads(text, parse_constant=reject_constant, object_pairs_hook=unique_members)
+    """Every number exactly as written (`json_values.loads`): a decimal is a
+    `JsonNumber`, never a binary float, so `1.0` and `1.0000000000000001`
+    (or `1.00`) stay two numbers in every comparison."""
+    return loads(text, parse_constant=reject_constant, object_pairs_hook=unique_members)
+
+
+def _is_integer(checker: Any, instance: Any) -> bool:
+    """JSON Schema's `integer` for exact numbers: an integral decimal is an
+    integer, as an integral binary float was (`1.0`); the parser now gives a
+    decimal where it gave a float, and the schema verdicts stay the same."""
+    if isinstance(instance, decimal.Decimal) and not isinstance(instance, bool):
+        return instance.is_finite() and instance == instance.to_integral_value()
+    return Draft202012Validator.TYPE_CHECKER.is_type(instance, "integer")
+
+
+InstanceValidator = jsonschema.validators.extend(
+    Draft202012Validator,
+    type_checker=Draft202012Validator.TYPE_CHECKER.redefine("integer", _is_integer),
+)
+
+
+
+def _evolve(self: Any, **changes: Any) -> Any:
+    """`evolve` that keeps this class across a `$ref`. jsonschema's own picks
+    the class from the referenced schema's `$schema`, which would drop the
+    exact-number type checker; every schema here is 2020-12, and a schema of
+    another dialect is refused rather than validated with the wrong one."""
+    cls = type(self)
+    schema = changes.setdefault("schema", self.schema)
+    if jsonschema.validators.validator_for(schema, default=Draft202012Validator) is not Draft202012Validator:
+        raise SpecError("a referenced schema is not JSON Schema 2020-12")
+    for field in cls.__attrs_attrs__:
+        if field.init and field.alias not in changes:
+            changes[field.alias] = getattr(self, field.name)
+    return cls(**changes)
+
+
+InstanceValidator.evolve = _evolve
+
+
+def _check_schema(cls: Any, schema: Any) -> None:
+    """A schema against the 2020-12 metaschema with the same exact-number
+    type checker (and jsonschema's format checker, as `check_schema` uses):
+    `{"minItems": 1.0}` is an integer there as on main, where the parser
+    gave a float. jsonschema's own `check_schema` would pick the plain
+    Draft 2020-12 class from the metaschema's `$schema`."""
+    validator = cls(schema=cls.META_SCHEMA, format_checker=Draft202012Validator.FORMAT_CHECKER)
+    for error in validator.iter_errors(schema):
+        raise jsonschema.exceptions.SchemaError.create_from(error)
+
+
+InstanceValidator.check_schema = classmethod(_check_schema)
 
 
 def load_json(path: Path) -> Any:
@@ -334,20 +423,56 @@ def schema_registry(schemas: dict[str, dict[str, Any]]) -> Registry:
         schema_id = schema.get("$id")
         if not isinstance(schema_id, str):
             raise SpecError("every schema must declare a string $id")
-        resources.append((schema_id, Resource.from_contents(schema)))
+        try:
+            resources.append((schema_id, Resource.from_contents(schema)))
+        except SCHEMA_FAILURES as error:
+            raise SpecError("a schema declares no known dialect") from error
     return Registry().with_resources(resources)
 
 
 def instance_errors(
     schema: dict[str, Any], instance: Any, registry: Registry
 ) -> list[str]:
-    validator = Draft202012Validator(schema, registry=registry)
+    """Schema errors without data: the failing keyword, its place in the
+    schema and an anonymized place in the instance (array indices only;
+    an object member is `*`, its key being possibly data). jsonschema's own
+    message can quote the rejected instance, values and keys included."""
+    validator = InstanceValidator(schema, registry=registry)
+    try:
+        return _instance_errors(validator, instance)
+    except SCHEMA_FAILURES as error:
+        raise SpecError("a schema reference does not resolve") from error
+
+
+def _instance_errors(validator: Any, instance: Any) -> list[str]:
     return [
-        error.message
+        f"{error.validator} fails at schema {contract_name('/' + '/'.join(map(str, error.schema_path)))}, "
+        f"instance {anonymous_path(error.absolute_path)}{missing_members(error)}"
         for error in sorted(
-            validator.iter_errors(instance), key=lambda item: list(item.path)
+            validator.iter_errors(instance), key=lambda item: [str(step) for step in item.path]
         )
     ]
+
+
+def schema_error(error: Exception) -> str:
+    """Why a schema fails its metaschema, without the schema's text."""
+    validator = getattr(error, "validator", None)
+    if not isinstance(validator, str):
+        return type(error).__name__
+    place = "/" + "/".join(map(str, getattr(error, "absolute_path", [])))
+    return f"{validator} fails at {contract_name(place)}"
+
+
+def missing_members(error: Any) -> str:
+    """For `required`, the missing member names, which the schema defines."""
+    if error.validator != "required" or not isinstance(error.instance, dict):
+        return ""
+    missing = [name for name in error.validator_value if name not in error.instance]
+    return f" (missing {', '.join(map(contract_name, missing))})" if missing else ""
+
+
+def anonymous_path(path: Any) -> str:
+    return "/" + "/".join(str(step) if isinstance(step, int) else "*" for step in path)
 
 
 def validate_examples(
@@ -398,13 +523,39 @@ def validate_example_inventory() -> list[str]:
     registrations.extend((path, "invalid", "data-plan") for path in DATA_PLAN_VIOLATING)
     registrations.extend((path, "invalid", "data-plan-number") for path in DATA_PLAN_NUMBER_VIOLATING)
     registrations.extend((path, "invalid", "public-semantics") for path in PUBLIC_SEMANTIC_CASES)
+    registrations.extend((path, "invalid", "interop") for path in INTEROP_VIOLATING)
+    registrations.extend((path, "invalid", "runtime-negotiation") for path in NEGOTIATION_VIOLATING)
     return example_inventory_errors(ROOT, registrations)
 
 
+def _json_key_text(key: Any) -> str:
+    """The member name `json.dumps` writes for a dictionary key."""
+    return key if isinstance(key, str) else json.dumps(key)
+
+
 def compact_json_size(value: Any) -> int:
-    return len(
-        json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    )
+    """The UTF-8 size of `json.dumps(value, ensure_ascii=False,
+    separators=(",", ":"))`, counted with an explicit stack: a value nested
+    deeper than the recursion limit is measured, not an internal error."""
+    size = 0
+    stack = [value]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, dict):
+            # Braces, a colon per member and a comma between members.
+            size += 2 + len(item) + max(len(item) - 1, 0)
+            for key, child in item.items():
+                size += len(json.dumps(_json_key_text(key), ensure_ascii=False).encode("utf-8"))
+                stack.append(child)
+        elif isinstance(item, (list, tuple)):
+            size += 2 + max(len(item) - 1, 0)
+            stack.extend(item)
+        elif isinstance(item, (decimal.Decimal, JsonInteger)):
+            # A parsed number as written, which is its size in the text.
+            size += len(number_text(item).encode("utf-8"))
+        else:
+            size += len(json.dumps(item, ensure_ascii=False).encode("utf-8"))
+    return size
 
 
 def error_bound_errors(error: dict[str, Any]) -> list[str]:
@@ -513,10 +664,15 @@ def validate_error_bound_vectors(
 def validate_machine_documents(
     schemas: dict[str, dict[str, Any]], registry: Registry
 ) -> list[str]:
-    groups = {
-        "public-catalog-v1.schema.json": sorted(
-            (ROOT / "catalogs").glob("*-tools-v*.json")
-        ),
+    groups: dict[str, list[Path]] = {
+        "public-catalog-v1.schema.json": [],
+        "public-catalog-v2.schema.json": [],
+    }
+    # Each catalog against the schema of the contract version it declares
+    # (Public Catalogs 1.0 or 2.0).
+    for path in sorted((ROOT / "catalogs").glob("*-tools-v*.json")):
+        groups[catalog_schema_name(load_json(path))].append(path)
+    groups.update({
         "operation-registry-v1.schema.json": sorted(
             (ROOT / "catalogs").glob("data-kernels-v*.json")
         ),
@@ -525,13 +681,23 @@ def validate_machine_documents(
         "arrow-metadata-vector-v1.schema.json": sorted(
             (ROOT / "vectors/arrow-v1").glob("*.json")
         ),
-        "runtime-vector-v1.schema.json": sorted(
-            (ROOT / "vectors/runtime-v1").glob("*.json")
+        "arrow-data-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/arrow-data-v1").glob("*.json")
         ),
+        "interop-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/interop-v1").glob("*.json")
+        ),
+        "runtime-vector-v1.schema.json": runtime_vector_paths(),
         "runtime-probe-v1.schema.json": sorted(
             (ROOT / "vectors/runtime-probes-v1").glob("*.json")
         ),
-    }
+        "runtime-negotiation-vector-v1.schema.json": sorted(
+            (ROOT / RUNTIME_NEGOTIATION_DIRECTORY).glob("*.json")
+        ),
+        "rest-arrow-adapter-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/rest-arrow-adapter-v1").glob("*.json")
+        ),
+    })
     failures: list[str] = []
     for schema_name, paths in groups.items():
         for path in paths:
@@ -560,7 +726,7 @@ def load_catalog_versions() -> dict[str, dict[int, dict[str, Any]]]:
             raise SpecError(f"catalog file name {path.name} is not <name>-tools-v<N>.json")
         document = load_json(path)
         if document["component"] != f"plenora-{match['name']}":
-            raise SpecError(f"{path.name} declares component {document['component']}")
+            raise SpecError(f"{path.name} declares a component other than its file name")
         versions.setdefault(document["component"], {})[int(match["version"])] = document
     return versions
 
@@ -606,11 +772,13 @@ def wire_contract_errors(profile: str, catalog: dict[str, Any]) -> list[str]:
         for operation in catalog["operations"]
     }
     errors = [
-        f"profile lists wire contracts {pair[0]} and {pair[1]}, which its catalog does not pair"
+        f"profile lists wire contracts {contract_name(pair[0])} and {contract_name(pair[1])}, "
+        "which its catalog does not pair"
         for pair in sorted(listed - expected)
     ]
     errors.extend(
-        f"profile does not list wire contracts {pair[0]} and {pair[1]} of its catalog"
+        f"profile does not list wire contracts {contract_name(pair[0])} and {contract_name(pair[1])} "
+        "of its catalog"
         for pair in sorted(expected - listed)
     )
     return errors
@@ -630,13 +798,19 @@ def repeated_identity_errors(
         for version in sorted(by_version):
             for operation in by_version[version]["operations"]:
                 key = (operation["id"], operation["version"])
-                if key not in seen:
-                    seen[key] = (version, operation)
+                # DOCUMENT: a published catalog's identity and fields, compared
+                # with an earlier version's by the exact text of each number.
+                typed = document_key(key)
+                if typed not in seen:
+                    seen[typed] = (version, operation)
                     continue
-                earlier_version, earlier = seen[key]
-                label = f"{component} {key[0]}@{key[1]} in catalog v{version}"
+                earlier_version, earlier = seen[typed]
+                # The next version is compared with this one, not with the
+                # first that carried the identity.
+                seen[typed] = (version, operation)
+                label = f"{component} {contract_name(f'{key[0]}@{key[1]}')} in catalog v{version}"
                 for field in fixed:
-                    if operation[field] != earlier[field]:
+                    if not same_document(operation[field], earlier[field]):
                         failures.append(f"{label} changes {field} from catalog v{earlier_version}")
                 if not set(earlier["surfaces"]) <= set(operation["surfaces"]):
                     failures.append(f"{label} drops surfaces of catalog v{earlier_version}")
@@ -648,9 +822,332 @@ def repeated_identity_errors(
                 # Membership first: a null attribute that disappears is a
                 # change, not an equal `None`.
                 for name, value in earlier_attributes.items():
-                    if name not in attributes or attributes[name] != value:
-                        failures.append(f"{label} changes attribute {name} of catalog v{earlier_version}")
-                seen[key] = (version, operation)
+                    if name not in attributes or not same_document(attributes[name], value):
+                        failures.append(
+                            f"{label} changes attribute {contract_name(name)} of catalog v{earlier_version}"
+                        )
+    return failures
+
+
+CATALOG_V2 = "plenora-public-catalog-v2"
+CATALOG_SCHEMAS = {
+    "plenora-public-catalog-v1": "public-catalog-v1.schema.json",
+    CATALOG_V2: "public-catalog-v2.schema.json",
+}
+# Runtime Binding 2.0 section 10: the fixtures of a rule of 2.0 only, same
+# shape and same checks as those of Runtime Vectors 1.0.
+RUNTIME_VECTOR_DIRECTORIES = ("vectors/runtime-v1", "vectors/runtime-v2")
+
+
+RUNTIME_NEGOTIATION_DIRECTORY = "vectors/runtime-negotiation-v1"
+RUNTIME_BINDINGS = {"plenora-runtime-binding-v1": 1, "plenora-runtime-binding-v2": 2}
+DEFAULT_CONTEXT = {"requires": "plenora-runtime-binding-v1", "accepts_downgrade": False}
+# Every branch of the derivation of RT-026 and RT-027; the tests require the
+# published vectors to take each one.
+NEGOTIATION_BRANCHES = frozenset({
+    "ingress-stated", "ingress-default-1.0", "ingress-minimum-met", "ingress-minimum-silent",
+    "ingress-minimum-below", "first-reception-from-a-hop", "record-unreadable", "forwarding",
+    "resend-from-outside", "context-lost", "context-altered", "cannot-carry",
+    "select-send-required", "select-downgrade", "select-refuse-no-downgrade",
+    "select-capabilities-unreadable", "select-interface-mismatch",
+})
+
+
+def _refusal(at_hop: int) -> dict[str, Any]:
+    return {
+        "decision": "refuse", "at_hop": at_hop, "category": "unsupported", "phase": "validate",
+        "remote_effect": "none", "retry": "never",
+    }
+
+
+def runtime_negotiation_outcome(vector: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Runtime Binding 2.0 RT-026 and RT-027 on a sequence of hops: the
+    decision, and the branches taken. The acceptance record is the context of
+    the first acceptance; a hop is the ingress of a new request only when it
+    receives it from outside and no record exists."""
+    hops = vector["hops"]
+    minimum = vector["ingress"]["minimum"]
+    record: dict[str, Any] | None = None
+    branches: list[str] = []
+    for position, hop in enumerate(hops):
+        if hop["record"] != "readable":
+            # It cannot tell a new request from a retry, a redrive or a resend.
+            return _refusal(position), branches + ["record-unreadable"]
+        received = hop["receives"]
+        if record is None:
+            if hop["from"] != "sender":
+                return _refusal(position), branches + ["first-reception-from-a-hop"]
+            if received is None:
+                if minimum == "plenora-runtime-binding-v2":
+                    return _refusal(position), branches + ["ingress-minimum-silent"]
+                record = dict(DEFAULT_CONTEXT)
+                branches.append("ingress-default-1.0")
+            elif minimum == "plenora-runtime-binding-v2" and received["requires"] != minimum:
+                return _refusal(position), branches + ["ingress-minimum-below"]
+            else:
+                record = dict(received)
+                branches.append("ingress-minimum-met" if minimum else "ingress-stated")
+        else:
+            # A retry, a redrive or a resend: never an ingress.
+            branches.append("resend-from-outside" if hop["from"] == "sender" else "forwarding")
+            if received is None:
+                return _refusal(position), branches + ["context-lost"]
+            if received != record:
+                return _refusal(position), branches + ["context-altered"]
+        if not hop["carries"]:
+            # Every hop of the route carries the context, the selecting one
+            # into its decision.
+            return _refusal(position), branches + ["cannot-carry"]
+    selector = len(hops) - 1
+    interface = vector["destination"]["interface"]
+    if not isinstance(interface, dict):
+        return _refusal(selector), branches + ["select-capabilities-unreadable"]
+    advertised = interface.get("contract")
+    version = interface.get("version")
+    if isinstance(version, bool) or RUNTIME_BINDINGS.get(advertised) != version:
+        return _refusal(selector), branches + ["select-interface-mismatch"]
+    if record is None:
+        # No hop: the schema requires one; never a decision without a context.
+        return _refusal(selector), branches + ["first-reception-from-a-hop"]
+    if record["requires"] == "plenora-runtime-binding-v1" or advertised == "plenora-runtime-binding-v2":
+        return {"decision": "send", "governed_by": advertised}, branches + ["select-send-required"]
+    if record["accepts_downgrade"] is True:
+        return {"decision": "send", "governed_by": advertised}, branches + ["select-downgrade"]
+    # The downgrade from 2.0 to 1.0 is never implicit.
+    return _refusal(selector), branches + ["select-refuse-no-downgrade"]
+
+
+def negotiation_route_errors(vector: dict[str, Any]) -> list[str]:
+    """A vector is a route: a hop receives from another hop what that hop
+    forwarded, and the hop that selects the destination forwards nothing."""
+    errors = []
+    hops = vector["hops"]
+    for position, hop in enumerate(hops):
+        if position > 0 and hop["from"] == "hop" and hop["receives"] != hops[position - 1]["forwards"]:
+            errors.append(f"hop {position} receives a context other than the one hop {position - 1} forwards")
+    if hops and hops[-1]["forwards"] is not None:
+        errors.append("the last hop, which selects the destination or refuses, forwards a context")
+    return errors
+
+
+def negotiation_vector_errors(vector: dict[str, Any]) -> list[str]:
+    """One negotiation vector, its request resolved from the published
+    directory: a route of hops that states the decision RT-026 and RT-027
+    give, for a request vector of wire version 1."""
+    request_path = (ROOT / RUNTIME_NEGOTIATION_DIRECTORY / vector["request"]).resolve()
+    if not request_path.is_file():
+        return ["names a request vector that does not exist"]
+    request = load_json(request_path)
+    metadata = member(request, "metadata")
+    if member(request, "kind") != "request" or not isinstance(metadata, dict):
+        return ["names a runtime vector that is not a request"]
+    if metadata.get("plenora.capability.version") != "1":
+        return ["names a request whose wire version is not 1 (RT-025)"]
+    route = negotiation_route_errors(vector)
+    if route:
+        return route[:1]
+    derived = runtime_negotiation_outcome(vector)[0]
+    if derived["decision"] == "refuse" and derived["at_hop"] != len(vector["hops"]) - 1:
+        # Nothing travels past a refusal: the refusing hop ends the route,
+        # and no later hop receives or forwards a context.
+        return ["hops follow the hop that refuses the request (RT-027)"]
+    if vector["expect"] != derived:
+        return ["states a decision other than the one RT-026 and RT-027 give"]
+    return []
+
+
+def validate_runtime_negotiation_vectors() -> list[str]:
+    failures: list[str] = []
+    paths = sorted((ROOT / RUNTIME_NEGOTIATION_DIRECTORY).glob("*.json"))
+    if not paths:
+        return [f"{RUNTIME_NEGOTIATION_DIRECTORY} has no vectors"]
+    for path in paths:
+        label = path.relative_to(ROOT).as_posix()
+        for error in negotiation_vector_errors(load_json(path)):
+            failures.append(f"{label}: {error}")
+    return failures
+
+
+# Accepted by the schema and refused by the negotiation gate for the rule
+# their value names: without them, a check could vanish while every
+# published vector, all conforming, stays green.
+NEGOTIATION_VIOLATING = {
+    "examples/invalid/runtime-negotiation-hops-after-refusal.json": "hops follow the hop that refuses",
+}
+
+
+def validate_negotiation_violating(schemas: dict[str, dict[str, Any]], registry: Registry) -> list[str]:
+    failures: list[str] = []
+    for relative, expected in NEGOTIATION_VIOLATING.items():
+        document = load_json(ROOT / relative)
+        if instance_errors(schemas["runtime-negotiation-vector-v1.schema.json"], document, registry):
+            failures.append(f"{relative} must be accepted by the schema so that it probes the gate")
+            continue
+        errors = negotiation_vector_errors(document)
+        if not errors or not all(expected in error for error in errors):
+            failures.append(f"{relative} must be refused only because {expected}")
+    return failures
+
+
+def catalog_schema_name(document: Any) -> str:
+    """The schema of the contract version a catalog declares; an unknown one
+    gets version 1, whose `const` refuses it."""
+    contract = document.get("contract") if isinstance(document, dict) else None
+    return CATALOG_SCHEMAS.get(contract, "public-catalog-v1.schema.json")
+
+
+def runtime_vector_paths() -> list[Path]:
+    return sorted(
+        path for directory in RUNTIME_VECTOR_DIRECTORIES for path in (ROOT / directory).glob("*.json")
+    )
+
+
+# Public Catalogs 2.0 CAT-003: surfaces the profile of a catalog of contract
+# version 2 declares intentionally absent, with the rule that gives the
+# reason. No catalog of version 2 may list them for that operation identity,
+# so no binding map can bind them either. Catalogs of version 1 keep Public
+# Catalogs 1.0, which has no such rule.
+INTENTIONAL_ABSENCES: dict[tuple[str, str, int], tuple[set[str], str]] = {
+    (DATABASE_COMPONENT, "database.transaction.begin", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.commit", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.rollback", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.transaction.savepoint", 1): ({"cli", "runtime"}, "DB-ABS-001"),
+    (DATABASE_COMPONENT, "database.execute", 1): ({"runtime"}, "DB-ABS-002"),
+    (DATA_COMPONENT, "data.run", 3): ({"cli", "python_sdk"}, "DT-ABS-001"),
+    (DATA_COMPONENT, "data.run", 2): ({"runtime"}, "DT-ABS-002"),
+}
+
+
+# CAT-003: the characters Unicode gives the White_Space property.
+WHITE_SPACE = frozenset(
+    "\t\n\x0b\x0c\r \x85\xa0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006"
+    "\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
+)
+# CAT-003: characters a profile never contains: the byte order mark (also
+# as a zero-width no-break space) and every line break other than LF and
+# CR LF. A CR that does not precede an LF is checked separately.
+FORBIDDEN_IN_PROFILE = {
+    "\ufeff": "byte order mark",
+    "\x0b": "vertical tab",
+    "\x0c": "form feed",
+    "\x85": "next line",
+    "\u2028": "line separator",
+    "\u2029": "paragraph separator",
+}
+
+
+class ProfileTextError(ValueError):
+    """A profile outside the text rules of CAT-003. The message names the
+    kind of defect, never the text."""
+
+
+def profile_lines(profile: str) -> list[str]:
+    """The lines of a profile (CAT-003): LF and CR LF end a line; a CR alone,
+    a byte order mark and any other line break are refused."""
+    for character, name in FORBIDDEN_IN_PROFILE.items():
+        if character in profile:
+            raise ProfileTextError(f"the profile contains a {name}")
+    if "\r" in profile.replace("\r\n", ""):
+        raise ProfileTextError("the profile contains a CR that does not end a line")
+    return profile.replace("\r\n", "\n").split("\n")
+
+
+def read_profile(path: Path) -> str:
+    """A profile file as written, line terminators included: no newline
+    translation, strict UTF-8."""
+    try:
+        return path.read_bytes().decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ProfileTextError("the profile is not UTF-8") from error
+
+
+def stated_reason(profile: str, rule: str) -> str:
+    """The text after `**RULE** — ` up to the first blank line or the end of
+    the file (CAT-003); empty when the marker or the dash is missing. Raises
+    `ProfileTextError` for a profile outside the text rules."""
+    lines = profile_lines(profile)
+    marker = f"**{rule}** \u2014 "
+    text = "\n".join(lines)
+    start = text.find(marker)
+    if start < 0:
+        return ""
+    reason = []
+    for line in text[start + len(marker):].split("\n"):
+        # CAT-003: a blank line is empty once ASCII spaces and tabs go.
+        if not line.strip(" \t"):
+            break
+        if all(character in WHITE_SPACE for character in line):
+            raise ProfileTextError("a line of the reason is only white space other than spaces and tabs")
+        reason.append(line)
+    return "\n".join(reason)
+
+
+def reason_is_stated(profile: str, rule: str) -> bool:
+    """CAT-003: at least one ASCII letter, and a final period whose preceding
+    character is neither a period nor white space."""
+    text = stated_reason(profile, rule)
+    return (
+        len(text) >= 2
+        and text[-1] == "."
+        and text[-2] != "."
+        and text[-2] not in WHITE_SPACE
+        and any("A" <= character <= "Z" or "a" <= character <= "z" for character in text)
+    )
+
+
+def intentional_absence_errors(
+    versions: dict[str, dict[int, dict[str, Any]]],
+) -> list[str]:
+    """CAT-003: a declared absence holds in every catalog of contract version
+    2, and the profile of each such catalog that lists the operation states
+    its rule."""
+    failures: list[str] = []
+    found: set[tuple[str, str, int]] = set()
+    for component, by_version in versions.items():
+        for version, catalog in sorted(by_version.items()):
+            if catalog.get("contract") != CATALOG_V2:
+                continue
+            profile: str | bool | None = None
+            for operation in catalog["operations"]:
+                key = (component, operation["id"], operation["version"])
+                if key not in INTENTIONAL_ABSENCES:
+                    continue
+                found.add(key)
+                absent, rule = INTENTIONAL_ABSENCES[key]
+                listed = sorted(absent & set(operation["surfaces"]))
+                if listed:
+                    failures.append(
+                        f"{component} catalog v{version} lists {listed} for "
+                        f"{key[1]}@{key[2]}, which {rule} declares absent"
+                    )
+                if profile is None:
+                    path = profile_path(component, catalog["profile"])
+                    try:
+                        profile = read_profile(path) if path.exists() else ""
+                        profile_lines(profile)
+                    except ProfileTextError as error:
+                        # Reported once per profile; its rules are not read.
+                        failures.append(f"{component} profile v{version}: {error} (CAT-003)")
+                        profile = False
+                if profile is False:
+                    continue
+                if f"**{rule}**" not in profile:
+                    failures.append(
+                        f"{component} profile v{version} does not state {rule} "
+                        f"for {key[1]}@{key[2]}"
+                    )
+                    continue
+                try:
+                    stated = reason_is_stated(profile, rule)
+                except ProfileTextError as error:
+                    failures.append(f"{component} profile v{version}: {error} (CAT-003)")
+                    continue
+                if not stated:
+                    failures.append(
+                        f"{component} profile v{version} states {rule} without a reason"
+                    )
+    for key in sorted(set(INTENTIONAL_ABSENCES) - found):
+        failures.append(f"declared absence for unknown operation {key}")
     return failures
 
 
@@ -723,11 +1220,17 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
             )
 
     failures.extend(repeated_identity_errors(versions))
+    failures.extend(intentional_absence_errors(versions))
 
     for component, version, catalog in every_version:
         identities = [(item["id"], item["version"]) for item in catalog["operations"]]
         if len(identities) != len(set(identities)):
             failures.append(f"{component} has duplicate operation identities")
+        # JSON Schema's integer admits 2.0, whose text is not the decimal
+        # version that runtime metadata and probes compare (decision 0017).
+        for position, item in enumerate(catalog["operations"]):
+            if not isinstance(item["version"], int) or isinstance(item["version"], bool):
+                failures.append(f"{component} v{version} operation #{position} version is not an integer literal")
 
         required = {
             item["id"]
@@ -861,51 +1364,54 @@ def validate_catalog_semantics(catalogs: dict[str, dict[str, Any]]) -> list[str]
     for operation in storage["operations"]:
         operation_id = operation["id"]
         action = operation_id.removeprefix("storage.")
+        # The messages below name the operation as its catalog does.
+        named = contract_name(operation_id)
         suffix = f"v{operation['version']}" if operation["version"] == 1 else r"v[1-9][0-9]*"
         if set(operation["surfaces"]) != {"rust", "cli", "python_sdk", "runtime"}:
-            failures.append(f"{operation_id} has the wrong selected surfaces")
+            failures.append(f"{named} has the wrong selected surfaces")
         for direction in ("input", "output"):
             if not re.fullmatch(
                 rf"plenora-storage-{action}-{direction}-{suffix}",
                 operation[direction]["contract"],
             ):
-                failures.append(f"{operation_id} has the wrong {direction} contract")
+                failures.append(f"{named} has the wrong {direction} contract")
         for direction in ("input", "output"):
             payload = operation[direction]
             if payload["content_types"] != ["application/json"]:
-                failures.append(f"{operation_id} {direction} must use JSON")
+                failures.append(f"{named} {direction} must use JSON")
             if payload["interchange_contracts"]:
                 failures.append(
-                    f"{operation_id} must not imply an unreviewed interchange contract"
+                    f"{named} must not imply an unreviewed interchange contract"
                 )
-        if operation["controls"] != {
+        # VALUE: a field against the value the rule requires.
+        if not same_value(operation["controls"], {
             "cancellation": True,
             "deadline": True,
             "idempotency_key": False,
-        }:
-            failures.append(f"{operation_id} has the wrong execution controls")
+        }):
+            failures.append(f"{named} has the wrong execution controls")
         attributes = operation.get("attributes")
         if (
             not isinstance(attributes, dict)
             or attributes.get("contract") != STORAGE_ATTRIBUTE_CONTRACT
         ):
-            failures.append(f"{operation_id} lacks its capability attribute contract")
+            failures.append(f"{named} lacks its capability attribute contract")
         attributes = attributes if isinstance(attributes, dict) else {}
         if operation_id in {"storage.test", "storage.list", "storage.stat"}:
             if operation["side_effect"] != "none":
-                failures.append(f"{operation_id} must remain side-effect free")
+                failures.append(f"{named} must remain side-effect free")
         elif operation["side_effect"] != "remote":
-            failures.append(f"{operation_id} must use the conservative remote side effect")
+            failures.append(f"{named} must use the conservative remote side effect")
         if operation_id == "storage.get" and attributes.get("artifact_role") != "sink":
             failures.append("storage.get must declare its artifact sink")
         if operation_id == "storage.put" and attributes.get("artifact_role") != "source":
             failures.append("storage.put must declare its artifact source")
         if operation_id in {"storage.put", "storage.copy"}:
             if attributes.get("publication_policy") != "required":
-                failures.append(f"{operation_id} must require an explicit publication policy")
+                failures.append(f"{named} must require an explicit publication policy")
             if attributes.get("create_if_absent") != "provider_operation_capability":
                 failures.append(
-                    f"{operation_id} must scope create-if-absent to its provider operation capability"
+                    f"{named} must scope create-if-absent to its provider operation capability"
                 )
 
     failures.extend(data_registry_errors())
@@ -975,6 +1481,10 @@ DATA_OPERATION_VERSIONS = {
     ],
 }
 
+# The operation versions each data-tools catalog version carries: version 3
+# (Public Catalogs 2.0) lists those of version 2 unchanged (decision 0015).
+DATA_CATALOG_GENERATION = {1: 1, 2: 2, 3: 2}
+
 
 def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     """Each data-tools catalog version against its own expectations.
@@ -986,19 +1496,23 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     files and is not bound on the runtime surface.
     """
     failures: list[str] = []
+    generation = DATA_CATALOG_GENERATION.get(version)
+    if generation is None:
+        return [f"data-tools v{version} has no stated operation versions"]
     # Every lookup names the operation version: catalog v2 carries `data.run`
     # 2 and 3, and an order or a lookup by identifier alone would check the
     # wrong one.
-    expected = DATA_OPERATION_VERSIONS[version]
-    found = sorted((item["id"], item["version"]) for item in catalog["operations"])
-    if found != sorted(expected):
+    expected = DATA_OPERATION_VERSIONS[generation]
+    found = sorted(((item["id"], item["version"]) for item in catalog["operations"]), key=repr)
+    # VALUE: the identities against those the rule requires.
+    if not same_value(found, sorted(expected, key=repr)):
         return [f"data-tools v{version} must declare exactly {sorted(expected)}"]
     # Catalog version N checks data.catalog, data.validate and data.run at
     # operation version N (DATA_OPERATION_VERSIONS); data.run 3 has its own
     # rule below. Each lookup names the version.
     by_identity = {(item["id"], item["version"]): item for item in catalog["operations"]}
-    catalog_operation = by_identity[("data.catalog", version)]
-    run = by_identity[("data.run", version)]
+    catalog_operation = by_identity[("data.catalog", generation)]
+    run = by_identity[("data.run", generation)]
     attributes = catalog_operation.get("attributes")
     if not isinstance(attributes, dict):
         return [f"data-tools v{version} data.catalog attributes are not an object"]
@@ -1007,18 +1521,18 @@ def data_catalog_errors(catalog: dict[str, Any], version: int) -> list[str]:
     if registry_path is None or not registry_path.is_file():
         return [f"data-tools v{version} data.catalog does not name an existing kernel registry"]
     registry_id = load_json(registry_path)["registry"]
-    if version == 1:
+    if generation == 1:
         if catalog_operation["output"]["contract"] != registry_id:
             failures.append("data-tools v1 data.catalog output contract differs from its registry")
         if member(run.get("attributes"), "kernel_registry") != registry_id:
             failures.append("data-tools v1 data.run names a different kernel registry")
         return failures
-    if catalog_operation["output"]["contract"] != DATA_CATALOG_RESULT.get(version):
+    if catalog_operation["output"]["contract"] != DATA_CATALOG_RESULT.get(generation):
         failures.append(f"data-tools v{version} data.catalog has the wrong result contract")
     if attributes.get("kernel_registry") != registry_id:
         failures.append(f"data-tools v{version} data.catalog names a different kernel registry")
     for operation_id in ("data.validate", "data.run"):
-        operation_attributes = by_identity[(operation_id, version)].get("attributes")
+        operation_attributes = by_identity[(operation_id, generation)].get("attributes")
         if member(operation_attributes, "kernel_registry") != registry_id:
             failures.append(f"data-tools v{version} {operation_id} names a different kernel registry")
         if member(operation_attributes, "plan_contract") != DATA_PLAN_CONTRACT:
@@ -1062,7 +1576,7 @@ def data_run_3_errors(catalog: dict[str, Any], version: int, registry_id: str) -
         item for item in catalog["operations"]
         if item["id"] == "data.run" and item["version"] == 3
     ]
-    if version < 2:
+    if DATA_CATALOG_GENERATION.get(version, version) < 2:
         return ["data-tools v1 cannot declare data.run 3"] if entries else []
     if len(entries) != 1:
         return [f"data-tools v{version} must declare data.run 3 once"]
@@ -1070,7 +1584,8 @@ def data_run_3_errors(catalog: dict[str, Any], version: int, registry_id: str) -
     failures = [
         f"data-tools v{version} data.run 3 has the wrong {field}"
         for field, expected in DATA_RUN_3.items()
-        if run.get(field) != expected
+        # VALUE: each field against the value DATA_RUN_3 requires.
+        if not same_value(run.get(field), expected)
     ]
     attributes = run.get("attributes")
     if not isinstance(attributes, dict):
@@ -1141,15 +1656,16 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
                 key = (component, binding["operation"], binding["version"])
                 operation = index.get(key)
                 if operation is None:
-                    failures.append(f"{path.name} binds unknown operation {key}")
+                    failures.append(f"{path.name} binds unknown operation {contract_name(key)}")
                     continue
                 if surface not in operation["surfaces"]:
                     failures.append(
-                        f"{path.name} binds {binding['operation']} to undeclared surface {surface}"
+                        f"{path.name} binds {contract_name(binding['operation'])} "
+                        f"to undeclared surface {contract_name(surface)}"
                     )
                 if binding["requirement"] != operation["requirement"]:
                     failures.append(
-                        f"{path.name} requirement differs for {binding['operation']}"
+                        f"{path.name} requirement differs for {contract_name(binding['operation'])}"
                     )
                 actual.add(key)
                 for entrypoint in binding["entrypoints"]:
@@ -1162,7 +1678,8 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
                     )
                     if binding["entrypoints"] != [expected]:
                         failures.append(
-                            f"{path.name} has a non-canonical runtime selector for {binding['operation']}"
+                            f"{path.name} has a non-canonical runtime selector for "
+                            f"{contract_name(binding['operation'])}"
                         )
 
             # SURFACE-BINDINGS-1.0 section 1: one spelling may serve several
@@ -1185,7 +1702,7 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
                     selected = {(item["id"], item["version"]) for item in catalog["operations"]}
                     if len(keys & selected) > 1:
                         failures.append(
-                            f"{path.name} spelling {entrypoint!r} binds two versions "
+                            f"{path.name} spelling {contract_name(entrypoint)} binds two versions "
                             f"selected by one {component} catalog"
                         )
             bound = [(binding["operation"], binding["version"]) for binding in section["bindings"]]
@@ -1205,7 +1722,8 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
             missing = sorted(expected - actual)
             extra = sorted(actual - expected)
             failures.append(
-                f"{path.name} binding coverage differs; missing={missing}, extra={extra}"
+                f"{path.name} binding coverage differs; missing={contract_name(missing)}, "
+                f"extra={contract_name(extra)}"
             )
 
     python_document = load_json(ROOT / "bindings/python-sdk-v1.json")
@@ -1274,7 +1792,7 @@ def validate_bindings(catalogs: dict[str, dict[str, Any]]) -> list[str]:
         if not every_binding(storage_section, operation_id, {
             f"Engine.{action}", f"AsyncEngine.{action}"
         }):
-            failures.append(f"{operation_id} must bind both canonical SDK API modes")
+            failures.append(f"{contract_name(operation_id)} must bind both canonical SDK API modes")
     failures.extend(data_python_errors(python_document))
     failures.extend(io_python_errors(python_document))
     return failures
@@ -1299,7 +1817,7 @@ def data_python_errors(python_document: dict[str, Any]) -> list[str]:
     for binding in section["bindings"]:
         action = binding["operation"].removeprefix("data.")
         if set(binding["entrypoints"]) != {f"plenora_data.{action}", f"plenora_data.a{action}"}:
-            failures.append(f"{binding['operation']} must bind both canonical SDK API modes")
+            failures.append(f"{contract_name(binding['operation'])} must bind both canonical SDK API modes")
     return failures
 
 
@@ -1326,10 +1844,15 @@ def io_python_errors(python_document: dict[str, Any]) -> list[str]:
     for binding in section["bindings"]:
         action = binding["operation"].removeprefix("io.")
         entrypoints = binding["entrypoints"]
-        if f"Client.{action}" not in entrypoints or not all(
+        required = {f"Client.{action}"}
+        if binding["operation"] == "io.read":
+            required.update({"Client.read_table", "Client.validate"})
+        if not required <= set(entrypoints) or not all(
             entry.startswith("Client.") for entry in entrypoints
         ):
-            failures.append(f"{binding['operation']} must bind Client.{action} and Client methods only")
+            failures.append(
+                f"{contract_name(binding['operation'])} must bind its canonical Client methods only"
+            )
     return failures
 
 
@@ -1364,23 +1887,23 @@ def validate_composition(catalogs: dict[str, dict[str, Any]]) -> list[str]:
             }
             if interchange not in declared_source_contracts:
                 failures.append(
-                    f"composition edge {position} names undeclared source contract {interchange}"
+                    f"composition edge {position} names undeclared source contract {contract_name(interchange)}"
                 )
             if content_type not in source["output"]["content_types"]:
                 failures.append(
-                    f"composition edge {position} source lacks {content_type}"
+                    f"composition edge {position} source lacks {contract_name(content_type)}"
                 )
             continue
         if edge["mode"] != "direct":
             continue
         if interchange not in source["output"]["interchange_contracts"]:
-            failures.append(f"composition edge {position} source lacks {interchange}")
+            failures.append(f"composition edge {position} source lacks {contract_name(interchange)}")
         if interchange not in target["input"]["interchange_contracts"]:
-            failures.append(f"composition edge {position} target lacks {interchange}")
+            failures.append(f"composition edge {position} target lacks {contract_name(interchange)}")
         if content_type not in source["output"]["content_types"]:
-            failures.append(f"composition edge {position} source lacks {content_type}")
+            failures.append(f"composition edge {position} source lacks {contract_name(content_type)}")
         if content_type not in target["input"]["content_types"]:
-            failures.append(f"composition edge {position} target lacks {content_type}")
+            failures.append(f"composition edge {position} target lacks {contract_name(content_type)}")
     return failures
 
 
@@ -1399,21 +1922,23 @@ def rest_capability_errors(
         errors.append("REST capability document repeats an operation identity (CAP-005)")
     missing = sorted(set(expected) - set(actual))
     if missing:
-        errors.append(f"REST capability document lacks catalog operations {missing}")
+        errors.append(f"REST capability document lacks catalog operations {contract_name(missing)}")
 
-    for identity, operation in actual.items():
+    for position, (identity, operation) in enumerate(actual.items()):
         target = expected.get(identity)
         if target is None:
             errors.append(
-                f"REST capability document exposes unknown operation {identity}"
+                f"REST capability document exposes an unknown operation at #{position}"
             )
             continue
+        # Equal to the document's, but read from the catalog.
+        named = contract_name(target["id"])
         attributes = operation.get("attributes")
         if (
             not isinstance(attributes, dict)
             or attributes.get("contract") != REST_ATTRIBUTE_CONTRACT
         ):
-            errors.append(f"{operation['id']} lacks the REST attribute contract ID")
+            errors.append(f"{named} lacks the REST attribute contract ID")
         # A conditional target surface (the CLI) may be absent from an
         # artifact; a required one may not, and none may be invented.
         required_surfaces = {
@@ -1421,46 +1946,62 @@ def rest_capability_errors(
             if catalog["target_surfaces"].get(surface) == "required"
         }
         if not required_surfaces <= set(operation["surfaces"]) <= set(target["surfaces"]):
-            errors.append(f"{operation['id']} surfaces differ from the REST catalog")
+            errors.append(f"{named} surfaces differ from the REST catalog")
         for direction in ("input", "output"):
             if operation[direction]["contract"] != target[direction]["contract"]:
                 errors.append(
-                    f"{operation['id']} {direction} contract differs from the REST catalog"
+                    f"{named} {direction} contract differs from the REST catalog"
                 )
             if set(operation[direction]["content_types"]) != set(
                 target[direction]["content_types"]
             ):
                 errors.append(
-                    f"{operation['id']} {direction} content types differ from the REST catalog"
+                    f"{named} {direction} content types differ from the REST catalog"
                 )
         if operation["side_effect"] != target["side_effect"]:
             errors.append(
-                f"{operation['id']} side-effect class differs from the REST catalog"
+                f"{named} side-effect class differs from the REST catalog"
             )
-        if operation["controls"] != target["controls"]:
-            errors.append(f"{operation['id']} controls differ from the REST catalog")
+        # DOCUMENT: two published catalogs' fields, one against the other.
+        if not same_document(operation["controls"], target["controls"]):
+            errors.append(f"{named} controls differ from the REST catalog")
     return errors
 
 
+def _walk(value: Any):
+    """Every member (`(key, child)`, `key` None for an array element) of a
+    JSON value at any depth, in document order, with an explicit stack: a
+    document deeper than the recursion limit is read like a flat one."""
+    def children(node: Any):
+        if isinstance(node, dict):
+            return iter(node.items())
+        if isinstance(node, list):
+            return ((None, child) for child in node)
+        return iter(())
+
+    stack = [children(value)]
+    while stack:
+        found = next(stack[-1], None)
+        if found is None:
+            stack.pop()
+            continue
+        yield found
+        stack.append(children(found[1]))
+
+
 def nested_items(value: Any):
-    if isinstance(value, dict):
-        for key, child in value.items():
-            yield key, child
-            yield from nested_items(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from nested_items(child)
+    """Every object member `(key, value)` at any depth, in document order."""
+    return ((key, child) for key, child in _walk(value) if key is not None)
 
 
 def artifact_strings(value: Any):
+    """Every string value at any depth, in document order."""
     if isinstance(value, str):
         yield value
-    elif isinstance(value, dict):
-        for child in value.values():
-            yield from artifact_strings(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from artifact_strings(child)
+        return
+    for _, child in _walk(value):
+        if isinstance(child, str):
+            yield child
 
 
 # Fixture guards for private local paths and inline credentials (RT-008,
@@ -1531,7 +2072,7 @@ def inline_credential_errors(payload: Any, label: str) -> list[str]:
             continue
         if name.endswith(("ref", "reference")) and is_opaque_reference(value):
             continue
-        errors.append(f"{label} contains inline credential field {key}")
+        errors.append(f"{label} contains an inline credential field")
     if any(SECRET_VALUE.search(value) for value in artifact_strings(payload)):
         errors.append(f"{label} contains an inline credential value")
     return errors
@@ -1686,7 +2227,7 @@ def arrow_semantic_errors(vector: dict[str, Any]) -> list[str]:
         },
     }
 
-    for field in vector["fields"]:
+    for position, field in enumerate(vector["fields"]):
         metadata = field["metadata"]
         field_id = metadata.get("plenora.field_id")
         if field_id is not None:
@@ -1696,42 +2237,42 @@ def arrow_semantic_errors(vector: dict[str, Any]) -> list[str]:
                     raise ValueError
                 field_ids.append(parsed_id)
             except ValueError:
-                errors.append(f"{field['name']} has an invalid field id")
+                errors.append(f"field {position} has an invalid field id")
 
         extension = metadata.get("ARROW:extension:name")
         has_geometry_keys = any(key.startswith("plenora.geometry.") for key in metadata)
         if extension != "geoarrow.wkb":
             if has_geometry_keys:
                 errors.append(
-                    f"{field['name']} has geometry metadata without geoarrow.wkb"
+                    f"field {position} has geometry metadata without geoarrow.wkb"
                 )
             continue
 
         if field["type"] not in {"binary", "large_binary"}:
-            errors.append(f"{field['name']} has incompatible GeoArrow storage")
+            errors.append(f"field {position} has incompatible GeoArrow storage")
         missing = required_geometry - set(metadata)
         if missing:
-            errors.append(f"{field['name']} lacks geometry keys {sorted(missing)}")
+            errors.append(f"field {position} lacks geometry keys {sorted(missing)}")
         for key, values in enums.items():
             if key in metadata and metadata[key] not in values:
-                errors.append(f"{field['name']} has invalid {key}")
+                errors.append(f"field {position} has invalid {key}")
 
         declaration = metadata.get("plenora.geometry.types_declaration")
         type_text = metadata.get("plenora.geometry.types")
         if declaration == "exact" and not type_text:
-            errors.append(f"{field['name']} exact geometry types are empty")
+            errors.append(f"field {position} exact geometry types are empty")
         if declaration == "unresolved" and type_text is not None:
-            errors.append(f"{field['name']} unresolved geometry types are present")
+            errors.append(f"field {position} unresolved geometry types are present")
         if type_text is not None:
             values = type_text.split(",") if type_text else []
             try:
                 positions = [ARROW_TYPES.index(value) for value in values]
             except ValueError:
-                errors.append(f"{field['name']} has an unknown geometry type")
+                errors.append(f"field {position} has an unknown geometry type")
             else:
                 if positions != sorted(set(positions)):
                     errors.append(
-                        f"{field['name']} geometry types are not unique and ordered"
+                        f"field {position} geometry types are not unique and ordered"
                     )
 
         resolution = metadata.get("plenora.geometry.crs_resolution")
@@ -1740,16 +2281,16 @@ def arrow_semantic_errors(vector: dict[str, Any]) -> list[str]:
         definition_format = metadata.get("plenora.geometry.crs_definition_format")
         axis = metadata.get("plenora.geometry.axis_order")
         if (definition is None) != (definition_format is None):
-            errors.append(f"{field['name']} CRS definition and format disagree")
+            errors.append(f"field {position} CRS definition and format disagree")
         if resolution in {"resolved", "declared_unresolved"}:
             if not crs_id and not definition:
-                errors.append(f"{field['name']} declared CRS has no identity")
+                errors.append(f"field {position} declared CRS has no identity")
             if axis is None:
-                errors.append(f"{field['name']} declared CRS has no axis order")
+                errors.append(f"field {position} declared CRS has no axis order")
         if resolution == "missing" and any(
             value is not None for value in (crs_id, definition, definition_format, axis)
         ):
-            errors.append(f"{field['name']} missing CRS carries CRS metadata")
+            errors.append(f"field {position} missing CRS carries CRS metadata")
 
     if len(field_ids) != len(set(field_ids)):
         errors.append("field identifiers are not unique")
@@ -1769,6 +2310,143 @@ def validate_arrow_vectors() -> list[str]:
             failures.append(
                 f"{path.relative_to(ROOT)} must contain a semantic violation"
             )
+    return failures
+
+
+RULE_DEFINITION = re.compile(r"\*\*([A-Z]+(?:-[A-Z]+)*-[0-9]{3})\*\*")
+
+
+def defined_rules() -> set[str]:
+    """Rule identifiers defined in bold in the specifications and profiles,
+    plus the section references `VOCABULARY-<n>` of Arrow Vocabulary 1.0."""
+    found: set[str] = set()
+    for path in [*(ROOT / "specs").rglob("*.md"), *(ROOT / "profiles").glob("*.md")]:
+        found.update(RULE_DEFINITION.findall(read_text(path)))
+    vocabulary = read_text(ROOT / "specs/data/ARROW-VOCABULARY-1.0.md")
+    found.update(f"VOCABULARY-{number}" for number in re.findall(r"^## ([1-9][0-9]?)\.", vocabulary, re.M))
+    return found
+
+
+def cited_rule_errors(label: str, rules: list[str], known: set[str]) -> list[str]:
+    return [f"{label} cites {rule}, which no specification or profile defines" for rule in rules if rule not in known]
+
+
+def validate_interop_vectors(
+    catalogs: dict[str, dict[str, Any]],
+    schemas: dict[str, dict[str, Any]] | None = None,
+    registry: Registry | None = None,
+) -> list[str]:
+    """Interoperability Vectors 1.0: chains against the matrix, expectations
+    recomputed from the inputs (`interop_vectors`). A vector outside its
+    schema is reported by the schema check and never evaluated here: the
+    rules read only fields of the shape the schema fixes."""
+    operations = operation_index(catalogs)
+    edges = load_json(ROOT / "composition/pipelines-v1.json")["edges"]
+    direct = {
+        (
+            (edge["from"]["component"], edge["from"]["operation"], edge["from"]["version"]),
+            (edge["to"]["component"], edge["to"]["operation"], edge["to"]["version"]),
+        )
+        for edge in edges
+        if edge["mode"] == "direct"
+    }
+    paths = sorted((ROOT / "vectors/interop-v1").glob("*.json"))
+    if not paths:
+        return ["vectors/interop-v1 has no vectors"]
+    # The kernels of the current registry; none without one, which
+    # data_registry_errors reports (a geo plan then names no kernel).
+    kernels = latest_kernel_ids()
+    known = defined_rules()
+    if schemas is None:
+        schemas = {name: load_json(ROOT / "schemas" / name) for name in EXPECTED_SCHEMAS}
+        registry = schema_registry(schemas)
+    failures: list[str] = []
+    for path in paths:
+        label = path.relative_to(ROOT).as_posix()
+        vector = load_json(path)
+        if instance_errors(schemas["interop-vector-v1.schema.json"], vector, registry):
+            continue
+        for problem in interop_vectors.vector_errors(path, vector, operations, direct, load_json, kernels):
+            failures.append(f"{label} {problem}")
+        expected_error = vector.get("expected_error")
+        if isinstance(expected_error, dict):
+            failures.extend(cited_rule_errors(label, list(expected_error.get("rules") or []), known))
+    return failures
+
+
+# Accepted by the schema and refused by the interoperability gate, each for
+# the rule its value names: without them, a check of the gate could vanish
+# and the published vectors, all conforming, would stay green.
+INTEROP_VIOLATING = {
+    "examples/invalid/interop-vector-handoff-single-json-step.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-database-write-as-ipc.json": "INTEROP-002",
+    "examples/invalid/interop-vector-source-format-mismatch.json": "INTEROP-001",
+    "examples/invalid/interop-vector-handoff-target-read-in-another-format.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-unknown-format.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-limits-not-a-list.json": "INTEROP-002",
+    "examples/invalid/interop-vector-handoff-plan-not-a-string.json": "INTEROP-002",
+}
+
+
+def validate_interop_violating(
+    schemas: dict[str, dict[str, Any]], registry: Registry, catalogs: dict[str, dict[str, Any]]
+) -> list[str]:
+    operations = operation_index(catalogs)
+    edges = load_json(ROOT / "composition/pipelines-v1.json")["edges"]
+    direct = {
+        (
+            (edge["from"]["component"], edge["from"]["operation"], edge["from"]["version"]),
+            (edge["to"]["component"], edge["to"]["operation"], edge["to"]["version"]),
+        )
+        for edge in edges
+        if edge["mode"] == "direct"
+    }
+    failures: list[str] = []
+    for relative, rule in INTEROP_VIOLATING.items():
+        path = ROOT / relative
+        document = load_json(path)
+        if instance_errors(schemas["interop-vector-v1.schema.json"], document, registry):
+            failures.append(f"{relative} must be accepted by the schema so that it probes the gate")
+            continue
+        # Its input path is the schema's, relative to the published vectors.
+        published = ROOT / "vectors/interop-v1" / path.name
+        errors = interop_vectors.vector_errors(published, document, operations, direct, load_json, latest_kernel_ids())
+        if not errors or not all(rule in error for error in errors):
+            failures.append(f"{relative} must be refused by {rule} and by no other check")
+    return failures
+
+
+def validate_arrow_data_vectors() -> list[str]:
+    """Arrow Geometry Semantics 1.0 section 9: each vector states the verdict the
+    rules give, derived by `arrow_data`, and cites rules that exist."""
+    failures: list[str] = []
+    paths = sorted((ROOT / "vectors/arrow-data-v1").glob("*.json"))
+    if not paths:
+        return ["vectors/arrow-data-v1 has no vectors"]
+    known = defined_rules()
+    for path in paths:
+        label = path.relative_to(ROOT).as_posix()
+        vector = load_json(path)
+        for error in arrow_data.vector_errors(vector):
+            failures.append(f"{label} {error}")
+        computation = vector.get("computation")
+        cited = list(vector.get("rules") or []) + list(
+            computation.get("rules") or [] if isinstance(computation, dict) else []
+        )
+        failures.extend(cited_rule_errors(label, cited, known))
+    return failures
+
+
+def validate_rest_adapter_vectors() -> list[str]:
+    """REST-to-Arrow Adapter 1.0 section 8: each vector states the outcome
+    the reference adapter gives."""
+    failures: list[str] = []
+    paths = sorted((ROOT / "vectors/rest-arrow-adapter-v1").glob("*.json"))
+    if not paths:
+        failures.append("vectors/rest-arrow-adapter-v1 has no vectors")
+    for path in paths:
+        for problem in rest_adapter.vector_errors(load_json(path)):
+            failures.append(f"{path.relative_to(ROOT).as_posix()} {problem}")
     return failures
 
 
@@ -1910,7 +2588,8 @@ def storage_vector_errors(
         if isinstance(artifact, dict) and isinstance(checksum, dict):
             if artifact.get("sha256") != checksum.get("value"):
                 errors.append("storage transfer artifact SHA-256 conflicts with checksum")
-            if artifact.get("size") != payload.get("bytes_transferred"):
+            # VALUE: two fields of one vector, as numbers (`-0` is 0).
+            if not same_value(artifact.get("size"), payload.get("bytes_transferred")):
                 errors.append("storage transfer artifact size conflicts with byte count")
     if vector["kind"] == "success" and operation_id == "storage.list":
         cursor = payload.get("next_cursor")
@@ -1952,7 +2631,7 @@ def unknown_commit_errors(label: str, payload: dict[str, Any]) -> list[str]:
     # examples exhaustive (a cancellation is `cancelled`), so any other code
     # is checked only for the retry ERR-006 requires.
     if expected is not None and payload.get("category") != expected:
-        failures.append(f"{label} reports the cause {payload.get('code')} as {payload.get('category')}, not {expected} (ERR-016)")
+        failures.append(f"{label} reports a mapped cause with another category than {expected} (ERR-016)")
     if (payload.get("retry") or {}).get("kind") not in ERR_006_RETRIES:
         failures.append(f"{label} allows a retry ERR-006 forbids after an unknown outcome")
     return failures
@@ -1969,22 +2648,21 @@ def validate_runtime_vectors(
         key = (operation_id, str(version))
         if key in operations:
             failures.append(
-                f"runtime vector lookup has duplicate operation {operation_id}@{version}"
+                f"runtime vector lookup has duplicate operation {contract_name(f'{operation_id}@{version}')}"
             )
         operations[key] = (component, operation)
 
     storage_coverage = set()
     data_run_3_coverage: set[str] = set()
     data_run_3_vectors: list[dict[str, Any]] = []
-    for path in sorted((ROOT / "vectors/runtime-v1").glob("*.json")):
+    for path in runtime_vector_paths():
         vector = load_json(path)
         metadata = vector["metadata"]
         operation_id = metadata.get("plenora.capability.operation")
         resolved = operations.get((operation_id, metadata.get("plenora.operation.version")))
         if resolved is None:
             failures.append(
-                f"{path.relative_to(ROOT)} refers to unknown operation {operation_id} "
-                f"version {metadata.get('plenora.operation.version')}"
+                f"{path.relative_to(ROOT)} refers to an operation and version no catalog declares"
             )
             continue
         component, operation = resolved
@@ -1992,7 +2670,7 @@ def validate_runtime_vectors(
             failures.extend(unknown_commit_errors(path.relative_to(ROOT).as_posix(), vector["payload"]))
         if "runtime" not in operation["surfaces"]:
             failures.append(
-                f"{path.relative_to(ROOT)} exercises {operation_id} on runtime, "
+                f"{path.relative_to(ROOT)} exercises {contract_name(operation['id'])} on runtime, "
                 "which its catalog version does not select"
             )
         if metadata.get("plenora.operation.version") != str(operation["version"]):
@@ -2190,11 +2868,11 @@ def well_formed(key: str, value: Any) -> bool:
             # defines as an unknown local offset: never UTC.
             return False
         if CANONICAL_DEADLINE.fullmatch(value) is None:
-            raise ProbeUndecided(f"deadline spelling {value!r} is not decided by Runtime Binding 1.0")
+            raise ProbeUndecided("a deadline spelling is not decided by Runtime Binding 1.0")
         return True
     if key == IDEMPOTENCY_KEY:
         return isinstance(value, str) and value != ""
-    raise ProbeUndecided(f"metadata key {key} is not reserved by Runtime Binding 1.0")
+    raise ProbeUndecided("a metadata key is not reserved by Runtime Binding 1.0")
 
 
 def probe_outcome(
@@ -2208,7 +2886,7 @@ def probe_outcome(
             well_formed(name, metadata[name])
     if key not in metadata:
         if key not in REQUIRED_REQUEST_KEYS:
-            raise ProbeUndecided(f"removing optional {key} is not a rejection")
+            raise ProbeUndecided("removing an optional key is not a rejection")
         return "protocol", "RT-017"
     if not well_formed(key, metadata[key]):
         return "protocol", rule_of_key.get(key, "RT-017")
@@ -2290,6 +2968,13 @@ def probe_result_metadata(metadata: dict[str, Any]) -> dict[str, str]:
     return result
 
 
+ERROR_AXES = ("category", "phase", "remote_effect", "retry", "code", "message")
+RESERVED_METADATA = (
+    "plenora.capability.operation", "plenora.operation.version", "plenora.output.contract",
+    "plenora.trace.correlation_id", "plenora.message.id", "plenora.message.causation_id",
+)
+
+
 def runtime_probe_errors(
     probe: dict[str, Any],
     versions: dict[str, dict[int, dict[str, Any]]],
@@ -2298,21 +2983,22 @@ def runtime_probe_errors(
 ) -> list[str]:
     base_path = ROOT / "vectors/runtime-v1" / probe["base"]
     if not base_path.is_file():
-        return [f"base {probe['base']} is not a runtime vector"]
+        return ["the base is not a runtime vector"]
     base = load_json(base_path)
     if member(base, "kind") != "request" or not isinstance(member(base, "metadata"), dict):
-        return [f"base {probe['base']} is not a request vector"]
+        return ["the base is not a request vector"]
     metadata = dict(base["metadata"])
     mutation = probe["mutation"]
     if "remove" in mutation:
         key = mutation["remove"]
         if key not in metadata:
-            return [f"removes {key}, which the base does not carry"]
+            return ["removes a key the base does not carry"]
         del metadata[key]
     else:
         ((key, value),) = mutation["set"].items()
-        if key in metadata and metadata[key] == value and type(metadata[key]) is type(value):
-            return [f"sets {key} to the value the base already carries"]
+        # VALUE: the mutation against the value the base carries.
+        if key in metadata and same_value(metadata[key], value):
+            return ["sets a key to the value the base already carries"]
         metadata[key] = value
     try:
         category, rule = artifact_probe_outcome(base["metadata"], metadata, key, versions)
@@ -2330,16 +3016,19 @@ def runtime_probe_errors(
     )
     if schema_errors:
         errors.append(f"expected error is not a plenora-error-v1 value: {schema_errors[0]}")
-    if declared_error != expected_error:
+    # VALUE: the declared expectation against what RT-016 computes.
+    if not same_value(declared_error, expected_error):
         errors.append(
-            f"expects {declared_error}, but RT-016 and {rule} give {expected_error}"
+            f"expects an error that RT-016 and {rule} do not give "
+            f"(members {differing_members(declared_error, expected_error, ERROR_AXES)})"
         )
     if probe["rule"] != rule:
-        errors.append(f"names {probe['rule']}, but the rejection follows {rule}")
-    if probe["expected"]["metadata"] != expected_metadata:
+        errors.append(f"names another rule, but the rejection follows {rule}")
+    # VALUE: as above, for RT-019.
+    if not same_value(probe["expected"]["metadata"], expected_metadata):
         errors.append(
-            f"expects result metadata {probe['expected']['metadata']}, "
-            f"but RT-019 gives {expected_metadata}"
+            "expects result metadata that RT-019 does not give (members "
+            f"{differing_members(probe['expected']['metadata'], expected_metadata, RESERVED_METADATA)})"
         )
     return errors
 
@@ -2457,12 +3146,13 @@ def data_run_3_manifest_errors(vectors: list[dict[str, Any]]) -> list[str]:
             (member(item, "name"), member(item, "reference"), member(member(item, "artifact"), "content_type"))
             for item in outputs
         ]
-        if found != expected:
+        # VALUE: a manifest against its request (DT-RUN-005).
+        if not same_value(found, expected):
             failures.append(
                 "a data.run 3 manifest differs from the plan outputs and sinks of its request (DT-RUN-005)"
             )
         steps = [(member(item, "out"), member(item, "op")) for item in result_steps]
-        if steps != [(member(step, "out"), member(step, "op")) for step in plan_steps]:
+        if not same_value(steps, [(member(step, "out"), member(step, "op")) for step in plan_steps]):
             failures.append(
                 "a data.run 3 manifest differs from the plan steps of its request (DT-RUN-005)"
             )
@@ -2591,10 +3281,7 @@ def plan_budget_errors(document: dict[str, Any]) -> list[str]:
     if domain is None or governed is None:
         return []
     if domain < governed:
-        return [
-            f"max_domain_memory_bytes {domain} is below "
-            f"max_governed_memory_bytes {governed} (PLAN-011)"
-        ]
+        return ["max_domain_memory_bytes is below max_governed_memory_bytes (PLAN-011)"]
     return []
 
 
@@ -2649,14 +3336,14 @@ def data_plan_number_errors(text: str) -> list[str]:
     def integer(token: str) -> int:
         value = int(token)
         if not -(2**63) <= value <= 2**64 - 1:
-            problems.append(f"integer {token} outside i64/u64 (DPLAN-003)")
+            problems.append("an integer outside i64/u64 (DPLAN-003)")
         return value
 
     def number(token: str) -> decimal.Decimal:
         written = decimal.Decimal(token)
         nearest = float(token)
         if nearest in (float("inf"), float("-inf")) or decimal.Decimal(repr(nearest)) != written:
-            problems.append(f"number {token} is not exactly a binary64 shortest decimal (DPLAN-003)")
+            problems.append("a number that is not exactly a binary64 shortest decimal (DPLAN-003)")
         return written
 
     def constant(name: str) -> None:
@@ -2677,22 +3364,22 @@ def data_plan_errors(document: dict[str, Any], kernel_ids: set[str]) -> list[str
     ):
         # The schema rejects this shape; the reference checks need it.
         return ["plan is not shaped by data-plan-v1.schema.json (DPLAN-001)"]
-    for name in document.get("inputs", []):
+    for index, name in enumerate(document.get("inputs", [])):
         if name in defined:
-            problems.append(f"name {name} defined twice (DPLAN-004)")
+            problems.append(f"input #{index} defines a name twice (DPLAN-004)")
         defined.add(name)
     for position, step in enumerate(document.get("steps", [])):
-        for name in step["in"]:
+        for index, name in enumerate(step["in"]):
             if name not in defined:
-                problems.append(f"step {position} reads undefined name {name} (DPLAN-005)")
+                problems.append(f"step {position} input #{index} reads an undefined name (DPLAN-005)")
         if step["op"] not in kernel_ids:
-            problems.append(f"step {position} names unknown kernel {step['op']} (DPLAN-006)")
+            problems.append(f"step {position} names an unknown kernel (DPLAN-006)")
         if step["out"] in defined:
-            problems.append(f"name {step['out']} defined twice (DPLAN-004)")
+            problems.append(f"step {position} defines a name twice (DPLAN-004)")
         defined.add(step["out"])
-    for name in document.get("outputs", []):
+    for index, name in enumerate(document.get("outputs", [])):
         if name not in defined:
-            problems.append(f"output {name} is not defined (DPLAN-005)")
+            problems.append(f"output #{index} is not defined (DPLAN-005)")
     return problems
 
 
@@ -2738,7 +3425,7 @@ def validate_markdown_links() -> list[str]:
             relative_target = target.split("#", 1)[0]
             if relative_target and not (document.parent / relative_target).exists():
                 failures.append(
-                    f"{document.relative_to(ROOT)} links to missing {target}"
+                    f"{document.relative_to(ROOT)} links to missing {contract_name(target)}"
                 )
     return failures
 
@@ -2791,7 +3478,7 @@ def main() -> int:
         # Any other exception is a defect of this validator, not a verdict on
         # the documents: it fails the gate and says so, without a traceback.
         print(
-            f"ERROR: internal validator error ({type(error).__name__}: {error}); "
+            f"ERROR: internal validator error ({type(error).__name__}); "
             "this is a defect of tools/validate_specs.py",
             file=sys.stderr,
         )
@@ -2813,9 +3500,9 @@ def run_gate() -> int:
 
     for name, schema in schemas.items():
         try:
-            Draft202012Validator.check_schema(schema)
+            InstanceValidator.check_schema(schema)
         except Exception as error:
-            print(f"invalid schema {name}: {error}", file=sys.stderr)
+            print(f"invalid schema {name}: {schema_error(error)}", file=sys.stderr)
             return 1
 
     registry = schema_registry(schemas)
@@ -2836,7 +3523,13 @@ def run_gate() -> int:
     failures.extend(validate_bindings(catalogs))
     failures.extend(validate_composition(catalogs))
     failures.extend(validate_arrow_vectors())
+    failures.extend(validate_arrow_data_vectors())
+    failures.extend(validate_interop_vectors(catalogs, schemas, registry))
+    failures.extend(validate_interop_violating(schemas, registry, catalogs))
+    failures.extend(validate_rest_adapter_vectors())
     failures.extend(validate_runtime_vectors(catalogs, schemas, registry))
+    failures.extend(validate_runtime_negotiation_vectors())
+    failures.extend(validate_negotiation_violating(schemas, registry))
     failures.extend(validate_runtime_probes(catalogs, schemas, registry))
     failures.extend(validate_plan_budget(schemas, registry))
     failures.extend(validate_data_plan(schemas, registry))

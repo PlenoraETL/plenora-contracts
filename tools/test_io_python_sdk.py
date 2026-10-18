@@ -1,5 +1,5 @@
 """IO-tools Python SDK (decision 0016): the catalog selects the surface as
-conditional, every operation of catalog version 2 lists it, and the binding
+conditional, every operation of catalog version 3 lists it, and the binding
 map names `Client` methods with version and capability discovery."""
 
 import copy
@@ -21,10 +21,14 @@ def io_section(document):
 
 class IoPythonSdkTests(unittest.TestCase):
     def test_catalog_selects_the_surface_for_every_operation(self):
-        catalog = json.loads((ROOT / "catalogs/io-tools-v2.json").read_text(encoding="utf-8"))
+        catalog = json.loads((ROOT / "catalogs/io-tools-v3.json").read_text(encoding="utf-8"))
         self.assertEqual(catalog["target_surfaces"]["python_sdk"], "conditional")
         for operation in catalog["operations"]:
             self.assertIn("python_sdk", operation["surfaces"], operation["id"])
+        version_2 = json.loads((ROOT / "catalogs/io-tools-v2.json").read_text(encoding="utf-8"))
+        self.assertEqual(version_2["target_surfaces"]["python_sdk"], "not_applicable")
+        for operation in version_2["operations"]:
+            self.assertNotIn("python_sdk", operation["surfaces"], operation["id"])
         version_1 = json.loads((ROOT / "catalogs/io-tools-v1.json").read_text(encoding="utf-8"))
         self.assertEqual(version_1["target_surfaces"]["python_sdk"], "not_applicable")
 
@@ -46,6 +50,23 @@ class IoPythonSdkTests(unittest.TestCase):
         read = next(item for item in io_section(document)["bindings"] if item["operation"] == "io.read")
         read["entrypoints"].append("plenora_io.read")
         self.assertEqual(len(validator.io_python_errors(document)), 1)
+
+    def test_read_adapters_cannot_disappear(self):
+        for entrypoint in ("Client.read_table", "Client.validate"):
+            with self.subTest(entrypoint=entrypoint):
+                document = python_document()
+                read = next(item for item in io_section(document)["bindings"] if item["operation"] == "io.read")
+                read["entrypoints"].remove(entrypoint)
+                self.assertEqual(len(validator.io_python_errors(document)), 1)
+
+    def test_mutated_operation_names_are_quoted_in_diagnostics(self):
+        from test_message_sentinels import leak
+
+        document = python_document()
+        io_section(document)["bindings"][0]["operation"] = "io.zqxsentinelqz"
+        errors = validator.io_python_errors(document)
+        self.assertEqual(len(errors), 1)
+        self.assertIsNone(leak("\n".join(errors), data=False))
 
     def test_an_empty_section_is_not_checked(self):
         document = python_document()

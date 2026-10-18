@@ -56,9 +56,15 @@ class DataContractTests(unittest.TestCase):
 
     # -- helper level ----------------------------------------------------
 
-    def test_current_target_is_version_2_and_conforms(self):
-        self.assertEqual(self.data["profile"], "plenora-data-tools-profile-v2")
-        self.assertEqual(validator.data_catalog_errors(self.data, 2), [])
+    def test_current_target_is_version_3_and_conforms(self):
+        # Version 3 lists the operations of version 2 under Public Catalogs
+        # 2.0 (decision 0015); both are checked against the same expectations.
+        self.assertEqual(self.data["profile"], "plenora-data-tools-profile-v3")
+        self.assertEqual(self.data["contract"], "plenora-public-catalog-v2")
+        self.assertEqual(validator.data_catalog_errors(self.data, 3), [])
+        self.assertEqual(validator.data_catalog_errors(self.versions[validator.DATA_COMPONENT][2], 2), [])
+        self.assertEqual(self.data["operations"], self.versions[validator.DATA_COMPONENT][2]["operations"])
+        self.assertEqual(validator.data_catalog_errors(self.data, 4), ["data-tools v4 has no stated operation versions"])
         self.assertEqual(validator.data_catalog_errors(self.versions[validator.DATA_COMPONENT][1], 1), [])
         self.assertEqual(validator.data_registry_errors(), [])
         self.assertEqual(validator.validate_catalog_semantics(self.catalogs), [])
@@ -66,10 +72,11 @@ class DataContractTests(unittest.TestCase):
 
     def test_version_1_stays_available_with_its_profile(self):
         versions = self.versions[validator.DATA_COMPONENT]
-        self.assertEqual(sorted(versions), [1, 2])
+        self.assertEqual(sorted(versions), [1, 2, 3])
         self.assertEqual(versions[1]["profile"], "plenora-data-tools-profile-v1")
         self.assertEqual(validator.profile_path(validator.DATA_COMPONENT, "plenora-data-tools-profile-v1").name, "data-tools.md")
         self.assertEqual(validator.profile_path(validator.DATA_COMPONENT, "plenora-data-tools-profile-v2").name, "data-tools-v2.md")
+        self.assertEqual(validator.profile_path(validator.DATA_COMPONENT, "plenora-data-tools-profile-v3").name, "data-tools-v3.md")
 
     def test_version_2_expectations(self):
         cases = {

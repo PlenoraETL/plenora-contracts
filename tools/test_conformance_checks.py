@@ -265,9 +265,8 @@ class SchemaImmutabilityTests(unittest.TestCase):
                 self.assertEqual(immutability.erratum_errors(
                     relative, erratum, lambda path: (ROOT / path).read_text(encoding="utf-8")
                 ), [])
-                document = json.loads((ROOT / relative).read_text(encoding="utf-8"))
                 self.assertEqual(
-                    immutability.digest(immutability.comparable(relative, document)), erratum.after
+                    immutability.erratum_digest(relative, (ROOT / relative).read_bytes()), erratum.after
                 )
 
     def test_main_checks_the_fork_point_without_an_event_base(self):
@@ -440,6 +439,26 @@ class PublishedDocumentImmutabilityTests(unittest.TestCase):
 
     def test_unchanged_documents_pass(self):
         self.assertEqual(immutability.check(self.root, self.base), [])
+
+    def test_public_catalog_v2_byte_dispatch_preserves_compatibility_rules(self):
+        relative = "catalogs/probe-tools-v3.json"
+        previous = copy.deepcopy(self.documents["catalogs/probe-tools-v1.json"])
+        previous["contract"] = "plenora-public-catalog-v2"
+        previous["target_surfaces"]["python_sdk"] = "not_applicable"
+        encode = lambda document: json.dumps(document).encode("utf-8")
+        current = copy.deepcopy(previous)
+        current["target_surfaces"]["python_sdk"] = "conditional"
+        current["operations"][0]["surfaces"].append("python_sdk")
+        self.assertEqual(immutability.published_changes(relative, encode(previous), encode(current)), [])
+        for name, change in (
+            ("effect", lambda doc: doc["operations"][0].update(side_effect="local")),
+            ("removal", lambda doc: doc["operations"][0]["surfaces"].remove("rust")),
+            ("contract", lambda doc: doc.update(contract="plenora-public-catalog-v1")),
+        ):
+            with self.subTest(change=name):
+                invalid = copy.deepcopy(current)
+                change(invalid)
+                self.assertTrue(immutability.published_changes(relative, encode(previous), encode(invalid)))
 
     def test_compatible_additions_pass(self):
         added = copy.deepcopy(self.documents["catalogs/probe-tools-v1.json"]["operations"][0])

@@ -8,19 +8,132 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
-- IO-tools Python SDK as a declared surface: `io-tools-v2.json` selects
+- IO-tools Python SDK as a declared surface: `io-tools-v3.json` selects
   `python_sdk` as `conditional` for its six operations;
   `bindings/python-sdk-v1.json` names `plenora-io / plenora_io`, its
-  discovery entrypoints and one `Client` method per operation; the profile
+  discovery entrypoints and the `Client` methods for each operation; the profile
   makes the SDK optional and adds IO-PY-001 (synchronous only, CLI
-  semantics, the effect of `Client.read`, typed refusal of Arrow objects
-  without the PyArrow extra). The validator checks the section. No schema
+  protocol semantics through native or process execution, the effect of
+  `Client.read`, typed refusal without PyArrow, cancellation and timeout
+  outcomes). Catalog and profile v2 retain their published content. The
+  validator checks the section; the immutability gate recognizes catalog
+  v2 bytes and applies the existing compatible-addition rules. No schema
   or vector changes. See [decision 0016](decisions/0016-io-tools-python-sdk.md).
+- Catalogs and profiles of Public Catalogs 2.0 for the components whose
+  profiles stated the runtime as required: `database-tools-v2.json`,
+  `data-tools-v3.json` and `io-tools-v3.json`, each with the operation
+  identities of the previous version unchanged, and profiles
+  `database-tools-v2`, `data-tools-v3` and `io-tools-v3` with the runtime
+  `conditional` (CAT-001, CAT-002), the intentional absences DB-ABS-001 to
+  DB-ABS-003, DT-ABS-001 and DT-ABS-002 (CAT-003, checked by the validator),
+  and for database-tools the bound of a `database.query` result (DB-RT-003,
+  RT-024). No restriction is added to the content types of `database.query`
+  or `database.write` version 1. An artifact that exposes the runtime under
+  these catalogs follows Runtime Binding 2.0. The previous catalogs
+  and profiles are unchanged and remain available. See
+  [decision 0015](decisions/0015-intentional-absences-and-planned-surfaces.md).
+- Public Catalogs 2.0 (`plenora-public-catalog-v2`, schema
+  `public-catalog-v2`) and Runtime Binding 2.0 (`plenora-runtime-binding-v2`)
+  next to their 1.0 versions, which are unchanged except an informative
+  pointer. Catalog surfaces are the target, never availability: a consumer
+  selects surfaces from the artifact's capability document, a cataloged
+  surface it does not list is planned for that artifact, no surface is
+  removed and no marker added, and a surface the profile of a catalog of
+  version 2 declares intentionally absent is never added to that operation
+  identity, with a reason the validator checks (CAT-001 to CAT-003). A
+  runtime result beyond a bound of the transport or of the component fails
+  with `resource_limit`, never a truncated success (RT-024), with two error
+  vectors in `vectors/runtime-v2`; RT-025 replaces RT-002 and keeps the wire
+  of 1.0 (capability version `1`), and RT-018 compares that wire version
+  only; RT-026 negotiates the contract at the selection of the destination,
+  with an explicit downgrade from 2.0 to 1.0, and RT-027 carries the
+  negotiation context outside the envelope from the ingress of a new
+  request to the hop that selects the destination, with an acceptance
+  record per message identity that makes every retry, redrive or resend a
+  forwarding and refuses a lost or altered context; an ingress may require
+  2.0, and without it the requirement of a silent sender of 2.0 is taken
+  as 1.0 and the selection does not guarantee RT-024, while a destination
+  of 2.0, if chosen, still applies it: a stated limit. Twenty-one vectors in `vectors/runtime-negotiation-v1` (schema
+  `runtime-negotiation-vector-v1`) are sequences of hops from which the
+  validator derives the decision. COMPATIBILITY.md states the transition
+  (what changes, who adopts, coexistence, exit of 1.0); the runtime-tools
+  profile and ADOPTION.md name the claims of 2.0. The requirement of at most
+  one start per request for mutating runtime operations without idempotency
+  key is recorded for the runtime-tools profile (issue #35). No published
+  text, schema, catalog, binding or vector changes. See
+  [decision 0015](decisions/0015-intentional-absences-and-planned-surfaces.md).
+- Arrow Geometry Semantics 1.0 (`plenora-arrow-geometry-semantics-v1`), an
+  opt-in contract next to Arrow Vocabulary 1.0 that changes neither keys,
+  values nor `plenora.contract.version` (GEO-000 to GEO-020): input
+  conformance, component support and operation applicability are distinct
+  verdicts; `axis_order` is the stored order, declared by the producer;
+  `crs_id` is normative, a contradictory top-level identifier is `crs`, and a
+  component verifies a definition before computing with one conservative
+  subset (exact decimals, two spellings of the degree, closed aliases, units
+  by quantity, datum and conversion) over a closed grammar of the three
+  formats, closed on members and on the kind of every value, outside which a
+  definition is undecidable (GEO-019), with
+  ignorable usage metadata and the reference WGS 84 ensemble, so that the
+  WKT 2 and PROJJSON PROJ 9.6.2 writes are verified; a local catalog
+  identifier (`POSTGIS:n`, ...) is never resolved and never computed with
+  (GEO-020); both `wkb` and `ewkb` are accepted;
+  several types and geometry fields are valid; identity and precision of
+  produced fields. Arrow Vocabulary 1.0 keeps its published text, with an
+  informative pointer. New schema `arrow-data-vector-v1` and 71 vectors in
+  `vectors/arrow-data-v1`. No existing schema, catalog, binding or vector
+  changes. See
+  [decision 0013](decisions/0013-geometry-vocabulary-semantics.md).
+- Rejection categories in Arrow Geometry Semantics 1.0 (section 10, REJ-001
+  to REJ-004), for the components that claim it: one category for each of
+  disjoint classes (contract version absent `schema`, not supported
+  `unsupported`, vocabulary `schema`, CRS keys and their dependencies `crs`,
+  support `unsupported`, operation schema `schema`, invalid value
+  `data_mapping`, value contradicting the CRS `crs`); one order that
+  includes the operation; the other axes, with "before any effect" meaning
+  before a publication or a commit. Profile acceptances are never revoked.
+  Arrow Interchange 1.0 and Typed Errors 1.0 keep their published meaning,
+  with informative pointers. Nine vectors in `vectors/arrow-data-v1`, four
+  with two defects. See
+  [decision 0014](decisions/0014-arrow-input-rejection-categories.md).
+- Interoperability Vectors 1.0 (`plenora-interop-vectors-v1`, INTEROP-001 to
+  INTEROP-005), an opt-in contract for components that claim Arrow Geometry
+  Semantics 1.0; Composition 1.0 keeps its published text with an
+  informative pointer: new schema
+  `interop-vector-v1` and 40 vectors in `vectors/interop-v1`: 10 handoff
+  chains among IO-tools, data-tools and database-tools whose expected table
+  the validator recomputes from the input and a closed list of declared
+  transformations, provider keys listed as delegated; 28 rejections, each
+  the first of one ordered evaluation that includes the operation; a GeoJSON
+  and a CSV source whose axis order and coordinates the validator reads.
+  Chains are checked against the composition matrix and at both ends (the
+  first step reads the input as Arrow IPC, the last delivers or writes a
+  table, as the catalog declares the step: a `format` counts only where the
+  input contract selects one), and a source's read request names the
+  document's format, a target is read in the format it was written from a
+  closed list of formats, a plan is `identity` or a registered kernel, every
+  parameter is validated before any step is evaluated, with seven negative
+  examples. No catalog, binding,
+  profile or published vector changes. See
+  [decision 0018](decisions/0018-interoperability-vectors.md).
+- REST-to-Arrow Adapter 1.0 (`plenora-rest-arrow-adapter-v1`): the adapter
+  of the `rest.enrich` to `data.run` edges belongs to the application, and
+  an adapter claiming the contract declares fields (name, identity, RFC 6901
+  pointer, `bool`/`int64`/`float64`/`utf8`, nullability), accepted REST
+  statuses, per-record error policy and undeclared members; converts in
+  record order without inference or coercion; fails with `data_mapping`
+  naming record, field and cause, or excludes records with row diagnostics;
+  reports the REST status next to the table (RA-001 to RA-010). New schemas
+  `rest-arrow-adapter-v1` and `rest-arrow-adapter-vector-v1`, 29 vectors
+  whose outcomes a reference adapter in the validator derives. Composition
+  1.0 points to it; the edges stay `adapter_required`. See
+  [decision 0017](decisions/0017-rest-arrow-adapter.md).
 - Runtime vector `database-write-commit-timeout-error.json` (an elapsed
   deadline after the commit was sent: `timeout`, `unknown`,
   `requires_recovery`), and a validator check that every runtime error
-  vector with an unknown commit outcome names its cause and has the category
-  ERR-016 gives it. See
+  vector with an unknown commit outcome and a mapped code (lost
+  confirmation, elapsed deadline, defect of the component) has the category
+  ERR-016 gives that cause; any other code, such as a cancellation, is
+  checked only for its retry (ERR-006). See
   [decision 0020](decisions/0020-cause-of-an-unknown-commit-in-the-vectors.md).
 
 - ERR-016 (Typed Errors 1.0, a clarification): an unknown outcome does not
@@ -33,6 +146,45 @@ full commit SHA; a release tag names one of those commits.
 
 ### Changed
 
+- The gate's messages carry no data: only fixed text, rule identifiers,
+  repository paths, positions, names the validator's code defines and names
+  of contract documents quoted between « and »; schema errors name the
+  keyword and anonymous paths instead of quoting the instance. A sentinel
+  test mutates every input the gate reads (vectors, examples, schemas,
+  catalogs, bindings, composition, Markdown), at every value, key, number
+  and array element, and requires that the gate never prints a value of a
+  vector or an example, nor a contract name outside its quotes; the null
+  fuzz covers every JSON input the same way. No contract document changes. See
+  [decision 0021](decisions/0021-messages-without-data.md).
+- The tools compare JSON data by type and value (`tools/json_values.py`):
+  `1`, `1.0` and `true` differ, also inside an array or an object. Python's
+  `==` took them for one value, so the immutability guard accepted a
+  published `const` 1 changed into `true`, a catalog operation version or
+  attribute, a registry kernel or a binding changed in the same way, and
+  the gate harness answered such a mutation with the unmutated verdict. The
+  comparisons walk the data with an explicit stack, in linear time, so a
+  deeply nested document is compared like a flat one. Every JSON the tools
+  read keeps each number exactly as written (a decimal, never a binary
+  float; JSON Schema's `integer`, in instances and in the metaschema, still
+  admits an integral decimal, as on main), and `NaN` and `Infinity` are
+  refused. The exact text of a number is compared only between published
+  documents (immutability, catalog identities and fields, digests); every
+  other check compares values (`-0` is the integer 0, integer and decimal
+  kept apart, a float's sign kept). The immutability guard compares a
+  published normative vector by its bytes (line ends
+  normalized as `.gitattributes` stores them): no spelling is tolerated
+  (`-0e-1` for `-0.0`, `10e-1` for `1.0`); catalogs, registries and binding
+  maps, which may grow, compare their entries with each number's exact
+  text; schemas compare their assertions by value (`1.0`, `1.00` and `1e0`,
+  `0.0` and `-0.0` validate the same instances). The erratum of
+  `data-run-success-v3.json` declares the digests of its bytes, for the
+  same two states. A repeated catalog identity is compared with the
+  version just before it. The integer literal `-0` stays the integer 0 for
+  every consumer (RA-005), with its text kept for the exact comparison. The
+  gate's other traversals (fuzz members and
+  cache keys, nested items and strings of payloads, the error size bound,
+  the REST adapter's difference path, now linear in time and memory) walk
+  with an explicit stack too. No contract document changes.
 - The validation gates use `jsonschema` 4.26.0 (was 4.23.0). The lock stays
   universal from Python 3.10: `rpds-py` keeps 0.30.0, its last release for
   Python 3.10, under `python_full_version < '3.11'` and 2026.9.1 above; the

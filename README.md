@@ -35,19 +35,25 @@ An adopter does not need to read the implementation of the other components.
 The normative sources are:
 
 - [public surface contract](specs/surfaces/PUBLIC-SURFACES-1.0.md);
-- [public catalogs contract](specs/catalogs/PUBLIC-CATALOGS-1.0.md);
+- [public catalogs contract](specs/catalogs/PUBLIC-CATALOGS-1.0.md) and its
+  [version 2.0](specs/catalogs/PUBLIC-CATALOGS-2.0.md)
+  ([transition](COMPATIBILITY.md#public-catalogs-and-runtime-binding-10-to-20));
 - [exact surface bindings](specs/surfaces/SURFACE-BINDINGS-1.0.md);
 - [capability discovery contract](specs/capabilities/CAPABILITY-DISCOVERY-2.0.md);
 - [typed error contract](specs/errors/ERRORS-1.0.md);
 - [Arrow interchange contract](specs/data/ARROW-INTERCHANGE-1.0.md);
 - [Arrow metadata vocabulary and vectors](specs/data/ARROW-VOCABULARY-1.0.md);
+- [Arrow geometry semantics](specs/data/ARROW-GEOMETRY-SEMANTICS-1.0.md), opt-in for the components that claim it;
 - [plan budget fragment](specs/data/PLAN-BUDGET-1.0.md), for components accepting plan documents;
 - [Data Plan 1.0](specs/data/DATA-PLAN-1.0.md), the plan accepted by `data.validate` and `data.run` version 2;
 - [row diagnostics contract](specs/diagnostics/ROW-DIAGNOSTICS-1.0.md);
 - [public security contract](specs/security/PUBLIC-SECURITY-1.0.md);
-- [runtime binding contract](specs/runtime/RUNTIME-BINDING-1.0.md);
+- [runtime binding contract](specs/runtime/RUNTIME-BINDING-1.0.md) and its
+  [version 2.0](specs/runtime/RUNTIME-BINDING-2.0.md);
 - [runtime conformance vectors](specs/runtime/RUNTIME-VECTORS-1.0.md);
 - [cross-component composition contract](specs/composition/COMPOSITION-1.0.md);
+- [interoperability vectors](specs/composition/INTEROP-VECTORS-1.0.md), opt-in for the components that claim Arrow geometry semantics;
+- [REST-to-Arrow adapter contract](specs/composition/REST-ARROW-ADAPTER-1.0.md);
 - [CLI contract](specs/cli/CLI-2.0.md);
 - [Python SDK contract](specs/sdk/PYTHON-SDK-1.0.md);
 - the versioned JSON Schemas in [schemas](schemas/README.md);
