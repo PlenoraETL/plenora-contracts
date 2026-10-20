@@ -30,6 +30,20 @@ def stricter_error(schema: dict) -> dict:
 
 
 class VerdictCacheTests(unittest.TestCase):
+    def test_a_reused_id_does_not_return_another_registry_key(self):
+        documents = schemas()
+        before = validator.schema_registry(documents)
+        after = validator.schema_registry(dict(documents, **{ERROR: stricter_error(documents[ERROR])}))
+        gate = gate_fuzz.Gate()
+        before_key = gate._registry_key(before)
+        # Simulate an id collision without relying on allocator behavior.
+        gate.registries[id(after)] = gate.registries[id(before)]
+        after_key = gate._registry_key(after)
+        self.assertNotEqual(before_key, after_key)
+        self.assertEqual(after_key, gate_fuzz.Gate()._registry_key(after))
+        self.assertIs(gate.registries[id(after)][0], after)
+        self.assertEqual(gate._registry_key(before), before_key)
+
     def test_the_key_includes_the_referenced_schemas(self):
         """Same schema, same instance, another registry: the `$ref` of the
         envelope resolves to another error schema, so the verdict differs."""
@@ -78,6 +92,37 @@ class VerdictCacheTests(unittest.TestCase):
 
 
 class EndToEndTests(unittest.TestCase):
+    def test_only_baseline_registries_survive_many_runs(self):
+        path = (ROOT / "schemas" / ERROR).resolve()
+        document = validator.load_json(path)
+        with gate_fuzz.Gate() as gate:
+            baseline = gate.registries.copy()
+            self.assertEqual(len(baseline), 1)
+            for index in range(100):
+                mutated = copy.deepcopy(document)
+                mutated["required"] = list(mutated["required"]) + [f"missing_{index}"]
+                content = (json.dumps(mutated) + "\n").encode("utf-8")
+                result = gate.run((path, content))
+                self.assertNotEqual(result[0], 0)
+                self.assertEqual(gate.registries, baseline)
+                if index % 25 == 0:
+                    self.assertEqual(result, gate.run_complete((path, content)))
+                    self.assertEqual(gate.registries, baseline)
+
+    def test_failed_runs_also_release_registries(self):
+        with gate_fuzz.Gate() as gate:
+            baseline = gate.registries.copy()
+
+            def fail():
+                gate._registry_key(validator.schema_registry({}))
+                self.assertGreater(len(gate.registries), len(baseline))
+                raise ValueError("failed mutation")
+
+            with patch.object(validator, "main", fail):
+                self.assertEqual(gate.run(None)[0], "ValueError")
+            self.assertEqual(gate.registries, baseline)
+            self.assertIsNone(gate.target)
+
     def test_a_mutated_referenced_schema_reaches_the_envelope(self):
         """In the harness, mutating error-v1 makes the CLI error envelope
         fail through its `$ref`, in the memoized run and in the oracle."""

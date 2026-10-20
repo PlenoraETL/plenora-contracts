@@ -115,6 +115,7 @@ class Gate:
         # A registry's content, by the registry kept alive: an `id` alone
         # could be reused by the registry of a later run.
         self.registries: dict[int, tuple[Any, Any]] = {}
+        self._baseline_registries: dict[int, tuple[Any, Any]] = {}
         self.checked: set[int] = set()
         self.target_texts: set[str] = set()
         self.resolved: dict[str, Path | None] = {}
@@ -299,6 +300,7 @@ class Gate:
                 stack.enter_context(patch.object(validator, name, self._wrap(name, function)))
         self._stack = stack
         self.baseline_output = self.run(None)
+        self._baseline_registries = self.registries.copy()
         self.baseline_run = False
         return self
 
@@ -319,7 +321,12 @@ class Gate:
                 status: Any = validator.main()
             except Exception as error:  # noqa: BLE001 - what the fuzzers look for
                 status = type(error).__name__
-        self.target = None
+            finally:
+                self.target = None
+                if not self.baseline_run:
+                    # Keep the baseline hot, but release each mutation's
+                    # registry and schemas, including after a failed run.
+                    self.registries = self._baseline_registries.copy()
         return status, out.getvalue() + err.getvalue()
 
     def run_complete(self, target: tuple[Path, bytes] | None) -> tuple[Any, str]:
