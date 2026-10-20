@@ -75,6 +75,38 @@ class Decision0022Tests(unittest.TestCase):
         vector["surface_outputs"]["rust"]["rows"][0]["measurement"] = 99
         self.assertTrue(interop.vector_errors(path, vector, *gate_inputs(), KERNELS))
 
+    def test_null_surface_metadata_is_a_clean_rejection(self):
+        table = {"schema_metadata": {"plenora.contract.version": "1"},
+                 "fields": [{"name": "SECRET_FIELD", "type": "int32",
+                             "nullable": False, "metadata": {}}],
+                 "rows": [{"SECRET_FIELD": 7}]}
+        vector = {"expected_output": table, "assigned_field_ids": [0]}
+        actual = copy.deepcopy(table)
+        actual["fields"][0]["metadata"] = None
+        self.assertEqual(interop.output_errors(vector, table, actual),
+                         ["output comparison requires well-formed table fixtures"])
+
+    def test_surface_members_with_unexpected_types_are_rejected_without_data(self):
+        _, vector, table, original = self.assignment()
+        paths = [("schema_metadata",), ("fields",), ("fields", 0),
+                 ("fields", 0, "name"), ("fields", 0, "type"),
+                 ("fields", 0, "nullable"), ("fields", 0, "metadata"),
+                 ("fields", 0, "metadata", "plenora.field_id"),
+                 ("rows",), ("rows", 0), ("rows", 0, "measurement")]
+        for path in paths:
+            for value in (None, [], {}, True, 17, "SECRET_VALUE"):
+                actual = copy.deepcopy(original)
+                node = actual
+                for key in path[:-1]:
+                    node = node[key]
+                if type(node[path[-1]]) is type(value):
+                    continue
+                node[path[-1]] = value
+                with self.subTest(path=path, value=value):
+                    errors = interop.output_errors(vector, table, actual)
+                    self.assertTrue(errors)
+                    self.assertNotIn("SECRET", str(errors))
+
     def test_assignment_rejects_missing_and_noncanonical_ids_without_data(self):
         _, vector, table, actual = self.assignment()
         for value in (None, "", "00", "01", "-1", "+1", "1.0", " 1", "1\n", "١", "SECRET"):

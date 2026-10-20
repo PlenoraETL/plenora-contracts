@@ -281,11 +281,42 @@ def difference(left: Any, right: Any, path: str = "") -> str | None:
     return None if left == right else (path or "/")
 
 
+def _table_shape(table: Any) -> bool:
+    """The open output fixtures must be checked before Arrow rules read them."""
+    def metadata(value: Any) -> bool:
+        return isinstance(value, dict) and all(isinstance(item, str) for item in value.values())
+
+    if not isinstance(table, dict) or not metadata(table.get("schema_metadata")):
+        return False
+    fields, rows = table.get("fields"), table.get("rows")
+    return (
+        isinstance(fields, list) and bool(fields)
+        and all(
+            isinstance(field, dict)
+            and isinstance(field.get("name"), str) and bool(field["name"])
+            and isinstance(field.get("type"), str)
+            and field["type"] in {"bool", "int32", "int64", "float64", "utf8", "large_utf8", "binary", "large_binary"}
+            and isinstance(field.get("nullable"), bool)
+            and metadata(field.get("metadata"))
+            for field in fields
+        )
+        and isinstance(rows, list) and all(isinstance(row, dict) for row in rows)
+    )
+
+
 def output_errors(vector: dict[str, Any], table: dict[str, Any], actual: dict[str, Any]) -> list[str]:
     """Decision 0022: compare a result, allowing only declared fresh IDs to vary."""
+    if not all(_table_shape(value) for value in (table, vector.get("expected_output"), actual)):
+        return ["output comparison requires well-formed table fixtures"]
+    positions = vector.get("assigned_field_ids", [])
+    if not isinstance(positions, list) or any(
+        not isinstance(position, int) or isinstance(position, bool) or position < 0
+        for position in positions
+    ):
+        return ["assigned field positions must be nonnegative integers"]
     compared = copy.deepcopy(actual)
     errors = []
-    for position in vector.get("assigned_field_ids", []):
+    for position in positions:
         if position >= min(len(table["fields"]), len(compared["fields"]),
                            len(vector["expected_output"]["fields"])):
             errors.append("assigned field position is outside the table")
@@ -302,7 +333,12 @@ def output_errors(vector: dict[str, Any], table: dict[str, Any], actual: dict[st
     where = difference(vector["expected_output"], compared)
     if where is not None:
         errors.append(f"expected_output differs from the recomputed table at {where}")
-    if arrow_data.verdict(dict(actual, expect="valid")) is not None:
+    try:
+        rejected = arrow_data.verdict(dict(actual, expect="valid")) is not None
+    except arrow_data.FixtureError:
+        # A malformed fixture is a document rejection, not a validator defect.
+        return errors + ["the output is not a buildable table"]
+    if rejected:
         errors.append("the expected output is not a valid table of the vocabulary")
     return errors
 
@@ -315,7 +351,7 @@ def surface_output_errors(
     Each output may choose fresh IDs, but every surface must observe the
     same assignment. Surface labels and table data never enter diagnostics.
     """
-    if len(outputs) < 2:
+    if not isinstance(outputs, dict) or len(outputs) < 2:
         return ["at least two surface outputs are required (decision 0022 rule 3)"]
     errors = []
     reference = next(iter(outputs.values()))

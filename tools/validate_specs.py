@@ -2416,7 +2416,7 @@ def validate_interop_violating(
     for relative, rule in INTEROP_VIOLATING.items():
         path = ROOT / relative
         document = load_json(path)
-        assignment = document.get("contract") == "plenora-interop-assignment-vector-v1"
+        assignment = relative == "examples/invalid/interop-assignment-vector-divergent-surfaces.json"
         schema_name = "interop-assignment-vector-v1.schema.json" if assignment else "interop-vector-v1.schema.json"
         if instance_errors(schemas[schema_name], document, registry):
             failures.append(f"{relative} must be accepted by the schema so that it probes the gate")
