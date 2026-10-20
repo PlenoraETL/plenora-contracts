@@ -12,6 +12,7 @@ from uuid import UUID
 
 import arrow_data
 import interop_vectors
+import file_interop
 import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
 from json_values import JsonInteger, document_key, loads, number_text, same_document, same_value
@@ -45,6 +46,9 @@ MAX_ERROR_DETAILS_STRING_BYTES = 4_096
 MAX_ERROR_DETAILS_NODES = 2_048
 
 EXPECTED_SCHEMAS = {
+    "file-interchange-v1.schema.json",
+    "file-interop-vector-v1.schema.json",
+    "file-composition-v1.schema.json",
     "adoption-manifest-v1.schema.json",
     "adoption-manifest-v2.schema.json",
     "adoption-manifest-v3.schema.json",
@@ -678,6 +682,10 @@ def validate_machine_documents(
         ),
         "surface-bindings-v1.schema.json": sorted((ROOT / "bindings").glob("*.json")),
         "composition-v1.schema.json": [ROOT / "composition/pipelines-v1.json"],
+        "file-composition-v1.schema.json": [ROOT / "composition/file-pipelines-v1.json"],
+        "file-interop-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/file-interop-v1").glob("*.json")
+        ),
         "arrow-metadata-vector-v1.schema.json": sorted(
             (ROOT / "vectors/arrow-v1").glob("*.json")
         ),
@@ -1853,6 +1861,17 @@ def io_python_errors(python_document: dict[str, Any]) -> list[str]:
             failures.append(
                 f"{contract_name(binding['operation'])} must bind its canonical Client methods only"
             )
+    return failures
+
+
+def validate_file_interop(catalogs: dict[str, dict[str, Any]]) -> list[str]:
+    document = load_json(ROOT / "composition/file-pipelines-v1.json")
+    failures = file_interop.composition_errors(document, operation_index(catalogs))
+    paths = sorted((ROOT / "vectors/file-interop-v1").glob("*.json"))
+    if not paths:
+        failures.append("FILE-007: missing file vectors.")
+    for path in paths:
+        failures.extend(file_interop.vector_errors(load_json(path), document["edges"]))
     return failures
 
 
@@ -3522,6 +3541,7 @@ def run_gate() -> int:
     failures.extend(validate_rest_examples(schemas, registry, catalogs[REST_COMPONENT]))
     failures.extend(validate_bindings(catalogs))
     failures.extend(validate_composition(catalogs))
+    failures.extend(validate_file_interop(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_arrow_data_vectors())
     failures.extend(validate_interop_vectors(catalogs, schemas, registry))
@@ -3544,6 +3564,7 @@ def run_gate() -> int:
     invalid_count = sum(len(paths) for paths in CASES["invalid"].values())
     vector_count = len(list((ROOT / "vectors").glob("**/*.json")))
     composition_count = len(load_json(ROOT / "composition/pipelines-v1.json")["edges"])
+    composition_count += len(load_json(ROOT / "composition/file-pipelines-v1.json")["edges"])
     # Every figure is counted from what the run checked, never written down.
     probe_count = len(ERROR_BOUND_PROBES) + sum(ERROR_BOUND_CASES.values())
     binding_count = len(list((ROOT / "bindings").glob("*.json")))

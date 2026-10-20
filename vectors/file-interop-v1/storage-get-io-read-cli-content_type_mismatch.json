@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "contract": "plenora-file-interop-vector-v1",
+  "description": "Normative file handoff with exact GeoJSON bytes.",
+  "edge": {
+    "from": {
+      "operation": {
+        "component": "plenora-storage-tools",
+        "operation": "storage.get",
+        "version": 1
+      },
+      "envelope_contract": "plenora-storage-get-output-v1",
+      "artifact_form": "file_reference"
+    },
+    "to": {
+      "operation": {
+        "component": "plenora-io-tools",
+        "operation": "io.read",
+        "version": 2
+      },
+      "envelope_contract": "plenora-io-read-input-v1",
+      "artifact_form": "file_reference"
+    },
+    "surface": "cli",
+    "mode": "direct",
+    "interchange_contract": "plenora-file-interchange-v1",
+    "content_type": "application/geo+json",
+    "format_family": "geojson"
+  },
+  "file": {
+    "schema_version": 1,
+    "contract": "plenora-file-interchange-v1",
+    "content_type": "application/geo+json",
+    "size_bytes": 43,
+    "sha256": "6d18edfe75b3149104038dcbca4d0096bbcb923f0f9fa4b49f4815344e75bb90",
+    "producer": {
+      "component": "plenora-storage-tools",
+      "operation": "storage.get",
+      "version": 1
+    },
+    "format_family": "geojson",
+    "reference": {
+      "surface": "cli",
+      "kind": "local_path",
+      "path": "fixtures/collection.geojson"
+    }
+  },
+  "consumer": {
+    "content_types": [
+      "application/geo+json"
+    ],
+    "format_families": [
+      "geojson"
+    ]
+  },
+  "resolved": {
+    "content_type": "text/plain",
+    "bytes_hex": "7b2274797065223a2246656174757265436f6c6c656374696f6e222c226665617475726573223a5b5d7d0a"
+  },
+  "expect": {
+    "outcome": "error",
+    "cause": "content_type_mismatch",
+    "category": "schema",
+    "phase": "validate",
+    "remote_effect": "none",
+    "retry": "never",
+    "message": "File handoff rejected."
+  }
+}
