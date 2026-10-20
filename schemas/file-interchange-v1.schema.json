@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/file-interchange-v1.schema.json",
+  "title": "Plenora file interchange v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract",
+    "content_type",
+    "size_bytes",
+    "sha256",
+    "producer",
+    "format_family",
+    "reference"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "contract": {
+      "const": "plenora-file-interchange-v1"
+    },
+    "content_type": {
+      "type": "string",
+      "pattern": "^[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+-]+$"
+    },
+    "size_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "operation",
+        "version"
+      ],
+      "properties": {
+        "component": {
+          "type": "string",
+          "pattern": "^plenora-[a-z][a-z0-9-]+-tools$"
+        },
+        "operation": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "format_family": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "reference": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "surface",
+            "kind",
+            "path"
+          ],
+          "properties": {
+            "surface": {
+              "const": "cli"
+            },
+            "kind": {
+              "const": "local_path"
+            },
+            "path": {
+              "type": "string",
+              "pattern": "^[^\\u0000\\r\\n]+$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "surface",
+            "kind",
+            "token"
+          ],
+          "properties": {
+            "surface": {
+              "const": "runtime"
+            },
+            "kind": {
+              "const": "authorized_reference"
+            },
+            "token": {
+              "type": "string",
+              "pattern": "^artifact:[A-Za-z0-9_-]{1,128}$"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
