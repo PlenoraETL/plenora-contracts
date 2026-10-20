@@ -3,7 +3,7 @@
   "schema_version": 1,
   "contract": "plenora-interop-assignment-vector-v1",
   "kind": "handoff",
-  "description": "Decision 0022 rule 2: a field written without an incoming ID receives a canonical decimal ID on store read; no assigned value is prescribed.",
+  "description": "Decision 0022 rules 2 and 3: CLI and Rust read the same field in the same store after one write without an incoming ID; the assigned value is free but identical across surfaces.",
   "input": "../arrow-data-v1/store-field-without-id.json",
   "chain": [
     {
@@ -47,5 +47,47 @@
   },
   "assigned_field_ids": [
     0
-  ]
+  ],
+  "surface_outputs": {
+    "cli": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "measurement",
+          "type": "int64",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "17"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "measurement": 42
+        }
+      ]
+    },
+    "rust": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "measurement",
+          "type": "int64",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "17"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "measurement": 42
+        }
+      ]
+    }
+  }
 }

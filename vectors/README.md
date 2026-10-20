@@ -9,6 +9,7 @@ adds these cases:
 |---|---|---|
 | Rule 1: preserve an incoming ID across database write/read | [round trip](interop-v1/handoff-field-id-round-trip.json) | `tools/interop_vectors.py` |
 | Rule 2: assign an ID to a field written without one | [store assignment](interop-assignment-v1/handoff-store-assigned-field-id.json) | `tools/interop_vectors.py` |
+| Rule 3: identical assigned IDs across surfaces of the same store | [store assignment](interop-assignment-v1/handoff-store-assigned-field-id.json), [divergent surfaces rejected](../examples/invalid/interop-assignment-vector-divergent-surfaces.json) | `tools/interop_vectors.py` |
 | Rule 4: accept `mixed` without a type list | [mixed](arrow-v1/mixed-without-types.json) | `tools/validate_specs.py` |
 | Vocabulary section 3: reject an empty type list | [empty types](arrow-v1/invalid-mixed-empty-types.json) | `tools/validate_specs.py` |
 
@@ -21,8 +22,12 @@ field positions whose input and expected metadata omit `plenora.field_id`.
 The output comparison requires a canonical decimal ID at each position and
 uniqueness within the output schema; all other content is compared exactly.
 It does not prescribe a particular assigned value. The reference evaluator
-uses `assign_field_ids` to produce a sample result; a component harness passes
-its actual output to `interop_vectors.output_errors(vector, input, actual)`.
+uses `assign_field_ids` to produce a sample result. `surface_outputs` maps at
+least two distinct surface labels to readings of the final operation on the
+same store after the chain's single write. Each reading is validated against
+the expected output, then compared with the first reading including assigned
+IDs. A component harness passes all these readings together to
+`interop_vectors.surface_output_errors(vector, input, outputs)`.
 In this new format, the assignment predicate allows any canonical decimal
 that is unique in the schema. The exact comparison and smallest-free-ID
 expectation of published interop v1 vectors remain unchanged.

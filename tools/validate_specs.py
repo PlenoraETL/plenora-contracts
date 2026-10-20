@@ -2388,6 +2388,7 @@ def validate_interop_vectors(
 # the rule its value names: without them, a check of the gate could vanish
 # and the published vectors, all conforming, would stay green.
 INTEROP_VIOLATING = {
+    "examples/invalid/interop-assignment-vector-divergent-surfaces.json": "decision 0022 rule 3",
     "examples/invalid/interop-vector-handoff-single-json-step.json": "INTEROP-002",
     "examples/invalid/interop-vector-handoff-database-write-as-ipc.json": "INTEROP-002",
     "examples/invalid/interop-vector-source-format-mismatch.json": "INTEROP-001",
@@ -2415,11 +2416,13 @@ def validate_interop_violating(
     for relative, rule in INTEROP_VIOLATING.items():
         path = ROOT / relative
         document = load_json(path)
-        if instance_errors(schemas["interop-vector-v1.schema.json"], document, registry):
+        assignment = document.get("contract") == "plenora-interop-assignment-vector-v1"
+        schema_name = "interop-assignment-vector-v1.schema.json" if assignment else "interop-vector-v1.schema.json"
+        if instance_errors(schemas[schema_name], document, registry):
             failures.append(f"{relative} must be accepted by the schema so that it probes the gate")
             continue
         # Its input path is the schema's, relative to the published vectors.
-        published = ROOT / "vectors/interop-v1" / path.name
+        published = ROOT / "vectors" / ("interop-assignment-v1" if assignment else "interop-v1") / path.name
         errors = interop_vectors.vector_errors(published, document, operations, direct, load_json, latest_kernel_ids())
         if not errors or not all(rule in error for error in errors):
             failures.append(f"{relative} must be refused by {rule} and by no other check")

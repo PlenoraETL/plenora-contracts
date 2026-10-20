@@ -32,11 +32,48 @@ class Decision0022Tests(unittest.TestCase):
                       interop.vector_errors(path, vector, *gate_inputs(), KERNELS))
 
     def test_assignment_does_not_fix_a_value(self):
-        _, vector, table, actual = self.assignment()
+        path, vector, table, actual = self.assignment()
         for value in ("0", "17", "982451653"):
             with self.subTest(value=value):
                 actual["fields"][0]["metadata"]["plenora.field_id"] = value
                 self.assertEqual(interop.output_errors(vector, table, actual), [])
+                vector["surface_outputs"] = {"cli": copy.deepcopy(actual), "rust": copy.deepcopy(actual)}
+                self.assertEqual(interop.vector_errors(path, vector, *gate_inputs(), KERNELS), [])
+
+    def test_assignment_rejects_divergent_surfaces_without_data(self):
+        path, _, table, _ = self.assignment()
+        vector = validator.load_json(
+            validator.ROOT / "examples/invalid/interop-assignment-vector-divergent-surfaces.json")
+        expected = ["surface 1 differs from the first surface at "
+                    "/fields/0/metadata/#0 (decision 0022 rule 3)"]
+        self.assertEqual(interop.vector_errors(path, vector, *gate_inputs(), KERNELS), expected)
+        outputs = vector["surface_outputs"]
+        for actual in outputs.values():
+            self.assertEqual(interop.output_errors(vector, table, actual), [])
+        vector["surface_outputs"] = dict(zip(("SECRET_CLI", "SECRET_RUST"), outputs.values()))
+        self.assertEqual(interop.vector_errors(path, vector, *gate_inputs(), KERNELS), expected)
+
+    def test_assignment_requires_multiple_surfaces(self):
+        _, vector, table, _ = self.assignment()
+        schemas = {name: validator.load_json(validator.ROOT / "schemas" / name)
+                   for name in validator.EXPECTED_SCHEMAS}
+        registry = validator.schema_registry(schemas)
+        schema = schemas["interop-assignment-vector-v1.schema.json"]
+        self.assertEqual(validator.instance_errors(schema, vector, registry), [])
+        del vector["surface_outputs"]["rust"]
+        self.assertTrue(validator.instance_errors(schema, vector, registry))
+        self.assertTrue(interop.surface_output_errors(vector, table, vector["surface_outputs"]))
+        del vector["surface_outputs"]
+        self.assertTrue(validator.instance_errors(schema, vector, registry))
+
+    def test_surface_outputs_are_individually_validated(self):
+        path, vector, _, _ = self.assignment()
+        vector["surface_outputs"]["rust"]["fields"][0]["metadata"].clear()
+        self.assertIn("surface 1: assigned field id must be a canonical decimal",
+                      interop.vector_errors(path, vector, *gate_inputs(), KERNELS))
+        vector["surface_outputs"]["rust"] = copy.deepcopy(vector["surface_outputs"]["cli"])
+        vector["surface_outputs"]["rust"]["rows"][0]["measurement"] = 99
+        self.assertTrue(interop.vector_errors(path, vector, *gate_inputs(), KERNELS))
 
     def test_assignment_rejects_missing_and_noncanonical_ids_without_data(self):
         _, vector, table, actual = self.assignment()

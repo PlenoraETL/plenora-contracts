@@ -307,6 +307,28 @@ def output_errors(vector: dict[str, Any], table: dict[str, Any], actual: dict[st
     return errors
 
 
+def surface_output_errors(
+    vector: dict[str, Any], table: dict[str, Any], outputs: dict[str, dict[str, Any]]
+) -> list[str]:
+    """Decision 0022 rule 3: readings of one operation on the same store.
+
+    Each output may choose fresh IDs, but every surface must observe the
+    same assignment. Surface labels and table data never enter diagnostics.
+    """
+    if len(outputs) < 2:
+        return ["at least two surface outputs are required (decision 0022 rule 3)"]
+    errors = []
+    reference = next(iter(outputs.values()))
+    for position, actual in enumerate(outputs.values()):
+        errors.extend(f"surface {position}: {error}" for error in output_errors(vector, table, actual))
+        where = difference(reference, actual)
+        if where is not None:
+            errors.append(
+                f"surface {position} differs from the first surface at {where} (decision 0022 rule 3)"
+            )
+    return errors
+
+
 # --- the operation in the order (REJ-002) ----------------------------------------
 
 def computes(step: dict[str, Any], kernels: set[str]) -> bool:
@@ -697,4 +719,7 @@ def vector_errors(
     except ValueError:
         return errors + ["transformations cannot apply"]
     expected = expected_output(table, vector["chain"])
-    return errors + output_errors(vector, table, expected)
+    errors += output_errors(vector, table, expected)
+    if vector.get("contract") == "plenora-interop-assignment-vector-v1":
+        errors += surface_output_errors(vector, table, vector["surface_outputs"])
+    return errors

@@ -46,8 +46,10 @@ the re-entries of the three issues.
    where the vocabulary itself says so — today nowhere).
 4. **`mixed` without an enumerable list omits `plenora.geometry.types`.**
    The key, when present, holds one or more canonical types; the empty
-   string is not a value. A producer that can enumerate SHOULD enumerate,
-   in canonical order without duplicates, as §3 already requires.
+   string is not a value. As a new recommendation of this decision — the
+   published §3 only constrains the list's order and uniqueness when the
+   key is present — a producer that can enumerate SHOULD enumerate, in
+   canonical order without duplicates.
 
 ## Consequences
 
