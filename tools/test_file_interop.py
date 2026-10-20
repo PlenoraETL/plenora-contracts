@@ -4,6 +4,7 @@ import copy
 import unittest
 
 import file_interop
+import gate_fuzz
 import validate_specs as validator
 
 
@@ -67,6 +68,45 @@ class FileInteropTests(unittest.TestCase):
             v = self.positive()
             v["file"][key] = value
             self.assertTrue(self.errors(v))
+
+    def test_descriptor_patterns_reject_trailing_controls(self):
+        for field in (("content_type",), ("sha256",), ("format_family",),
+                      ("producer", "component"), ("producer", "operation")):
+            for control in ("\n", "\r", "\t"):
+                with self.subTest(field=field, control=repr(control)):
+                    v = self.positive()
+                    target = v["file"]
+                    for key in field[:-1]:
+                        target = target[key]
+                    target[field[-1]] += control
+                    self.assertTrue(self.errors(v))
+
+    def test_reference_controls_rejected_by_schema_and_complete_gate(self):
+        with gate_fuzz.Gate() as gate:
+            self.assertEqual(gate.baseline_output[0], 0, gate.baseline_output[1])
+            for surface, key, value in (
+                ("runtime", "token", "artifact:collection"),
+                ("cli", "path", "./collection.geojson"),
+            ):
+                path = (validator.ROOT / "vectors/file-interop-v1"
+                        / f"io-write-storage-put-{surface}-accepted.json").resolve()
+                original = gate_fuzz.parse(path.read_text(encoding="utf-8"))
+                for control in ("\n", "\r", "\t", "\r\n", "\0", "\x1f", "\x7f"):
+                    for position in (0, len(value) // 2, len(value)):
+                        with self.subTest(surface=surface, control=repr(control),
+                                          position=position):
+                            document = copy.deepcopy(original)
+                            document["file"]["reference"][key] = (
+                                value[:position] + control + value[position:])
+                            content = gate_fuzz.serialize(document)
+                            instance = validator.loads_json(content.decode("utf-8"))
+                            self.assertTrue(validator.instance_errors(
+                                self.schemas["file-interchange-v1.schema.json"],
+                                instance["file"], self.registry))
+                            self.assertTrue(self.errors(instance))
+                            status, output = gate.run_complete((path, content))
+                            self.assertEqual(status, 1, output)
+                            self.assertIn("/properties/file/properties/reference/oneOf", output)
 
     def test_version_surface_and_edge_are_checked(self):
         for change in (
