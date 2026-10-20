@@ -281,6 +281,32 @@ def difference(left: Any, right: Any, path: str = "") -> str | None:
     return None if left == right else (path or "/")
 
 
+def output_errors(vector: dict[str, Any], table: dict[str, Any], actual: dict[str, Any]) -> list[str]:
+    """Decision 0022: compare a result, allowing only declared fresh IDs to vary."""
+    compared = copy.deepcopy(actual)
+    errors = []
+    for position in vector.get("assigned_field_ids", []):
+        if position >= min(len(table["fields"]), len(compared["fields"]),
+                           len(vector["expected_output"]["fields"])):
+            errors.append("assigned field position is outside the table")
+            continue
+        incoming = table["fields"][position]["metadata"]
+        expected = vector["expected_output"]["fields"][position].get("metadata")
+        metadata = compared["fields"][position]["metadata"]
+        if (not isinstance(expected, dict) or "plenora.field_id" in incoming
+                or "plenora.field_id" in expected):
+            errors.append("assigned field must omit its incoming and expected field id")
+        value = metadata.pop("plenora.field_id", None)
+        if not isinstance(value, str) or not arrow_data.DECIMAL.fullmatch(value):
+            errors.append("assigned field id must be a canonical decimal")
+    where = difference(vector["expected_output"], compared)
+    if where is not None:
+        errors.append(f"expected_output differs from the recomputed table at {where}")
+    if arrow_data.verdict(dict(actual, expect="valid")) is not None:
+        errors.append("the expected output is not a valid table of the vocabulary")
+    return errors
+
+
 # --- the operation in the order (REJ-002) ----------------------------------------
 
 def computes(step: dict[str, Any], kernels: set[str]) -> bool:
@@ -671,9 +697,4 @@ def vector_errors(
     except ValueError:
         return errors + ["transformations cannot apply"]
     expected = expected_output(table, vector["chain"])
-    where = difference(vector["expected_output"], expected)
-    if where is not None:
-        errors.append(f"expected_output differs from the recomputed table at {where}")
-    if arrow_data.verdict(dict(expected, expect="valid")) is not None:
-        errors.append("the expected output is not a valid table of the vocabulary")
-    return errors
+    return errors + output_errors(vector, table, expected)

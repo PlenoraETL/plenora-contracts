@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/interop-assignment-vector-v1.schema.json",
+  "title": "Plenora interoperability assignment vector v1",
+  "description": "Decision 0022 rule 2: exact handoff output except fresh field IDs, constrained to canonical decimals and schema uniqueness.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract",
+    "kind",
+    "description",
+    "input",
+    "chain",
+    "expected_output",
+    "assigned_field_ids"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "contract": {
+      "const": "plenora-interop-assignment-vector-v1"
+    },
+    "kind": {
+      "const": "handoff"
+    },
+    "assigned_field_ids": {
+      "description": "Zero-based positions of unchanged fields without incoming IDs. Expected metadata omits these IDs; actual output must assign canonical decimal IDs.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "description": {
+      "$ref": "interop-vector-v1.schema.json#/properties/description"
+    },
+    "input": {
+      "$ref": "interop-vector-v1.schema.json#/properties/input"
+    },
+    "chain": {
+      "$ref": "interop-vector-v1.schema.json#/properties/chain"
+    },
+    "expected_output": {
+      "$ref": "interop-vector-v1.schema.json#/properties/expected_output"
+    }
+  }
+}

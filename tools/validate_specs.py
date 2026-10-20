@@ -60,6 +60,7 @@ EXPECTED_SCHEMAS = {
     "data-plan-v1.schema.json",
     "error-v1.schema.json",
     "interop-vector-v1.schema.json",
+    "interop-assignment-vector-v1.schema.json",
     "operation-registry-v1.schema.json",
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
@@ -686,6 +687,9 @@ def validate_machine_documents(
         ),
         "interop-vector-v1.schema.json": sorted(
             (ROOT / "vectors/interop-v1").glob("*.json")
+        ),
+        "interop-assignment-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/interop-assignment-v1").glob("*.json")
         ),
         "runtime-vector-v1.schema.json": runtime_vector_paths(),
         "runtime-probe-v1.schema.json": sorted(
@@ -2264,6 +2268,8 @@ def arrow_semantic_errors(vector: dict[str, Any]) -> list[str]:
         if declaration == "unresolved" and type_text is not None:
             errors.append(f"field {position} unresolved geometry types are present")
         if type_text is not None:
+            if type_text == "":
+                errors.append(f"field {position} geometry types are empty")
             values = type_text.split(",") if type_text else []
             try:
                 positions = [ARROW_TYPES.index(value) for value in values]
@@ -2353,6 +2359,7 @@ def validate_interop_vectors(
     paths = sorted((ROOT / "vectors/interop-v1").glob("*.json"))
     if not paths:
         return ["vectors/interop-v1 has no vectors"]
+    paths += sorted((ROOT / "vectors/interop-assignment-v1").glob("*.json"))
     # The kernels of the current registry; none without one, which
     # data_registry_errors reports (a geo plan then names no kernel).
     kernels = latest_kernel_ids()
@@ -2364,7 +2371,10 @@ def validate_interop_vectors(
     for path in paths:
         label = path.relative_to(ROOT).as_posix()
         vector = load_json(path)
-        if instance_errors(schemas["interop-vector-v1.schema.json"], vector, registry):
+        schema_name = ("interop-assignment-vector-v1.schema.json"
+                       if path.parent.name == "interop-assignment-v1"
+                       else "interop-vector-v1.schema.json")
+        if instance_errors(schemas[schema_name], vector, registry):
             continue
         for problem in interop_vectors.vector_errors(path, vector, operations, direct, load_json, kernels):
             failures.append(f"{label} {problem}")
