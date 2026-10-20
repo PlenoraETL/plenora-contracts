@@ -55,6 +55,10 @@ jobs:
         run: python tools/check_schema_immutability.py
       - name: Regression tests for the conformance gates
         run: python -m unittest discover -s tools -p 'test_*.py'
+      - name: Comment quality
+        run: python tools/check_comments.py
+      - name: Documentation quality
+        run: python tools/check_docs.py
       - run: python tools/validate_specs.py
 
   # Copertura della logica dei gate (soglia in .coveragerc). Una sola
@@ -98,5 +102,7 @@ jobs:
           python -m coverage run -m unittest discover -s tools -p 'test_*.py'
           python -m coverage run -a tools/check_schema_immutability.py
           python -m coverage run -a tools/validate_specs.py
+          python -m coverage run -a tools/check_comments.py
+          python -m coverage run -a tools/check_docs.py
       - name: Coverage budget
         run: python -m coverage report

@@ -1,6 +1,6 @@
 # Copertura dei gate di validazione: si misura la logica che decide l'esito
-# (validatore, controlli di conformita, gate di immutabilita), non i test.
-# La misura somma la suite unittest e le corse reali dei due gate, come le
+# (validatore, conformita, immutabilita, commenti e documentazione), non i test.
+# La misura somma la suite unittest e le corse reali dei gate, come le
 # esegue il job `validate`.
 #
 # Soglia: il valore misurato all'introduzione, arrotondato per difetto. Una
