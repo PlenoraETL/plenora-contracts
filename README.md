@@ -136,8 +136,19 @@ Locally:
 python -m pip install --require-hashes -r requirements-validation.txt
 PLENORA_SCHEMA_BASE=<full commit SHA> python tools/check_schema_immutability.py
 python -m unittest discover -s tools -p 'test_*.py'
+python tools/check_comments.py
+python tools/check_docs.py
 python tools/validate_specs.py
 ```
+
+The comment gate checks comments and Python docstrings in `tools/`, `examples/`,
+`templates/` and `.github/workflows/` for anonymous debt and process history.
+The documentation gate checks local links and anchors, Python commands under
+`tools/`, balanced code fences and Python example syntax in root Markdown files,
+`decisions/`, `specs/`, `proposals/` and `conformance/`.
+Both gates exclude the immutable contractual trees `schemas/`, `catalogs/`,
+`vectors/`, `bindings/`, `composition/` and `profiles/`; contract data is not
+rewritten to satisfy prose quality rules.
 
 `requirements-*.in` list the direct tools with the reason for each pin;
 `requirements-*.txt` are the complete hashed locks generated from them by the
