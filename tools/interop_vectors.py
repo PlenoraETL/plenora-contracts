@@ -281,6 +281,90 @@ def difference(left: Any, right: Any, path: str = "") -> str | None:
     return None if left == right else (path or "/")
 
 
+def _table_shape(table: Any) -> bool:
+    """The open output fixtures must be checked before Arrow rules read them."""
+    def metadata(value: Any) -> bool:
+        return isinstance(value, dict) and all(isinstance(item, str) for item in value.values())
+
+    if not isinstance(table, dict) or not metadata(table.get("schema_metadata")):
+        return False
+    fields, rows = table.get("fields"), table.get("rows")
+    return (
+        isinstance(fields, list) and bool(fields)
+        and all(
+            isinstance(field, dict)
+            and isinstance(field.get("name"), str) and bool(field["name"])
+            and isinstance(field.get("type"), str)
+            and field["type"] in {"bool", "int32", "int64", "float64", "utf8", "large_utf8", "binary", "large_binary"}
+            and isinstance(field.get("nullable"), bool)
+            and metadata(field.get("metadata"))
+            for field in fields
+        )
+        and isinstance(rows, list) and all(isinstance(row, dict) for row in rows)
+    )
+
+
+def output_errors(vector: dict[str, Any], table: dict[str, Any], actual: dict[str, Any]) -> list[str]:
+    """Decision 0022: compare a result, allowing only declared fresh IDs to vary."""
+    if not all(_table_shape(value) for value in (table, vector.get("expected_output"), actual)):
+        return ["output comparison requires well-formed table fixtures"]
+    positions = vector.get("assigned_field_ids", [])
+    if not isinstance(positions, list) or any(
+        not isinstance(position, int) or isinstance(position, bool) or position < 0
+        for position in positions
+    ):
+        return ["assigned field positions must be nonnegative integers"]
+    compared = copy.deepcopy(actual)
+    errors = []
+    for position in positions:
+        if position >= min(len(table["fields"]), len(compared["fields"]),
+                           len(vector["expected_output"]["fields"])):
+            errors.append("assigned field position is outside the table")
+            continue
+        incoming = table["fields"][position]["metadata"]
+        expected = vector["expected_output"]["fields"][position].get("metadata")
+        metadata = compared["fields"][position]["metadata"]
+        if (not isinstance(expected, dict) or "plenora.field_id" in incoming
+                or "plenora.field_id" in expected):
+            errors.append("assigned field must omit its incoming and expected field id")
+        value = metadata.pop("plenora.field_id", None)
+        if not isinstance(value, str) or not arrow_data.DECIMAL.fullmatch(value):
+            errors.append("assigned field id must be a canonical decimal")
+    where = difference(vector["expected_output"], compared)
+    if where is not None:
+        errors.append(f"expected_output differs from the recomputed table at {where}")
+    try:
+        rejected = arrow_data.verdict(dict(actual, expect="valid")) is not None
+    except arrow_data.FixtureError:
+        # A malformed fixture is a document rejection, not a validator defect.
+        return errors + ["the output is not a buildable table"]
+    if rejected:
+        errors.append("the expected output is not a valid table of the vocabulary")
+    return errors
+
+
+def surface_output_errors(
+    vector: dict[str, Any], table: dict[str, Any], outputs: dict[str, dict[str, Any]]
+) -> list[str]:
+    """Decision 0022 rule 3: readings of one operation on the same store.
+
+    Each output may choose fresh IDs, but every surface must observe the
+    same assignment. Surface labels and table data never enter diagnostics.
+    """
+    if not isinstance(outputs, dict) or len(outputs) < 2:
+        return ["at least two surface outputs are required (decision 0022 rule 3)"]
+    errors = []
+    reference = next(iter(outputs.values()))
+    for position, actual in enumerate(outputs.values()):
+        errors.extend(f"surface {position}: {error}" for error in output_errors(vector, table, actual))
+        where = difference(reference, actual)
+        if where is not None:
+            errors.append(
+                f"surface {position} differs from the first surface at {where} (decision 0022 rule 3)"
+            )
+    return errors
+
+
 # --- the operation in the order (REJ-002) ----------------------------------------
 
 def computes(step: dict[str, Any], kernels: set[str]) -> bool:
@@ -671,9 +755,7 @@ def vector_errors(
     except ValueError:
         return errors + ["transformations cannot apply"]
     expected = expected_output(table, vector["chain"])
-    where = difference(vector["expected_output"], expected)
-    if where is not None:
-        errors.append(f"expected_output differs from the recomputed table at {where}")
-    if arrow_data.verdict(dict(expected, expect="valid")) is not None:
-        errors.append("the expected output is not a valid table of the vocabulary")
+    errors += output_errors(vector, table, expected)
+    if vector.get("contract") == "plenora-interop-assignment-vector-v1":
+        errors += surface_output_errors(vector, table, vector["surface_outputs"])
     return errors
