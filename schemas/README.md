@@ -19,6 +19,9 @@ These schemas are normative and use JSON Schema draft 2020-12.
 | `operation-registry-v1.schema.json` | Stable embedded operation identities, including data kernels |
 | `surface-bindings-v1.schema.json` | Exact CLI, Python SDK and runtime entrypoint mappings |
 | `composition-v1.schema.json` | Cross-component direct and adapter-required handoffs |
+| `file-composition-v1.schema.json` | Opt-in file edges with explicit artifact forms on both sides |
+| `file-interchange-v1.schema.json` | File integrity metadata and CLI or authorized runtime reference |
+| `file-interop-vector-v1.schema.json` | Exact file bytes and positive or rejected handoff expectations |
 | `arrow-metadata-vector-v1.schema.json` | Arrow metadata conformance fixtures |
 | `interop-vector-v1.schema.json` | Interoperability vectors: chains of public operations and their exact expectations |
 | `arrow-data-vector-v1.schema.json` | Arrow schema fixtures with row values and the verdict the vocabulary gives |

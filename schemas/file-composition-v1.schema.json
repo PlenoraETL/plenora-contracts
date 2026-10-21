@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/file-composition-v1.schema.json",
+  "title": "Plenora file composition v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract",
+    "edges"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "contract": {
+      "const": "plenora-file-composition-v1"
+    },
+    "edges": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "to",
+          "surface",
+          "mode",
+          "interchange_contract",
+          "content_type",
+          "format_family"
+        ],
+        "properties": {
+          "from": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operation",
+              "envelope_contract",
+              "artifact_form"
+            ],
+            "properties": {
+              "operation": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "component",
+                  "operation",
+                  "version"
+                ],
+                "properties": {
+                  "component": {
+                    "type": "string",
+                    "pattern": "^plenora-[a-z][a-z0-9-]+-tools$"
+                  },
+                  "operation": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              },
+              "envelope_contract": {
+                "type": "string",
+                "pattern": "^plenora-[a-z0-9-]+-v[1-9][0-9]*$"
+              },
+              "artifact_form": {
+                "const": "file_reference"
+              }
+            }
+          },
+          "to": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operation",
+              "envelope_contract",
+              "artifact_form"
+            ],
+            "properties": {
+              "operation": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "component",
+                  "operation",
+                  "version"
+                ],
+                "properties": {
+                  "component": {
+                    "type": "string",
+                    "pattern": "^plenora-[a-z][a-z0-9-]+-tools$"
+                  },
+                  "operation": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              },
+              "envelope_contract": {
+                "type": "string",
+                "pattern": "^plenora-[a-z0-9-]+-v[1-9][0-9]*$"
+              },
+              "artifact_form": {
+                "const": "file_reference"
+              }
+            }
+          },
+          "surface": {
+            "enum": [
+              "cli",
+              "runtime"
+            ]
+          },
+          "mode": {
+            "const": "direct"
+          },
+          "interchange_contract": {
+            "const": "plenora-file-interchange-v1"
+          },
+          "content_type": {
+            "type": "string",
+            "pattern": "^[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+-]+$"
+          },
+          "format_family": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          }
+        }
+      }
+    },
+    "$schema": {
+      "type": "string"
+    }
+  }
+}

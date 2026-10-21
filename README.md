@@ -53,6 +53,7 @@ The normative sources are:
   [version 2.0](specs/runtime/RUNTIME-BINDING-2.0.md);
 - [runtime conformance vectors](specs/runtime/RUNTIME-VECTORS-1.0.md);
 - [cross-component composition contract](specs/composition/COMPOSITION-1.0.md);
+- [file interchange and composition](specs/composition/FILE-INTERCHANGE-1.0.md), opt-in for file handoffs;
 - [interoperability vectors](specs/composition/INTEROP-VECTORS-1.0.md), opt-in for the components that claim Arrow geometry semantics;
 - [REST-to-Arrow adapter contract](specs/composition/REST-ARROW-ADAPTER-1.0.md);
 - [CLI contract](specs/cli/CLI-2.0.md);
