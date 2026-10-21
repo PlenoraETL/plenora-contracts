@@ -1,0 +1,107 @@
+{
+  "$schema": "../schemas/file-composition-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-file-composition-v1",
+  "edges": [
+    {
+      "from": {
+        "operation": {
+          "component": "plenora-storage-tools",
+          "operation": "storage.get",
+          "version": 1
+        },
+        "envelope_contract": "plenora-storage-get-output-v1",
+        "artifact_form": "file_reference"
+      },
+      "to": {
+        "operation": {
+          "component": "plenora-io-tools",
+          "operation": "io.read",
+          "version": 2
+        },
+        "envelope_contract": "plenora-io-read-input-v1",
+        "artifact_form": "file_reference"
+      },
+      "surface": "cli",
+      "mode": "direct",
+      "interchange_contract": "plenora-file-interchange-v1",
+      "content_type": "application/geo+json",
+      "format_family": "geojson"
+    },
+    {
+      "from": {
+        "operation": {
+          "component": "plenora-storage-tools",
+          "operation": "storage.get",
+          "version": 1
+        },
+        "envelope_contract": "plenora-storage-get-output-v1",
+        "artifact_form": "file_reference"
+      },
+      "to": {
+        "operation": {
+          "component": "plenora-io-tools",
+          "operation": "io.read",
+          "version": 2
+        },
+        "envelope_contract": "plenora-io-read-input-v1",
+        "artifact_form": "file_reference"
+      },
+      "surface": "runtime",
+      "mode": "direct",
+      "interchange_contract": "plenora-file-interchange-v1",
+      "content_type": "application/geo+json",
+      "format_family": "geojson"
+    },
+    {
+      "from": {
+        "operation": {
+          "component": "plenora-io-tools",
+          "operation": "io.write",
+          "version": 2
+        },
+        "envelope_contract": "plenora-io-write-result-v2",
+        "artifact_form": "file_reference"
+      },
+      "to": {
+        "operation": {
+          "component": "plenora-storage-tools",
+          "operation": "storage.put",
+          "version": 1
+        },
+        "envelope_contract": "plenora-storage-put-input-v1",
+        "artifact_form": "file_reference"
+      },
+      "surface": "cli",
+      "mode": "direct",
+      "interchange_contract": "plenora-file-interchange-v1",
+      "content_type": "application/geo+json",
+      "format_family": "geojson"
+    },
+    {
+      "from": {
+        "operation": {
+          "component": "plenora-io-tools",
+          "operation": "io.write",
+          "version": 2
+        },
+        "envelope_contract": "plenora-io-write-result-v2",
+        "artifact_form": "file_reference"
+      },
+      "to": {
+        "operation": {
+          "component": "plenora-storage-tools",
+          "operation": "storage.put",
+          "version": 1
+        },
+        "envelope_contract": "plenora-storage-put-input-v1",
+        "artifact_form": "file_reference"
+      },
+      "surface": "runtime",
+      "mode": "direct",
+      "interchange_contract": "plenora-file-interchange-v1",
+      "content_type": "application/geo+json",
+      "format_family": "geojson"
+    }
+  ]
+}

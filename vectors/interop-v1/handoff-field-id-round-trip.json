@@ -1,0 +1,48 @@
+{
+  "$schema": "../../schemas/interop-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-vector-v1",
+  "kind": "handoff",
+  "description": "Decision 0022 rule 1: database write/read preserves the incoming identity of an unchanged logical field.",
+  "input": "../arrow-data-v1/field-id-round-trip.json",
+  "chain": [
+    {
+      "component": "plenora-database-tools",
+      "operation": "database.write",
+      "version": 1,
+      "params": {
+        "mode": "create",
+        "provider": "postgresql"
+      },
+      "transformations": []
+    },
+    {
+      "component": "plenora-database-tools",
+      "operation": "database.read",
+      "version": 1,
+      "via": "target",
+      "params": {},
+      "transformations": []
+    }
+  ],
+  "expected_output": {
+    "schema_metadata": {
+      "plenora.contract.version": "1"
+    },
+    "fields": [
+      {
+        "name": "measurement",
+        "type": "int64",
+        "nullable": false,
+        "metadata": {
+          "plenora.field_id": "314159"
+        }
+      }
+    ],
+    "rows": [
+      {
+        "measurement": 42
+      }
+    ]
+  }
+}

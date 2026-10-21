@@ -12,6 +12,7 @@ from uuid import UUID
 
 import arrow_data
 import interop_vectors
+import file_interop
 import rest_adapter
 from conformance_checks import example_inventory_errors, public_semantic_errors
 from json_values import JsonInteger, document_key, loads, number_text, same_document, same_value
@@ -45,6 +46,9 @@ MAX_ERROR_DETAILS_STRING_BYTES = 4_096
 MAX_ERROR_DETAILS_NODES = 2_048
 
 EXPECTED_SCHEMAS = {
+    "file-interchange-v1.schema.json",
+    "file-interop-vector-v1.schema.json",
+    "file-composition-v1.schema.json",
     "adoption-manifest-v1.schema.json",
     "adoption-manifest-v2.schema.json",
     "adoption-manifest-v3.schema.json",
@@ -60,6 +64,7 @@ EXPECTED_SCHEMAS = {
     "data-plan-v1.schema.json",
     "error-v1.schema.json",
     "interop-vector-v1.schema.json",
+    "interop-assignment-vector-v1.schema.json",
     "operation-registry-v1.schema.json",
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
@@ -678,6 +683,10 @@ def validate_machine_documents(
         ),
         "surface-bindings-v1.schema.json": sorted((ROOT / "bindings").glob("*.json")),
         "composition-v1.schema.json": [ROOT / "composition/pipelines-v1.json"],
+        "file-composition-v1.schema.json": [ROOT / "composition/file-pipelines-v1.json"],
+        "file-interop-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/file-interop-v1").glob("*.json")
+        ),
         "arrow-metadata-vector-v1.schema.json": sorted(
             (ROOT / "vectors/arrow-v1").glob("*.json")
         ),
@@ -686,6 +695,9 @@ def validate_machine_documents(
         ),
         "interop-vector-v1.schema.json": sorted(
             (ROOT / "vectors/interop-v1").glob("*.json")
+        ),
+        "interop-assignment-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/interop-assignment-v1").glob("*.json")
         ),
         "runtime-vector-v1.schema.json": runtime_vector_paths(),
         "runtime-probe-v1.schema.json": sorted(
@@ -1856,6 +1868,17 @@ def io_python_errors(python_document: dict[str, Any]) -> list[str]:
     return failures
 
 
+def validate_file_interop(catalogs: dict[str, dict[str, Any]]) -> list[str]:
+    document = load_json(ROOT / "composition/file-pipelines-v1.json")
+    failures = file_interop.composition_errors(document, operation_index(catalogs))
+    paths = sorted((ROOT / "vectors/file-interop-v1").glob("*.json"))
+    if not paths:
+        failures.append("FILE-007: missing file vectors.")
+    for path in paths:
+        failures.extend(file_interop.vector_errors(load_json(path), document["edges"]))
+    return failures
+
+
 def validate_composition(catalogs: dict[str, dict[str, Any]]) -> list[str]:
     failures: list[str] = []
     index = operation_index(catalogs)
@@ -2264,6 +2287,8 @@ def arrow_semantic_errors(vector: dict[str, Any]) -> list[str]:
         if declaration == "unresolved" and type_text is not None:
             errors.append(f"field {position} unresolved geometry types are present")
         if type_text is not None:
+            if type_text == "":
+                errors.append(f"field {position} geometry types are empty")
             values = type_text.split(",") if type_text else []
             try:
                 positions = [ARROW_TYPES.index(value) for value in values]
@@ -2353,6 +2378,7 @@ def validate_interop_vectors(
     paths = sorted((ROOT / "vectors/interop-v1").glob("*.json"))
     if not paths:
         return ["vectors/interop-v1 has no vectors"]
+    paths += sorted((ROOT / "vectors/interop-assignment-v1").glob("*.json"))
     # The kernels of the current registry; none without one, which
     # data_registry_errors reports (a geo plan then names no kernel).
     kernels = latest_kernel_ids()
@@ -2364,7 +2390,10 @@ def validate_interop_vectors(
     for path in paths:
         label = path.relative_to(ROOT).as_posix()
         vector = load_json(path)
-        if instance_errors(schemas["interop-vector-v1.schema.json"], vector, registry):
+        schema_name = ("interop-assignment-vector-v1.schema.json"
+                       if path.parent.name == "interop-assignment-v1"
+                       else "interop-vector-v1.schema.json")
+        if instance_errors(schemas[schema_name], vector, registry):
             continue
         for problem in interop_vectors.vector_errors(path, vector, operations, direct, load_json, kernels):
             failures.append(f"{label} {problem}")
@@ -2378,6 +2407,7 @@ def validate_interop_vectors(
 # the rule its value names: without them, a check of the gate could vanish
 # and the published vectors, all conforming, would stay green.
 INTEROP_VIOLATING = {
+    "examples/invalid/interop-assignment-vector-divergent-surfaces.json": "decision 0022 rule 3",
     "examples/invalid/interop-vector-handoff-single-json-step.json": "INTEROP-002",
     "examples/invalid/interop-vector-handoff-database-write-as-ipc.json": "INTEROP-002",
     "examples/invalid/interop-vector-source-format-mismatch.json": "INTEROP-001",
@@ -2405,11 +2435,13 @@ def validate_interop_violating(
     for relative, rule in INTEROP_VIOLATING.items():
         path = ROOT / relative
         document = load_json(path)
-        if instance_errors(schemas["interop-vector-v1.schema.json"], document, registry):
+        assignment = relative == "examples/invalid/interop-assignment-vector-divergent-surfaces.json"
+        schema_name = "interop-assignment-vector-v1.schema.json" if assignment else "interop-vector-v1.schema.json"
+        if instance_errors(schemas[schema_name], document, registry):
             failures.append(f"{relative} must be accepted by the schema so that it probes the gate")
             continue
         # Its input path is the schema's, relative to the published vectors.
-        published = ROOT / "vectors/interop-v1" / path.name
+        published = ROOT / "vectors" / ("interop-assignment-v1" if assignment else "interop-v1") / path.name
         errors = interop_vectors.vector_errors(published, document, operations, direct, load_json, latest_kernel_ids())
         if not errors or not all(rule in error for error in errors):
             failures.append(f"{relative} must be refused by {rule} and by no other check")
@@ -3522,6 +3554,7 @@ def run_gate() -> int:
     failures.extend(validate_rest_examples(schemas, registry, catalogs[REST_COMPONENT]))
     failures.extend(validate_bindings(catalogs))
     failures.extend(validate_composition(catalogs))
+    failures.extend(validate_file_interop(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_arrow_data_vectors())
     failures.extend(validate_interop_vectors(catalogs, schemas, registry))
@@ -3544,6 +3577,7 @@ def run_gate() -> int:
     invalid_count = sum(len(paths) for paths in CASES["invalid"].values())
     vector_count = len(list((ROOT / "vectors").glob("**/*.json")))
     composition_count = len(load_json(ROOT / "composition/pipelines-v1.json")["edges"])
+    composition_count += len(load_json(ROOT / "composition/file-pipelines-v1.json")["edges"])
     # Every figure is counted from what the run checked, never written down.
     probe_count = len(ERROR_BOUND_PROBES) + sum(ERROR_BOUND_CASES.values())
     binding_count = len(list((ROOT / "bindings").glob("*.json")))

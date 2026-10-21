@@ -1,0 +1,93 @@
+{
+  "$schema": "../../schemas/interop-assignment-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-assignment-vector-v1",
+  "kind": "handoff",
+  "description": "Decision 0022 rules 2 and 3: CLI and Rust read the same field in the same store after one write without an incoming ID; the assigned value is free but identical across surfaces.",
+  "input": "../arrow-data-v1/store-field-without-id.json",
+  "chain": [
+    {
+      "component": "plenora-database-tools",
+      "operation": "database.write",
+      "version": 1,
+      "params": {
+        "mode": "create",
+        "provider": "postgresql"
+      },
+      "transformations": []
+    },
+    {
+      "component": "plenora-database-tools",
+      "operation": "database.read",
+      "version": 1,
+      "via": "target",
+      "params": {},
+      "transformations": [
+        "assign_field_ids"
+      ]
+    }
+  ],
+  "expected_output": {
+    "schema_metadata": {
+      "plenora.contract.version": "1"
+    },
+    "fields": [
+      {
+        "name": "measurement",
+        "type": "int64",
+        "nullable": false,
+        "metadata": {}
+      }
+    ],
+    "rows": [
+      {
+        "measurement": 42
+      }
+    ]
+  },
+  "assigned_field_ids": [
+    0
+  ],
+  "surface_outputs": {
+    "cli": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "measurement",
+          "type": "int64",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "17"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "measurement": 42
+        }
+      ]
+    },
+    "rust": {
+      "schema_metadata": {
+        "plenora.contract.version": "1"
+      },
+      "fields": [
+        {
+          "name": "measurement",
+          "type": "int64",
+          "nullable": false,
+          "metadata": {
+            "plenora.field_id": "17"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "measurement": 42
+        }
+      ]
+    }
+  }
+}
