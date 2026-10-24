@@ -178,6 +178,18 @@ silent.
 Row-scoped format or mapping failures use
 `plenora-row-diagnostics-v1` when diagnostics are advertised.
 
+**IO-ARROW-001** — An Arrow input whose schema carries neither
+`plenora.contract.version` nor any key in the `plenora.` namespace, on the
+schema or on any field, is an external Arrow source and not a Plenora
+contract stream. Every IO operation that reads Arrow accepts it, although
+Arrow Interchange 1.0 rejects a missing contract version with `schema`
+(ARROW-001), and reads each missing declaration without asserting more than
+the source carries. An input that carries the version or any `plenora.` key
+is a contract stream and follows Arrow Vocabulary 1.0 and, where IO claims
+it, Arrow Geometry Semantics 1.0 in full: a missing or malformed version is
+then `schema` (REJ-001). Every Arrow stream IO produces declares the contract
+version.
+
 ## External outcomes
 
 Write and convert operations declare local or remote side effects and distinguish
