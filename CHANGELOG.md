@@ -6,6 +6,14 @@ full commit SHA; a release tag names one of those commits.
 
 ## Unreleased
 
+### Security
+
+- The audit tool lock moves filelock to 4.2.4 on Python 3.11 and newer
+  (CVE-2026-112907, CVE-2026-112913, CVE-2026-112940, fixed in 4.2.1). On
+  Python 3.10 the last filelock is 4.1.0: the three advisories, which concern
+  `ReadWriteLock`, are ignored in the Python 3.10 audit job only, until 3.10
+  leaves the supported versions. A weakened guarantee, stated as one.
+
 ### Added
 
 - IO-tools Python SDK as a declared surface: `io-tools-v3.json` selects

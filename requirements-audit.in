@@ -5,4 +5,7 @@
 # pip-audit: confronta i lock dei gate con il database di advisory PyPA/OSV.
 # Versione esatta perche l'esito del job dipende dal suo formato di lettura
 # dei requirements con hash.
+# filelock (via CacheControl) e' 4.2.4 da Python 3.11 e 4.1.0 su 3.10, l'ultima
+# per quell'interprete: tre advisory corrette solo in 4.2.1 restano ignorate
+# nel solo job 3.10 di supply-chain.yml, con hazard e rientro scritti li'.
 pip-audit==2.10.1
