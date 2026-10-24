@@ -39,6 +39,22 @@ jobs:
       fail-fast: false
       matrix:
         python: ["3.10", "3.12", "3.14"]
+        include:
+          # Su Python 3.10 il lock fissa filelock 4.0.12: nessuna versione
+          # per 3.10 e' corretta, e 4.0.12 porta tre advisory (CVE-2026-112907,
+          # -112913, -112940) contro le sei di 4.1.0; la correzione, 4.2.1,
+          # richiede 3.11. Riguardano `ReadWriteLock` (SQLite riaperto per
+          # nome, scambio di nomi in una cartella non sticky); pip-audit usa
+          # filelock attraverso la cache di CacheControl, con `FileLock`, su
+          # un runner effimero. Ignorate solo qui e solo queste tre. Rientro:
+          # quando Python 3.10 esce dalle versioni supportate (PYTHON-SDK-1.0
+          # sezione 1 lo richiede oggi), o se filelock corregge una versione
+          # per 3.10; requirements-audit.in porta la stessa nota.
+          - python: "3.10"
+            ignora: >-
+              --ignore-vuln CVE-2026-112907
+              --ignore-vuln CVE-2026-112913
+              --ignore-vuln CVE-2026-112940
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -53,6 +69,7 @@ jobs:
           -r requirements-validation.txt
           -r requirements-coverage.txt
           -r requirements-audit.txt
+          ${{ matrix.ignora }}
 
   gates:
     name: gates (${{ matrix.os }})
