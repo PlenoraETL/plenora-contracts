@@ -9,10 +9,11 @@ full commit SHA; a release tag names one of those commits.
 ### Security
 
 - The audit tool lock moves filelock to 4.2.4 on Python 3.11 and newer
-  (CVE-2026-112907, CVE-2026-112913, CVE-2026-112940, fixed in 4.2.1). On
-  Python 3.10 the last filelock is 4.1.0: the three advisories, which concern
-  `ReadWriteLock`, are ignored in the Python 3.10 audit job only, until 3.10
-  leaves the supported versions. A weakened guarantee, stated as one.
+  (CVE-2026-112907, CVE-2026-112913, CVE-2026-112940, fixed in 4.2.1). No
+  filelock release for Python 3.10 is fixed: 4.1.0, the last, carries six
+  advisories and 4.0.12 three, so the lock keeps 4.0.12 there and those three,
+  which concern `ReadWriteLock`, are ignored in the Python 3.10 audit job only,
+  until 3.10 leaves the supported versions. A weakened guarantee, stated as one.
 
 ### Added
 

@@ -40,8 +40,9 @@ jobs:
       matrix:
         python: ["3.10", "3.12", "3.14"]
         include:
-          # filelock 4.1.0, l'ultima per Python 3.10, porta tre advisory
-          # (CVE-2026-112907, -112913, -112940) corrette solo in 4.2.1, che
+          # Su Python 3.10 il lock fissa filelock 4.0.12: nessuna versione
+          # per 3.10 e' corretta, e 4.0.12 porta tre advisory (CVE-2026-112907,
+          # -112913, -112940) contro le sei di 4.1.0; la correzione, 4.2.1,
           # richiede 3.11. Riguardano `ReadWriteLock` (SQLite riaperto per
           # nome, scambio di nomi in una cartella non sticky); pip-audit usa
           # filelock attraverso la cache di CacheControl, con `FileLock`, su
