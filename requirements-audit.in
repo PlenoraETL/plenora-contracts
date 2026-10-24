@@ -6,3 +6,10 @@
 # Versione esatta perche l'esito del job dipende dal suo formato di lettura
 # dei requirements con hash.
 pip-audit==2.10.1
+# filelock (via CacheControl) e' 4.2.4 da Python 3.11. Su 3.10 non esiste una
+# versione corretta: 4.1.0, l'ultima per 3.10, porta sei advisory, 4.0.12 tre
+# (le altre tre nascono in 4.1.0). Su 3.10 si fissa 4.0.12, e le sue tre
+# advisory restano ignorate nel solo job 3.10 di supply-chain.yml, con hazard e
+# rientro scritti li'.
+filelock==4.0.12 ; python_version < "3.11"
+filelock==4.2.4 ; python_version >= "3.11"
