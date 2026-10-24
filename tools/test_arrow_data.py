@@ -102,6 +102,13 @@ class DefinitionTests(unittest.TestCase):
         self.assertFalse(data.definition_contradicts("EPSG:4326", text, "wkt2"))
         self.assertFalse(data.definition_contradicts("OGC:CRS84", text, "wkt2"))
 
+    def test_authority_case_folding_is_ascii_only(self):
+        # `ſ` (U+017F) upper-cases to `S` in Unicode: `EPſG` is another authority.
+        text = 'GEOGCRS["x",ID["EPſG",3003]]'
+        self.assertFalse(data.definition_contradicts("EPSG:4326", text, "wkt2"))
+        self.assertFalse(data.is_local_authority("poſtgis:1"))
+        self.assertTrue(data.is_local_authority("postgis:1"))
+
     def test_other_authority_and_identifier_without_colon_are_not_compared(self):
         text = 'GEOGCRS["x",ID["ESRI",104000]]'
         self.assertFalse(data.definition_contradicts("EPSG:4326", text, "wkt2"))
