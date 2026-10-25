@@ -24,6 +24,10 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- IO-ARROW-001 in the IO-tools profile v3: an Arrow input with neither
+  `plenora.contract.version` nor any `plenora.` key is an external source that
+  IO accepts, a profile acceptance as GEO-000 allows; an input with any
+  `plenora.` key is a contract stream and follows REJ-001 in full.
 - IO-tools Python SDK as a declared surface: `io-tools-v3.json` selects
   `python_sdk` as `conditional` for its six operations;
   `bindings/python-sdk-v1.json` names `plenora-io / plenora_io`, its
