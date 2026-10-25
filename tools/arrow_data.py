@@ -29,6 +29,9 @@ from decimal import Decimal
 import crs_grammar
 from typing import Any, NamedTuple
 
+_UPPER = crs_grammar.ASCII_UPPER
+_LOWER = crs_grammar.ASCII_LOWER
+
 
 class FixtureError(Exception):
     """The vector cannot be built as an Arrow table."""
@@ -340,7 +343,7 @@ def wkt_identifiers(node: _Node, keyword: str) -> list[tuple[str, str]]:
     """The identifiers that are direct children of one WKT node."""
     pairs = []
     for item in node.items:
-        if isinstance(item, _Node) and item.keyword.upper() == keyword:
+        if isinstance(item, _Node) and item.keyword.translate(_UPPER) == keyword:
             if len(item.items) < 2 or not isinstance(item.items[0], tuple) or item.items[0][0] != "string":
                 raise Malformed("authority identifier without an authority name")
             code = item.items[1]
@@ -362,7 +365,7 @@ def parse_definition(text: str, definition_format: str) -> _Node:
     """A WKT definition whose root keyword belongs to its declared format."""
     root = parse_wkt(text)
     roots = WKT2_ROOTS if definition_format == "wkt2" else WKT1_ROOTS
-    if root.keyword.upper() not in roots:
+    if root.keyword.translate(_UPPER) not in roots:
         raise Malformed("root keyword of another WKT version")
     return root
 
@@ -383,12 +386,12 @@ LOCAL_AUTHORITIES = frozenset({"POSTGIS", "MYSQL", "MARIADB", "MSSQL", "ORACLE",
 def is_local_authority(crs_id: str) -> bool:
     """GEO-020: `crs_id` names a local catalog authority (ASCII case-insensitive)."""
     authority, separator, _ = crs_id.partition(":")
-    return bool(separator) and authority.upper() in LOCAL_AUTHORITIES
+    return bool(separator) and authority.translate(_UPPER) in LOCAL_AUTHORITIES
 
 
 def _same(pair: tuple[str, str], crs_id: str) -> bool:
     authority, _, code = crs_id.partition(":")
-    return pair[0].upper() == authority.upper() and pair[1] == code
+    return pair[0].translate(_UPPER) == authority.translate(_UPPER) and pair[1] == code
 
 
 def definition_contradicts(crs_id: str, text: str, definition_format: str) -> bool:
@@ -397,8 +400,8 @@ def definition_contradicts(crs_id: str, text: str, definition_format: str) -> bo
     pairs = definition_identifiers(text, definition_format)
     if ":" not in crs_id:
         return False
-    authority = crs_id.split(":", 1)[0].upper()
-    same_authority = [item for item in pairs if item[0].upper() == authority]
+    authority = crs_id.split(":", 1)[0].translate(_UPPER)
+    same_authority = [item for item in pairs if item[0].translate(_UPPER) == authority]
     return bool(same_authority) and not any(_same(item, crs_id) for item in same_authority)
 
 
@@ -488,7 +491,7 @@ WKT2_UNIT_QUANTITY = {"ANGLEUNIT": "angle", "LENGTHUNIT": "length", "SCALEUNIT":
 
 def unit_decided(name: str, factor: Decimal, quantity: str) -> bool:
     """A unit of the subset for the quantity it measures (GEO-017)."""
-    if name.lower() not in UNIT_NAMES[quantity]:
+    if name.translate(_LOWER) not in UNIT_NAMES[quantity]:
         return False
     if quantity == "angle":
         return any(factor == degree for degree in DEGREE_FACTORS)
@@ -513,7 +516,7 @@ class Parts(NamedTuple):
 def _children(node: _Node, *keywords: str) -> list[_Node]:
     return [
         item for item in node.items
-        if isinstance(item, _Node) and item.keyword.upper() in keywords
+        if isinstance(item, _Node) and item.keyword.translate(_UPPER) in keywords
     ]
 
 
@@ -521,7 +524,7 @@ def _descendants(node: _Node, *keywords: str) -> list[_Node]:
     found = []
     for item in node.items:
         if isinstance(item, _Node):
-            if item.keyword.upper() in keywords:
+            if item.keyword.translate(_UPPER) in keywords:
                 found.append(item)
             found.extend(_descendants(item, *keywords))
     return found
@@ -552,7 +555,7 @@ def _wkt_unit(node: _Node, quantity: str) -> None:
 def _name(node: _Node) -> str:
     if not node.items or not isinstance(node.items[0], tuple) or node.items[0][0] != "string":
         raise Undecidable("element without a name")
-    return node.items[0][1].lower()
+    return node.items[0][1].translate(_LOWER)
 
 
 def _ellipsoid(datum: _Node, wkt2: bool) -> tuple[Decimal, Decimal]:
@@ -593,9 +596,9 @@ def _wkt_conversion(holder: _Node, wkt2: bool) -> tuple[str, dict[str, Decimal]]
             raise Undecidable("parameter outside the subset or repeated")
         if wkt2:
             # The identifiers of a parameter are not its unit.
-            units = [item for item in parameter.items[2:] if isinstance(item, _Node) and item.keyword.upper() != "ID"]
+            units = [item for item in parameter.items[2:] if isinstance(item, _Node) and item.keyword.translate(_UPPER) != "ID"]
             unit = _one(units, "parameter unit")
-            if WKT2_UNIT_QUANTITY.get(unit.keyword.upper()) != PARAMETER_QUANTITY[key]:
+            if WKT2_UNIT_QUANTITY.get(unit.keyword.translate(_UPPER)) != PARAMETER_QUANTITY[key]:
                 raise Undecidable("parameter unit of another quantity")
             _wkt_unit(unit, PARAMETER_QUANTITY[key])
         parameters[key] = _decimal(parameter.items[1])
@@ -620,7 +623,7 @@ def _wkt_axes(crs: _Node, wkt2: bool, quantity: str) -> None:
         len(system.items) != 2
         or not isinstance(system.items[0], tuple)
         or system.items[0][0] != "word"
-        or system.items[0][1].lower() != CS_TYPES[quantity]
+        or system.items[0][1].translate(_LOWER) != CS_TYPES[quantity]
         or _decimal(system.items[1]) != 2
         or len(axes) != 2
     ):
@@ -650,7 +653,7 @@ WKT_KINDS = {
 
 
 def _wkt_parts(root: _Node, wkt2: bool) -> Parts:
-    keyword = root.keyword.upper()
+    keyword = root.keyword.translate(_UPPER)
     kind = WKT_KINDS.get(keyword, "other")
     shift = keyword == "BOUNDCRS" or _anywhere(root, "TOWGS84", "BOUNDCRS", "ABRIDGEDTRANSFORMATION")
     if kind == "other" or shift:
@@ -684,7 +687,7 @@ def _wkt_parts(root: _Node, wkt2: bool) -> Parts:
     datum = _one(_children(geographic, "DATUM", "GEODETICDATUM", "TRF", "ENSEMBLE"), "datum")
     _prime_meridian_zero(geographic, wkt2)
     names: list[str] = []
-    if datum.keyword.upper() == "ENSEMBLE":
+    if datum.keyword.translate(_UPPER) == "ENSEMBLE":
         try:
             datums = [crs_grammar.wkt_ensemble(datum).identifier]
         except crs_grammar.Outside as error:
@@ -714,7 +717,7 @@ PROJJSON_UNIT_QUANTITY = {"AngularUnit": "angle", "LinearUnit": "length", "Scale
 
 def _projjson_unit(unit: Any, quantity: str) -> None:
     if isinstance(unit, str):
-        if unit.lower() not in UNIT_NAMES[quantity]:
+        if unit.translate(_LOWER) not in UNIT_NAMES[quantity]:
             raise Undecidable("PROJJSON unit not decided")
         return
     if isinstance(unit, dict):
@@ -735,7 +738,7 @@ def _projjson_system_units(system: Any, quantity: str) -> None:
     # GEO-017: two-dimensional, of the type of the kind; the subtype is
     # required, never inferred.
     subtype = system.get("subtype")
-    if not isinstance(subtype, str) or subtype.lower() != CS_TYPES[quantity] or len(system["axis"]) != 2:
+    if not isinstance(subtype, str) or subtype.translate(_LOWER) != CS_TYPES[quantity] or len(system["axis"]) != 2:
         raise Undecidable("coordinate system other than two-dimensional of its kind")
     for axis in system["axis"]:
         if not isinstance(axis, dict):
@@ -761,14 +764,14 @@ def _projjson_parts(root: dict[str, Any]) -> Parts:
         found = root.get("conversion")
         if not isinstance(found, dict) or not isinstance(found.get("method"), dict):
             raise Undecidable("projected PROJJSON without its conversion")
-        method = METHOD_NAMES.get(str(found["method"].get("name", "")).lower())
+        method = METHOD_NAMES.get(str(found["method"].get("name", "")).translate(_LOWER))
         if method is None or not isinstance(found.get("parameters"), list):
             raise Undecidable("conversion outside the subset")
         parameters: dict[str, Decimal] = {}
         for parameter in found["parameters"]:
             if not isinstance(parameter, dict):
                 raise Undecidable("parameter not readable")
-            name = PARAMETER_NAMES.get(str(parameter.get("name", "")).lower())
+            name = PARAMETER_NAMES.get(str(parameter.get("name", "")).translate(_LOWER))
             if name is None or name in parameters:
                 raise Undecidable("parameter outside the subset or repeated")
             _projjson_unit(parameter.get("unit"), PARAMETER_QUANTITY[name])
@@ -793,7 +796,7 @@ def _projjson_parts(root: dict[str, Any]) -> Parts:
     else:
         datums = projjson_identifiers(datum)
         if isinstance(datum.get("name"), str):
-            names = [datum["name"].lower()]
+            names = [datum["name"].translate(_LOWER)]
     ellipsoid = datum["ellipsoid"]
     if "inverse_flattening" not in ellipsoid:
         raise Undecidable("ellipsoid without inverse flattening")

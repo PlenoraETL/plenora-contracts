@@ -15,6 +15,13 @@ full commit SHA; a release tag names one of those commits.
   which concern `ReadWriteLock`, are ignored in the Python 3.10 audit job only,
   until 3.10 leaves the supported versions. A weakened guarantee, stated as one.
 
+### Fixed
+
+- The reference oracle (`tools/arrow_data.py`, `tools/crs_grammar.py`) folds
+  case in ASCII only, as GEO-005 and GEO-019 state: `str.upper` and
+  `str.lower` also mapped non-ASCII letters, so an authority `EPſG` matched
+  `EPSG`. No vector changes its verdict.
+
 ### Added
 
 - IO-tools Python SDK as a declared surface: `io-tools-v3.json` selects

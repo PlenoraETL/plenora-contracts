@@ -19,8 +19,15 @@ undecidable too.
 from __future__ import annotations
 
 import re
+import string
 from decimal import Decimal
 from typing import Any, NamedTuple
+
+# Names compare ASCII case-insensitively (GEO-005, GEO-019): `str.upper` and
+# `str.lower` map non-ASCII letters too (`ſ` to `S`, the Kelvin sign to `k`)
+# and would find equal two names the contract keeps distinct.
+ASCII_UPPER = str.maketrans(string.ascii_lowercase, string.ascii_uppercase)
+ASCII_LOWER = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
 
 
 class Outside(Exception):
@@ -242,7 +249,7 @@ def _code_text(kind: str, value: str) -> str:
 
 
 def _same_identifier(found: tuple[str, str], expected: tuple[str, str]) -> bool:
-    return found[0].upper() == expected[0].upper() and found[1] == expected[1]
+    return found[0].translate(ASCII_UPPER) == expected[0].translate(ASCII_UPPER) and found[1] == expected[1]
 
 
 def _match_ensemble(name: Any, members: list[tuple[Any, list[tuple[str, str]]]],
@@ -253,10 +260,10 @@ def _match_ensemble(name: Any, members: list[tuple[Any, list[tuple[str, str]]]],
     for reference in REFERENCE_ENSEMBLES:
         if (
             isinstance(name, str)
-            and name.lower() == reference.name.lower()
+            and name.translate(ASCII_LOWER) == reference.name.translate(ASCII_LOWER)
             and len(members) == len(reference.members)
             and all(
-                isinstance(found, str) and found.lower() == expected.lower()
+                isinstance(found, str) and found.translate(ASCII_LOWER) == expected.translate(ASCII_LOWER)
                 and all(_same_identifier(pair, expected_id) for pair in pairs)
                 for (found, pairs), (expected, expected_id) in zip(members, reference.members)
             )
@@ -272,7 +279,7 @@ def _is_node(item: Any) -> bool:
 
 
 def _wkt_children(current: Any, keyword: str) -> list[Any]:
-    return [item for item in current.items if _is_node(item) and item.keyword.upper() == keyword]
+    return [item for item in current.items if _is_node(item) and item.keyword.translate(ASCII_UPPER) == keyword]
 
 
 def _wkt_ids(current: Any) -> list[tuple[str, str]]:
@@ -326,11 +333,11 @@ def check_wkt(root: Any, definition_format: str) -> None:
     """Raise `Outside` unless every node and value of the parsed WKT is
     admitted."""
     grammar = WKT2 if definition_format == "wkt2" else WKT1
-    if root.keyword.upper() not in WKT_ROOTS[definition_format]:
+    if root.keyword.translate(ASCII_UPPER) not in WKT_ROOTS[definition_format]:
         raise Outside("root keyword outside the grammar")
 
     def visit(current: Any) -> None:
-        rule = grammar.get(current.keyword.upper())
+        rule = grammar.get(current.keyword.translate(ASCII_UPPER))
         if rule is None:
             raise Outside("keyword outside the grammar")
         # The values come first, then the children.
@@ -341,11 +348,11 @@ def check_wkt(root: Any, definition_format: str) -> None:
             if item[0] not in kinds:
                 raise Outside("value of another kind")
         for position, allowed in rule.words:
-            if values[position][1].lower() not in allowed:
+            if values[position][1].translate(ASCII_LOWER) not in allowed:
                 raise Outside("word outside its closed set")
         seen: dict[str, int] = {}
         for item in current.items[len(values):]:
-            keyword = item.keyword.upper()
+            keyword = item.keyword.translate(ASCII_UPPER)
             if keyword not in rule.children:
                 raise Outside("child outside the grammar")
             seen[keyword] = seen.get(keyword, 0) + 1
@@ -362,7 +369,7 @@ def check_wkt(root: Any, definition_format: str) -> None:
             for position, found in enumerate(orders, start=1):
                 if not found or _code_text(*found[0].items[0]) != str(position):
                     raise Outside("axis order other than the listed one")
-        if current.keyword.upper() == "ENSEMBLE":
+        if current.keyword.translate(ASCII_UPPER) == "ENSEMBLE":
             wkt_ensemble(current)
 
     visit(root)
