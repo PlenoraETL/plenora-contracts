@@ -5,4 +5,4 @@
 # coverage: misura righe e rami di tools/ durante la suite unittest e fa
 # fallire il job sotto la soglia di .coveragerc. Versione esatta perche la
 # soglia e tarata sui conteggi di questa versione.
-coverage==7.16.2
+coverage==7.17.0
