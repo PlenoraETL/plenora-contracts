@@ -20,11 +20,14 @@ from pathlib import Path
 from typing import Any, Callable, NamedTuple
 
 import arrow_data
+import arrow_primary
 
 GEOMETRY = "plenora.geometry."
 # REJ-002: the value classes; everything else is decided from the schema.
 VALUE_RULES = {"GEO-008", "GEO-009", "GEO-011"}
-CLASS_CATEGORY = {"support": "unsupported", "crs": "crs"}
+# `operation` is the operation-schema class, which only the vectors of Arrow
+# Primary Geometry 1.0 exercise (PRIM-007).
+CLASS_CATEGORY = {"support": "unsupported", "crs": "crs", "operation": "schema"}
 DATA_RUN = ("plenora-data-tools", "data.run")
 DATABASE_READ = ("plenora-database-tools", "database.read")
 # INTEROP-003: who may declare each transformation; `None` is any step.
@@ -215,11 +218,15 @@ TRANSFORMATIONS: dict[str, Callable[[dict[str, Any]], None]] = {
 }
 
 
-def apply(table: dict[str, Any], step: dict[str, Any]) -> None:
-    """INTEROP-003: a step applies its transformations in the order of the table."""
+def apply(table: dict[str, Any], step: dict[str, Any], primary: bool = False) -> None:
+    """INTEROP-003: a step applies its transformations in the order of the
+    table; under Arrow Primary Geometry 1.0 it then emits the key in the
+    form PRIM-004 fixes."""
     for name in TRANSFORMATIONS:
         if name in step["transformations"]:
             TRANSFORMATIONS[name](table)
+    if primary:
+        arrow_primary.canonical(table)
 
 
 def _copy(table: dict[str, Any]) -> dict[str, Any]:
@@ -230,10 +237,12 @@ def _copy(table: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def expected_output(table: dict[str, Any], chain: list[dict[str, Any]]) -> dict[str, Any]:
+def expected_output(
+    table: dict[str, Any], chain: list[dict[str, Any]], primary: bool = False
+) -> dict[str, Any]:
     result = _copy(table)
     for step in chain:
-        apply(result, step)
+        apply(result, step, primary)
     prefixes = sorted({step["provider_prefix"] for step in chain if "provider_prefix" in step})
     if prefixes:
         result["delegated_metadata"] = prefixes
@@ -304,7 +313,9 @@ def _table_shape(table: Any) -> bool:
     )
 
 
-def output_errors(vector: dict[str, Any], table: dict[str, Any], actual: dict[str, Any]) -> list[str]:
+def output_errors(
+    vector: dict[str, Any], table: dict[str, Any], actual: dict[str, Any], primary: bool = False
+) -> list[str]:
     """Decision 0022: compare a result, allowing only declared fresh IDs to vary."""
     if not all(_table_shape(value) for value in (table, vector.get("expected_output"), actual)):
         return ["output comparison requires well-formed table fixtures"]
@@ -334,7 +345,8 @@ def output_errors(vector: dict[str, Any], table: dict[str, Any], actual: dict[st
     if where is not None:
         errors.append(f"expected_output differs from the recomputed table at {where}")
     try:
-        rejected = arrow_data.verdict(dict(actual, expect="valid")) is not None
+        judge = arrow_primary.verdict if primary else arrow_data.verdict
+        rejected = judge(dict(actual, expect="valid")) is not None
     except arrow_data.FixtureError:
         # A malformed fixture is a document rejection, not a validator defect.
         return errors + ["the output is not a buildable table"]
@@ -407,11 +419,32 @@ class Rejection(NamedTuple):
     rule: str
 
 
-def step_rejection(table: dict[str, Any], step: dict[str, Any], kernels: set[str]) -> Rejection | None:
+def _operand_value_verdict(table: dict[str, Any], decoded: list[dict[str, Any]]) -> arrow_data.Verdict | None:
+    """REJ-002, the value classes, for the operands only: a step that computes
+    carries the other geometry fields without decoding them (GEO-009,
+    PRIM-007)."""
+    for row in arrow_data._cells(table):
+        for field, data in zip(table["fields"], row):
+            if data is not None and any(field is operand for operand in decoded):
+                found = arrow_data._value(field, data)
+                if found is not None:
+                    return found
+    return None
+
+
+def step_rejection(
+    table: dict[str, Any], step: dict[str, Any], kernels: set[str], primary: bool = False
+) -> Rejection | None:
     """The single ordered evaluation of REJ-002 for one step: version,
     vocabulary and CRS of the input (after the acceptances of the step's
     profile), the CRS the operation must use, the step's declared limits,
-    then the values it decodes."""
+    then the values it decodes.
+
+    Under Arrow Primary Geometry 1.0 (`primary`) the vocabulary class also
+    judges the key, against the schema as received (PRIM-003), and a step
+    that computes takes its operand by PRIM-007: the operation's CRS,
+    support and values are those of the operand, and a missing operand is
+    the operation-schema class, after support."""
     seen = table
     version = arrow_data.version_verdict(table)
     if version is not None:
@@ -422,12 +455,21 @@ def step_rejection(table: dict[str, Any], step: dict[str, Any], kernels: set[str
         seen = _copy(table)
         complete_missing_geometry_keys(seen)
         assign_field_ids(seen)
-    found = arrow_data.schema_verdict(seen)
+    found = arrow_primary.schema_verdict(seen, table) if primary else arrow_data.schema_verdict(seen)
     if found is not None:
         return Rejection("input", found.category, found.rule)
     geometry = _geometry(seen)
+    operands = geometry
+    missing_operand = None
+    if primary and computes(step, kernels):
+        selected = arrow_primary.operands(seen, _params(step).get("geometry"))
+        if isinstance(selected, arrow_data.Verdict):
+            missing_operand = Rejection("operation", selected.category, selected.rule)
+            operands = []
+        else:
+            operands = selected
     if computes(step, kernels):
-        declared = [field for field in geometry if _metadata(field)[GEOMETRY + "crs_resolution"] != "missing"]
+        declared = [field for field in operands if _metadata(field)[GEOMETRY + "crs_resolution"] != "missing"]
         for field in declared:
             if _metadata(field).get(GEOMETRY + "axis_order") in NORTH_FIRST:
                 return Rejection("crs", "crs", "DT-ARROW-004")
@@ -439,7 +481,7 @@ def step_rejection(table: dict[str, Any], step: dict[str, Any], kernels: set[str
                 return Rejection("crs", computed.category, computed.rule)
         # DT-ARROW-004: planar kernels refuse geography and non-planar edges
         # (support, after the CRS class: REJ-002).
-        for field in geometry:
+        for field in operands:
             if _metadata(field)[GEOMETRY + "spatial_semantics"] == "geography" or _edges(field) not in (None, "planar"):
                 return Rejection("support", "unsupported", "DT-ARROW-004")
     # Validated by `step_errors` before any step is evaluated.
@@ -452,7 +494,13 @@ def step_rejection(table: dict[str, Any], step: dict[str, Any], kernels: set[str
         len(arrow_data._type_list(_metadata(field).get(GEOMETRY + "types")) or []) > 1 for field in geometry
     ):
         return Rejection("support", "unsupported", "GEO-010")
-    if decodes(step, kernels):
+    if missing_operand is not None:
+        return missing_operand
+    if primary and computes(step, kernels):
+        found = _operand_value_verdict(seen, operands)
+        if found is not None:
+            return Rejection("input", found.category, found.rule)
+    elif decodes(step, kernels):
         found = arrow_data.value_verdict(seen)
         if found is not None:
             return Rejection("input", found.category, found.rule)
@@ -522,7 +570,10 @@ def chain_errors(
 
 
 def step_errors(
-    chain: list[dict[str, Any]], operations: dict[Key, dict[str, Any]], kernels: set[str]
+    chain: list[dict[str, Any]],
+    operations: dict[Key, dict[str, Any]],
+    kernels: set[str],
+    primary: bool = False,
 ) -> list[str]:
     """INTEROP-002: every parameter the gate reads, validated before any
     step is evaluated. `params` is an open object in the schema, so each
@@ -559,6 +610,14 @@ def step_errors(
                 errors.append(
                     f"step {position} names a plan that is neither identity nor a registered kernel (INTEROP-002)"
                 )
+        if primary and "geometry" in params:
+            # PRIM-007: the selection is a field identity, and only a step
+            # that computes takes one; anywhere else it would be ignored.
+            selection = params["geometry"]
+            if not computes(step, kernels):
+                errors.append(f"step {position} selects a geometry but does not compute (PRIM-007)")
+            elif not isinstance(selection, str) or not arrow_data.DECIMAL.fullmatch(selection):
+                errors.append(f"step {position} selects a geometry by something other than a field identity (PRIM-007)")
     return errors
 
 
@@ -620,10 +679,12 @@ def end_errors(vector: dict[str, Any], operations: dict[Key, dict[str, Any]]) ->
 
 # --- rejections (INTEROP-004) -------------------------------------------------------
 
-def rejection_errors(vector: dict[str, Any], table: dict[str, Any], kernels: set[str]) -> list[str]:
+def rejection_errors(
+    vector: dict[str, Any], table: dict[str, Any], kernels: set[str], primary: bool = False
+) -> list[str]:
     expected = vector["expected_error"]
     step = vector["chain"][0]
-    found = step_rejection(table, step, kernels)
+    found = step_rejection(table, step, kernels, primary)
     if found is None:
         return ["the step accepts the input under REJ-002"]
     errors = []
@@ -727,8 +788,11 @@ def vector_errors(
     direct_edges: set[tuple[Key, Key]],
     load: Callable[[Path], Any],
     kernels: set[str] = frozenset(),
+    primary: bool = False,
 ) -> list[str]:
-    parameters = step_errors(vector["chain"], operations, kernels)
+    """`primary` evaluates a vector of `vectors/interop-primary-v1` under
+    Arrow Primary Geometry 1.0 (PRIM-009)."""
+    parameters = step_errors(vector["chain"], operations, kernels, primary)
     errors = chain_errors(vector["chain"], operations, direct_edges) + parameters + end_errors(vector, operations)
     if parameters:
         # A step with an invalid parameter is never evaluated: the steps
@@ -742,20 +806,20 @@ def vector_errors(
     table = load(input_path)
     try:
         if vector["kind"] == "rejection":
-            return errors + rejection_errors(vector, table, kernels)
+            return errors + rejection_errors(vector, table, kernels, primary)
         current = _copy(table)
         for position, step in enumerate(vector["chain"]):
-            found = step_rejection(current, step, kernels)
+            found = step_rejection(current, step, kernels, primary)
             if found is not None:
                 return errors + [f"step {position + 1} rejects its input with {found.rule}"]
-            apply(current, step)
+            apply(current, step, primary)
     except arrow_data.FixtureError:
         # Its own gate reports the input; here it cannot be an input.
         return errors + ["the input is not a buildable table"]
     except ValueError:
         return errors + ["transformations cannot apply"]
-    expected = expected_output(table, vector["chain"])
-    errors += output_errors(vector, table, expected)
+    expected = expected_output(table, vector["chain"], primary)
+    errors += output_errors(vector, table, expected, primary)
     if vector.get("contract") == "plenora-interop-assignment-vector-v1":
         errors += surface_output_errors(vector, table, vector["surface_outputs"])
     return errors

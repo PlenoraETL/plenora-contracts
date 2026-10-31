@@ -13,6 +13,21 @@ adds these cases:
 | Rule 4: accept `mixed` without a type list | [mixed](arrow-v1/mixed-without-types.json) | `tools/validate_specs.py` |
 | Vocabulary section 3: reject an empty type list | [empty types](arrow-v1/invalid-mixed-empty-types.json) | `tools/validate_specs.py` |
 
+Decision [0023](../decisions/0023-primary-geometry-across-components.md)
+adds three directories for
+[Arrow Primary Geometry 1.0](../specs/data/ARROW-PRIMARY-GEOMETRY-1.0.md)
+(PRIM-009):
+
+| Directory | Shape | Validator |
+|---|---|---|
+| [arrow-primary-v1](arrow-primary-v1/) | `arrow-data-vector-v1`: the key's verdict (PRIM-001 to PRIM-004) | `tools/arrow_primary.py` |
+| [interop-primary-v1](interop-primary-v1/) | `interop-primary-vector-v1`: chains that keep the primary, no promotion, operand selection (PRIM-005, PRIM-007) | `tools/interop_vectors.py` with `primary` |
+| [geoparquet-primary-v1](geoparquet-primary-v1/) | `geoparquet-primary-vector-v1`: `primary_column` on write and on read (PRIM-008) | `tools/arrow_primary.py` |
+
+The main fixture carries two geometry fields in EPSG:32632 and EPSG:4326,
+with the primary not first. The gate also checks that every vector of
+`arrow-data-v1` keeps its verdict under these rules.
+
 Run `python tools/validate_specs.py` for the repository gate and
 `python -m unittest discover -s tools` for the validator tests.
 

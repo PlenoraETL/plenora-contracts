@@ -1,0 +1,15 @@
+{
+  "$schema": "../../schemas/geoparquet-primary-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-geoparquet-primary-vector-v1",
+  "direction": "read",
+  "description": "A primary_column that names the first column is delivered with the key all the same: two fields.",
+  "table": "../arrow-primary-v1/primary-first-of-two.json",
+  "geo": {
+    "primary_column": "track",
+    "columns": [
+      "track",
+      "position"
+    ]
+  }
+}

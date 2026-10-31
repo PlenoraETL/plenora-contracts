@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/interop-primary-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-primary-vector-v1",
+  "kind": "rejection",
+  "description": "data.run with the identity plan refuses a key that names no field, before any effect.",
+  "input": "../arrow-primary-v1/invalid-primary-dangling.json",
+  "chain": [
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "identity"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "input",
+    "category": "schema",
+    "phases": [
+      "validate"
+    ],
+    "remote_effects": [
+      "none"
+    ],
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "PRIM-003",
+      "REJ-001"
+    ]
+  }
+}

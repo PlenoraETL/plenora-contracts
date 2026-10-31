@@ -1,0 +1,36 @@
+{
+  "$schema": "../../schemas/interop-primary-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-primary-vector-v1",
+  "kind": "rejection",
+  "description": "A geometry operation whose selection names a field that is not a geometry field.",
+  "input": "../arrow-primary-v1/primary-second-of-two.json",
+  "chain": [
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "geo.centroid",
+        "geometry": "0"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "operation",
+    "category": "schema",
+    "phases": [
+      "validate"
+    ],
+    "remote_effects": [
+      "none"
+    ],
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "PRIM-007",
+      "REJ-001"
+    ]
+  }
+}

@@ -11,6 +11,7 @@ from typing import Any
 from uuid import UUID
 
 import arrow_data
+import arrow_primary
 import interop_vectors
 import file_interop
 import rest_adapter
@@ -49,6 +50,7 @@ EXPECTED_SCHEMAS = {
     "file-interchange-v1.schema.json",
     "file-interop-vector-v1.schema.json",
     "file-composition-v1.schema.json",
+    "geoparquet-primary-vector-v1.schema.json",
     "adoption-manifest-v1.schema.json",
     "adoption-manifest-v2.schema.json",
     "adoption-manifest-v3.schema.json",
@@ -65,6 +67,7 @@ EXPECTED_SCHEMAS = {
     "error-v1.schema.json",
     "interop-vector-v1.schema.json",
     "interop-assignment-vector-v1.schema.json",
+    "interop-primary-vector-v1.schema.json",
     "operation-registry-v1.schema.json",
     "plan-budget-v1.schema.json",
     "public-catalog-v1.schema.json",
@@ -692,12 +695,18 @@ def validate_machine_documents(
         ),
         "arrow-data-vector-v1.schema.json": sorted(
             (ROOT / "vectors/arrow-data-v1").glob("*.json")
-        ),
+        ) + sorted((ROOT / "vectors/arrow-primary-v1").glob("*.json")),
         "interop-vector-v1.schema.json": sorted(
             (ROOT / "vectors/interop-v1").glob("*.json")
         ),
         "interop-assignment-vector-v1.schema.json": sorted(
             (ROOT / "vectors/interop-assignment-v1").glob("*.json")
+        ),
+        "interop-primary-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/interop-primary-v1").glob("*.json")
+        ),
+        "geoparquet-primary-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/geoparquet-primary-v1").glob("*.json")
         ),
         "runtime-vector-v1.schema.json": runtime_vector_paths(),
         "runtime-probe-v1.schema.json": sorted(
@@ -2379,6 +2388,7 @@ def validate_interop_vectors(
     if not paths:
         return ["vectors/interop-v1 has no vectors"]
     paths += sorted((ROOT / "vectors/interop-assignment-v1").glob("*.json"))
+    paths += sorted((ROOT / "vectors/interop-primary-v1").glob("*.json"))
     # The kernels of the current registry; none without one, which
     # data_registry_errors reports (a geo plan then names no kernel).
     kernels = latest_kernel_ids()
@@ -2390,12 +2400,17 @@ def validate_interop_vectors(
     for path in paths:
         label = path.relative_to(ROOT).as_posix()
         vector = load_json(path)
-        schema_name = ("interop-assignment-vector-v1.schema.json"
-                       if path.parent.name == "interop-assignment-v1"
-                       else "interop-vector-v1.schema.json")
+        schema_name = {
+            "interop-assignment-v1": "interop-assignment-vector-v1.schema.json",
+            "interop-primary-v1": "interop-primary-vector-v1.schema.json",
+        }.get(path.parent.name, "interop-vector-v1.schema.json")
         if instance_errors(schemas[schema_name], vector, registry):
             continue
-        for problem in interop_vectors.vector_errors(path, vector, operations, direct, load_json, kernels):
+        # Arrow Primary Geometry 1.0 (PRIM-009) judges its own directory.
+        primary = path.parent.name == "interop-primary-v1"
+        for problem in interop_vectors.vector_errors(
+            path, vector, operations, direct, load_json, kernels, primary
+        ):
             failures.append(f"{label} {problem}")
         expected_error = vector.get("expected_error")
         if isinstance(expected_error, dict):
@@ -2466,6 +2481,57 @@ def validate_arrow_data_vectors() -> list[str]:
             computation.get("rules") or [] if isinstance(computation, dict) else []
         )
         failures.extend(cited_rule_errors(label, cited, known))
+    return failures
+
+
+def validate_arrow_primary_vectors() -> list[str]:
+    """Arrow Primary Geometry 1.0, PRIM-009: each vector of
+    `vectors/arrow-primary-v1` states the verdict of `arrow_primary`, and
+    every vector of `vectors/arrow-data-v1` keeps under it the verdict of
+    Arrow Geometry Semantics 1.0 (the contract revokes no acceptance)."""
+    failures: list[str] = []
+    paths = sorted((ROOT / "vectors/arrow-primary-v1").glob("*.json"))
+    if not paths:
+        return ["vectors/arrow-primary-v1 has no vectors"]
+    known = defined_rules()
+    for path in paths:
+        label = path.relative_to(ROOT).as_posix()
+        vector = load_json(path)
+        for error in arrow_primary.vector_errors(vector):
+            failures.append(f"{label} {error}")
+        failures.extend(cited_rule_errors(label, list(vector.get("rules") or []), known))
+    for path in sorted((ROOT / "vectors/arrow-data-v1").glob("*.json")):
+        vector = load_json(path)
+        try:
+            same = arrow_primary.verdict(vector) == arrow_data.verdict(vector)
+        except arrow_data.FixtureError:
+            # Reported by the gate of its own directory.
+            continue
+        if not same:
+            failures.append(f"{path.relative_to(ROOT).as_posix()} changes verdict under PRIM-001 to PRIM-003")
+    return failures
+
+
+def validate_geoparquet_primary_vectors() -> list[str]:
+    """Arrow Primary Geometry 1.0, PRIM-008: the GeoParquet correspondence
+    each vector of `vectors/geoparquet-primary-v1` states."""
+    failures: list[str] = []
+    paths = sorted((ROOT / "vectors/geoparquet-primary-v1").glob("*.json"))
+    if not paths:
+        return ["vectors/geoparquet-primary-v1 has no vectors"]
+    known = defined_rules()
+    for path in paths:
+        label = path.relative_to(ROOT).as_posix()
+        vector = load_json(path)
+        table_path = (path.parent / vector["table"]).resolve()
+        if not table_path.exists():
+            failures.append(f"{label} names a table that does not exist")
+            continue
+        for error in arrow_primary.geoparquet_errors(vector, load_json(table_path)):
+            failures.append(f"{label} {error}")
+        error = vector.get("expected_error")
+        if isinstance(error, dict):
+            failures.extend(cited_rule_errors(label, list(error.get("rules") or []), known))
     return failures
 
 
@@ -3557,6 +3623,8 @@ def run_gate() -> int:
     failures.extend(validate_file_interop(catalogs))
     failures.extend(validate_arrow_vectors())
     failures.extend(validate_arrow_data_vectors())
+    failures.extend(validate_arrow_primary_vectors())
+    failures.extend(validate_geoparquet_primary_vectors())
     failures.extend(validate_interop_vectors(catalogs, schemas, registry))
     failures.extend(validate_interop_violating(schemas, registry, catalogs))
     failures.extend(validate_rest_adapter_vectors())

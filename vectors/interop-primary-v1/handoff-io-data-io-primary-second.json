@@ -1,0 +1,114 @@
+{
+  "$schema": "../../schemas/interop-primary-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-primary-vector-v1",
+  "kind": "handoff",
+  "description": "Two geometry fields in two CRS, the primary not first: IO, data and IO keep the key and every field.",
+  "input": "../arrow-primary-v1/primary-second-of-two.json",
+  "chain": [
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.read",
+      "version": 2,
+      "params": {
+        "source": "input.arrow",
+        "format": "arrow_ipc_file"
+      },
+      "transformations": []
+    },
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "identity"
+      },
+      "transformations": [
+        "complete_missing_geometry_keys",
+        "large_to_standard",
+        "assign_field_ids",
+        "srid_from_epsg_identifier"
+      ]
+    },
+    {
+      "component": "plenora-io-tools",
+      "operation": "io.write",
+      "version": 2,
+      "params": {
+        "format": "arrow_ipc_file"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_output": {
+    "schema_metadata": {
+      "plenora.contract.version": "1",
+      "plenora.primary_geometry": "2"
+    },
+    "fields": [
+      {
+        "name": "id",
+        "type": "int64",
+        "nullable": false,
+        "metadata": {
+          "plenora.field_id": "0"
+        }
+      },
+      {
+        "name": "track",
+        "type": "binary",
+        "nullable": true,
+        "metadata": {
+          "plenora.field_id": "1",
+          "ARROW:extension:name": "geoarrow.wkb",
+          "plenora.geometry.encoding": "wkb",
+          "plenora.geometry.dimensions": "xy",
+          "plenora.geometry.spatial_semantics": "geometry",
+          "plenora.geometry.precision": "float64",
+          "plenora.geometry.types_declaration": "exact",
+          "plenora.geometry.types": "linestring",
+          "plenora.geometry.crs_resolution": "resolved",
+          "plenora.geometry.crs_id": "EPSG:32632",
+          "plenora.geometry.axis_order": "easting_northing",
+          "plenora.geometry.srid": "32632"
+        }
+      },
+      {
+        "name": "position",
+        "type": "binary",
+        "nullable": true,
+        "metadata": {
+          "plenora.field_id": "2",
+          "ARROW:extension:name": "geoarrow.wkb",
+          "plenora.geometry.encoding": "wkb",
+          "plenora.geometry.dimensions": "xy",
+          "plenora.geometry.spatial_semantics": "geometry",
+          "plenora.geometry.precision": "float64",
+          "plenora.geometry.types_declaration": "exact",
+          "plenora.geometry.types": "point",
+          "plenora.geometry.crs_resolution": "resolved",
+          "plenora.geometry.crs_id": "EPSG:4326",
+          "plenora.geometry.axis_order": "lon_lat",
+          "plenora.geometry.srid": "4326"
+        }
+      }
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "track": "0102000000020000000000000080841e41e17a140eccbc51410000000012861e4100000030e5bc5141",
+        "position": "01010000000000000000205ec00000000000a04640"
+      },
+      {
+        "id": 2,
+        "track": null,
+        "position": "0101000000e17a14ae47612240cf66d5e76abb4640"
+      },
+      {
+        "id": 3,
+        "track": "0102000000020000000000000080841e41e17a140eccbc51410000000012861e4100000030e5bc5141",
+        "position": null
+      }
+    ]
+  }
+}

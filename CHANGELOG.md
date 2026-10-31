@@ -24,6 +24,24 @@ full commit SHA; a release tag names one of those commits.
 
 ### Added
 
+- Arrow Primary Geometry 1.0 (`plenora-arrow-primary-geometry-v1`, PRIM-001
+  to PRIM-009), an opt-in contract for components that claim Arrow Geometry
+  Semantics 1.0: the schema key `plenora.primary_geometry` names the primary
+  geometry field by `plenora.field_id`, or `none`; one geometry field
+  without the key stays the primary and several without it have none; a
+  key that names no geometry field is `schema`; the key is emitted only
+  where absence means another state, so single-geometry schemas are
+  unchanged; no operation promotes another field when the primary is
+  removed, and no join elects one; a geometry operation takes the selected
+  field or the primary, refuses with `schema` without either, and verifies
+  only its operand's CRS; GeoParquet `primary_column` maps to the key both
+  ways, and a writer refuses a table without primary with `unsupported`.
+  New schemas `interop-primary-vector-v1` and `geoparquet-primary-vector-v1`
+  and 34 vectors in `vectors/arrow-primary-v1`, `vectors/interop-primary-v1`
+  and `vectors/geoparquet-primary-v1`; Arrow Geometry Semantics 1.0 gains an
+  informative pointer. No existing schema, catalog, binding, vector or
+  profile changes. See
+  [decision 0023](decisions/0023-primary-geometry-across-components.md).
 - IO-ARROW-001 in the IO-tools profile v3: an Arrow input with neither
   `plenora.contract.version` nor any `plenora.` key is an external source that
   IO accepts, a profile acceptance as GEO-000 allows; an input with any

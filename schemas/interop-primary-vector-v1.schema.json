@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/interop-primary-vector-v1.schema.json",
+  "title": "Plenora interoperability vector of the primary geometry v1",
+  "description": "A chain of public operations under Arrow Primary Geometry 1.0 (PRIM-009): the steps of interop-vector-v1, an input from arrow-data-v1 or arrow-primary-v1, and the operation-schema class of PRIM-007.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract",
+    "kind",
+    "description",
+    "input",
+    "chain"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "contract": {
+      "const": "plenora-interop-primary-vector-v1"
+    },
+    "kind": {
+      "enum": [
+        "handoff",
+        "rejection"
+      ]
+    },
+    "description": {
+      "$ref": "interop-vector-v1.schema.json#/properties/description"
+    },
+    "input": {
+      "description": "Path of an arrow-data-v1 or arrow-primary-v1 vector, relative to this file.",
+      "type": "string",
+      "pattern": "^\\.\\./arrow-(data|primary)-v1/[a-z0-9-]+\\.json$"
+    },
+    "chain": {
+      "$ref": "interop-vector-v1.schema.json#/properties/chain"
+    },
+    "expected_output": {
+      "$ref": "interop-vector-v1.schema.json#/properties/expected_output"
+    },
+    "expected_error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class",
+        "category",
+        "phases",
+        "remote_effects",
+        "retry",
+        "exit_code",
+        "rules"
+      ],
+      "properties": {
+        "class": {
+          "description": "`operation` is the operation-schema class of REJ-001, here the missing operand of PRIM-007.",
+          "enum": [
+            "input",
+            "support",
+            "crs",
+            "operation"
+          ]
+        },
+        "category": {
+          "$ref": "interop-vector-v1.schema.json#/properties/expected_error/properties/category"
+        },
+        "phases": {
+          "$ref": "interop-vector-v1.schema.json#/properties/expected_error/properties/phases"
+        },
+        "remote_effects": {
+          "$ref": "interop-vector-v1.schema.json#/properties/expected_error/properties/remote_effects"
+        },
+        "retry": {
+          "const": "never"
+        },
+        "exit_code": {
+          "const": 3
+        },
+        "rules": {
+          "$ref": "interop-vector-v1.schema.json#/properties/expected_error/properties/rules"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "handoff"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "expected_output"
+        ],
+        "not": {
+          "required": [
+            "expected_error"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "rejection"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "expected_error"
+        ],
+        "properties": {
+          "chain": {
+            "maxItems": 1
+          }
+        },
+        "not": {
+          "required": [
+            "expected_output"
+          ]
+        }
+      }
+    }
+  ]
+}

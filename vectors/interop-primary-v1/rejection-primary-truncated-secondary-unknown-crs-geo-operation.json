@@ -1,0 +1,36 @@
+{
+  "$schema": "../../schemas/interop-primary-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-primary-vector-v1",
+  "kind": "rejection",
+  "description": "The operand is the primary: the unknown CRS of the secondary is not the operation's, the truncated value is.",
+  "input": "../arrow-primary-v1/invalid-primary-truncated-secondary-unknown-crs.json",
+  "chain": [
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "geo.centroid"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "input",
+    "category": "data_mapping",
+    "phases": [
+      "read"
+    ],
+    "remote_effects": [
+      "none"
+    ],
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "GEO-011",
+      "PRIM-007",
+      "REJ-002"
+    ]
+  }
+}
