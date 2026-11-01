@@ -41,19 +41,35 @@ jobs:
         python: ["3.10", "3.12", "3.14"]
         include:
           # Su Python 3.10 il lock fissa filelock 4.0.12: nessuna versione
-          # per 3.10 e' corretta, e 4.0.12 porta tre advisory (CVE-2026-112907,
-          # -112913, -112940) contro le sei di 4.1.0; la correzione, 4.2.1,
-          # richiede 3.11. Riguardano `ReadWriteLock` (SQLite riaperto per
-          # nome, scambio di nomi in una cartella non sticky); pip-audit usa
-          # filelock attraverso la cache di CacheControl, con `FileLock`, su
-          # un runner effimero. Ignorate solo qui e solo queste tre. Rientro:
-          # quando Python 3.10 esce dalle versioni supportate (PYTHON-SDK-1.0
-          # sezione 1 lo richiede oggi), o se filelock corregge una versione
-          # per 3.10; requirements-audit.in porta la stessa nota.
+          # per 3.10 e' corretta, e 4.0.12 porta tredici advisory (CVE-2026-112907,
+          # -112908, -112909, -112910, -112911, -112912, -112913, -112915,
+          # -112934, -112935, -112938, -112939, -112940) contro le diciassette
+          # di 4.1.0, l'unica altra versione per 3.10; la correzione, 4.2.1,
+          # richiede 3.11. Sono tutte corse locali sui file/directory di lock
+          # fra due utenti dello stesso host (symlink o hard link scambiati,
+          # permessi/ACL ereditati dalla cartella, PID forgiato nel marker,
+          # lock rimosso su un inode riusato, `ReadWriteLock` che riapre il
+          # suo database SQLite per nome); pip-audit usa filelock attraverso
+          # la cache di CacheControl, con `FileLock`, su un runner effimero
+          # senza un secondo utente locale. Ignorate solo qui e solo queste
+          # tredici. Rientro: quando Python 3.10 esce dalle versioni
+          # supportate (PYTHON-SDK-1.0 sezione 1 lo richiede oggi), o se
+          # filelock corregge una versione per 3.10; requirements-audit.in
+          # porta la stessa nota.
           - python: "3.10"
             ignora: >-
               --ignore-vuln CVE-2026-112907
+              --ignore-vuln CVE-2026-112908
+              --ignore-vuln CVE-2026-112909
+              --ignore-vuln CVE-2026-112910
+              --ignore-vuln CVE-2026-112911
+              --ignore-vuln CVE-2026-112912
               --ignore-vuln CVE-2026-112913
+              --ignore-vuln CVE-2026-112915
+              --ignore-vuln CVE-2026-112934
+              --ignore-vuln CVE-2026-112935
+              --ignore-vuln CVE-2026-112938
+              --ignore-vuln CVE-2026-112939
               --ignore-vuln CVE-2026-112940
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
