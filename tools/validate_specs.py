@@ -47,6 +47,7 @@ MAX_ERROR_DETAILS_STRING_BYTES = 4_096
 MAX_ERROR_DETAILS_NODES = 2_048
 
 EXPECTED_SCHEMAS = {
+    "primary-composition-vector-v1.schema.json",
     "file-interchange-v1.schema.json",
     "file-interop-vector-v1.schema.json",
     "file-composition-v1.schema.json",
@@ -704,6 +705,9 @@ def validate_machine_documents(
         ),
         "interop-primary-vector-v1.schema.json": sorted(
             (ROOT / "vectors/interop-primary-v1").glob("*.json")
+        ),
+        "primary-composition-vector-v1.schema.json": sorted(
+            (ROOT / "vectors/primary-composition-v1").glob("*.json")
         ),
         "geoparquet-primary-vector-v1.schema.json": sorted(
             (ROOT / "vectors/geoparquet-primary-v1").glob("*.json")
@@ -2490,6 +2494,12 @@ def validate_arrow_primary_vectors() -> list[str]:
     every vector of `vectors/arrow-data-v1` keeps under it the verdict of
     Arrow Geometry Semantics 1.0 (the contract revokes no acceptance)."""
     failures: list[str] = []
+    composition_paths = sorted((ROOT / "vectors/primary-composition-v1").glob("*.json"))
+    if not composition_paths:
+        failures.append("vectors/primary-composition-v1 has no vectors")
+    for path in composition_paths:
+        for error in arrow_primary.composition_errors(load_json(path)):
+            failures.append(f"{path.relative_to(ROOT).as_posix()} {error}")
     paths = sorted((ROOT / "vectors/arrow-primary-v1").glob("*.json"))
     if not paths:
         return ["vectors/arrow-primary-v1 has no vectors"]

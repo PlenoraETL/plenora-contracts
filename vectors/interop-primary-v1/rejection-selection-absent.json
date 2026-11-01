@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schemas/interop-primary-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-primary-vector-v1",
+  "kind": "rejection",
+  "description": "An absent identity must not become positional selection after ID assignment.",
+  "input": "../arrow-primary-v1/missing-geometry-identities.json",
+  "chain": [
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "geo.centroid",
+        "geometry": "1"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "operation",
+    "category": "schema",
+    "phases": [
+      "validate"
+    ],
+    "remote_effects": [
+      "none"
+    ],
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "PRIM-007",
+      "REJ-001",
+      "REJ-002"
+    ]
+  }
+}

@@ -127,6 +127,26 @@ class OperandTests(unittest.TestCase):
         self.assertEqual(primary.operands(one, None), ("schema", "PRIM-007"))
         self.assertEqual([field["name"] for field in primary.operands(one, "1")], ["position"])
 
+    def test_selection_before_completion_and_rejection_precedence(self):
+        table = arrow("missing-geometry-identities.json")
+        geo = {"component": "plenora-data-tools", "operation": "data.run", "version": 2,
+               "params": {"plan": "geo.centroid", "geometry": "1"}, "transformations": []}
+        for reverse in (False, True):
+            if reverse:
+                table["fields"][1:] = reversed(table["fields"][1:])
+            self.assertEqual(interop.step_rejection(table, geo, KERNELS, True),
+                             ("operation", "schema", "PRIM-007"))
+        geo["params"]["limits"] = ["one_geometry_field"]
+        self.assertEqual(interop.step_rejection(table, geo, KERNELS, True),
+                         ("support", "unsupported", "GEO-012"))
+
+    def test_received_operand_uses_completed_metadata(self):
+        table = arrow("primary-second-of-two.json")
+        del table["fields"][2]["metadata"]["plenora.geometry.spatial_semantics"]
+        geo = {"component": "plenora-data-tools", "operation": "data.run", "version": 2,
+               "params": {"plan": "geo.centroid", "geometry": "2"}, "transformations": []}
+        self.assertIsNone(interop.step_rejection(table, geo, KERNELS, True))
+
     def test_a_secondary_crs_does_not_decide(self):
         """GEO-015 on the operand only: under Arrow Geometry Semantics 1.0
         alone the unknown CRS of the secondary decides first."""
@@ -245,6 +265,33 @@ class GeoParquetTests(unittest.TestCase):
     def test_gate(self):
         self.assertEqual(validator.validate_geoparquet_primary_vectors(), [])
         self.assertEqual(validator.validate_arrow_primary_vectors(), [])
+
+
+class CompositionTests(unittest.TestCase):
+    def test_vectors_and_wrong_expectations(self):
+        for path in sorted((ROOT / "vectors/primary-composition-v1").glob("*.json")):
+            with self.subTest(path=path.name):
+                vector = validator.load_json(path)
+                self.assertEqual(primary.composition_errors(vector), [])
+                for key in ("expected_primary", "expected_key"):
+                    changed = copy.deepcopy(vector)
+                    changed[key] = "999"
+                    self.assertTrue(primary.composition_errors(changed))
+
+    def test_invalid_provenance(self):
+        path = ROOT / "vectors/primary-composition-v1/join-preserves-remapped-primary.json"
+        for mutation in ("input", "field", "duplicate", "primary", "output"):
+            with self.subTest(mutation=mutation):
+                vector = validator.load_json(path)
+                if mutation == "duplicate":
+                    vector["mapping"].append(copy.deepcopy(vector["mapping"][0]))
+                elif mutation == "primary":
+                    vector["inputs"][0]["primary"] = "999"
+                elif mutation == "output":
+                    vector["mapping"][0]["output"] = vector["mapping"][1]["output"]
+                else:
+                    vector["mapping"][0][mutation] = 999 if mutation == "input" else "999"
+                self.assertTrue(primary.composition_errors(vector))
 
 
 if __name__ == "__main__":

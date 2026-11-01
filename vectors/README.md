@@ -14,7 +14,7 @@ adds these cases:
 | Vocabulary section 3: reject an empty type list | [empty types](arrow-v1/invalid-mixed-empty-types.json) | `tools/validate_specs.py` |
 
 Decision [0023](../decisions/0023-primary-geometry-across-components.md)
-adds three directories for
+adds four directories for
 [Arrow Primary Geometry 1.0](../specs/data/ARROW-PRIMARY-GEOMETRY-1.0.md)
 (PRIM-009):
 
@@ -22,6 +22,7 @@ adds three directories for
 |---|---|---|
 | [arrow-primary-v1](arrow-primary-v1/) | `arrow-data-vector-v1`: the key's verdict (PRIM-001 to PRIM-004) | `tools/arrow_primary.py` |
 | [interop-primary-v1](interop-primary-v1/) | `interop-primary-vector-v1`: chains that keep the primary, no promotion, operand selection (PRIM-005, PRIM-007) | `tools/interop_vectors.py` with `primary` |
+| [primary-composition-v1](primary-composition-v1/) | `primary-composition-vector-v1`: join, append and union by field provenance (PRIM-006) | `tools/arrow_primary.py` |
 | [geoparquet-primary-v1](geoparquet-primary-v1/) | `geoparquet-primary-vector-v1`: `primary_column` on write and on read (PRIM-008) | `tools/arrow_primary.py` |
 
 The main fixture carries two geometry fields in EPSG:32632 and EPSG:4326,

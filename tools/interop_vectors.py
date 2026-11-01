@@ -462,12 +462,15 @@ def step_rejection(
     operands = geometry
     missing_operand = None
     if primary and computes(step, kernels):
-        selected = arrow_primary.operands(seen, _params(step).get("geometry"))
+        selected = arrow_primary.operands(table, _params(step).get("geometry"))
         if isinstance(selected, arrow_data.Verdict):
             missing_operand = Rejection("operation", selected.category, selected.rule)
             operands = []
         else:
-            operands = selected
+            # Completion preserves field order; use the completed metadata of
+            # the operand resolved against the received schema (PRIM-007).
+            operands = [seen["fields"][index] for index, field in enumerate(table["fields"])
+                        if any(field is operand for operand in selected)]
     if computes(step, kernels):
         declared = [field for field in operands if _metadata(field)[GEOMETRY + "crs_resolution"] != "missing"]
         for field in declared:

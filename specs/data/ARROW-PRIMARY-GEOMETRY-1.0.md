@@ -91,13 +91,19 @@ owned by the component and its catalog.
 **PRIM-006** — An operation that combines several inputs never elects a
 primary. When it places their fields side by side, such as a join, and every
 geometry field of its output comes from one input, the output keeps that
-input's primary state; when the output carries geometry fields of two or
-more inputs, it has no primary unless the request names one, whatever the
+input's primary state by field provenance: the primary survives only if
+its field survives, and an input without a primary remains without one.
+If output identities change, the primary reference follows the input-to-output
+field mapping; it is never copied as a bare numeric ID. When the output
+carries geometry fields of two or more inputs, it has no primary unless the request names one, whatever the
 inputs declared, their order, their names or their CRS. When it feeds the
 fields of several inputs into the same output fields, such as an append or
 a union, the output field that the primary of every input feeds is the
 primary; if an input has no primary, or the primaries of the inputs feed
-different output fields, the output has no primary.
+different output fields, the output has no primary. This correspondence is
+established by field provenance, not by numeric equality of identities across
+inputs: equal IDs can feed different output fields, and different IDs can
+feed the same output field.
 
 **PRIM-007** — An operation that computes with one geometry of an input takes
 the field its request selects by identity and, when the request selects
@@ -106,8 +112,13 @@ or with a selection that names no geometry field of the input, the operation
 rejects the input in the operation-schema class of REJ-001 (`schema`),
 before any effect, with phase `validate` (REJ-003); it never takes the first
 or the only geometry field. The selection names a field of the input; the
-spelling of the request parameter is the component's. In the order of
-REJ-002 the CRS the operation must use (GEO-006, GEO-015) and its support of
+spelling of the request parameter is the component's. An explicit selector
+is resolved against the schema as received, before any profile completion
+(DT-ARROW-003). An identity absent there is rejected in the operation-schema
+class (`schema`), even if completion would assign that identity to a field.
+After resolution, the operation uses the completed metadata of that same
+field. This rejection follows REJ-002, including preceding support limits.
+In the order of REJ-002 the CRS the operation must use (GEO-006, GEO-015) and its support of
 the field (such as `geography` semantics) are those of the operand only; the
 missing operand is reported after the support limits; the operation decodes
 the values of the operand and carries the other geometry fields without
@@ -167,6 +178,16 @@ phase `validate`, `remote_effect: none`, `retry.kind: never`, CLI exit code 3.
   PRIM-007 from the field identity its `geometry` parameter names, if any. A
   `geometry` parameter on a step that does not compute, or that is not a
   field identity, is refused, never ignored;
+- [`vectors/primary-composition-v1`](../../vectors/primary-composition-v1/):
+  provenance fixtures for PRIM-006 in the shape of
+  [`primary-composition-vector-v1.schema.json`](../../schemas/primary-composition-vector-v1.schema.json).
+  Each input lists its geometry identities and semantic primary (`null` means
+  no primary, not an omitted wire key). `mapping` lists surviving geometry
+  fields by zero-based input index, input field identity and output identity.
+  It defines the input-to-output correspondence; omitted fields are dropped.
+  `expected_primary` is the output state and `expected_key` the canonical
+  PRIM-004 wire value (`null` means omission). These fixtures describe field
+  provenance, not a component's request syntax or row computation;
 - [`vectors/geoparquet-primary-v1`](../../vectors/geoparquet-primary-v1/): the
   correspondence of PRIM-008 in the shape of
   [`geoparquet-primary-vector-v1.schema.json`](../../schemas/geoparquet-primary-vector-v1.schema.json),
@@ -175,8 +196,8 @@ phase `validate`, `remote_effect: none`, `retry.kind: never`, CLI exit code 3.
 The validator derives every verdict from the rules, and checks that every
 vector of `vectors/arrow-data-v1` keeps its verdict under them. The vectors
 illustrate the rules and do not cover them all: the operations of PRIM-005
-and PRIM-006 other than carrying a table, the CRS and the other members of
-the GeoParquet `columns`, and GeoParquet files themselves are left to the
+other than carrying a table, row computation for PRIM-006, the CRS and the
+other members of the GeoParquet `columns`, and GeoParquet files themselves are left to the
 components' own vectors.
 
 ## 7. Informative: what this contract does not fix

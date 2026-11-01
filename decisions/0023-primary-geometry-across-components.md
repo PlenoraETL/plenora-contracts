@@ -59,12 +59,18 @@ that claim Arrow Geometry Semantics 1.0:
    operation's output contract says it replaces the primary.
 6. **No election in joins** (PRIM-006): geometry fields from two or more
    inputs give no primary unless the request names one; geometry fields from
-   one input keep that input's state, which is not an election. Appends and
-   unions keep the primary only when every input's primary feeds the same
-   output field.
+   one input keep that input's state by provenance: the primary is retained
+   only if its field survives, and any reassigned ID is followed through the
+   input-to-output mapping. An input without a primary stays without one.
+   Appends and unions keep the primary only when every input's primary feeds
+   the same output field; equal numeric IDs across inputs do not establish
+   that correspondence.
 7. **Operand selection** (PRIM-007): the request's selection by identity,
    otherwise the primary; neither is `schema` in the operation-schema class,
-   never the first or the only field. The CRS the operation verifies, its
+   never the first or the only field. An explicit selector is resolved on
+   the received schema before completion: an absent identity is `schema`
+   in the operation-schema class, in REJ-002 order, even if completion would
+   assign that ID. The CRS the operation verifies, its
    support and the values it decodes are the operand's; every other geometry
    field is only checked for input conformance and carried. Two fields in
    two CRS therefore never conflict unless both are operands.
@@ -73,12 +79,15 @@ that claim Arrow Geometry Semantics 1.0:
    table without primary with `unsupported` and never picks one; the native
    key IO records is provenance, never read to decide. Single-geometry sinks
    keep GEO-012 and never write the primary alone.
-9. **Vectors** (PRIM-009): 15 schema vectors in `vectors/arrow-primary-v1`,
-   12 chains in `vectors/interop-primary-v1` (new schema
+9. **Vectors** (PRIM-009): 17 schema vectors in `vectors/arrow-primary-v1`,
+   14 chains in `vectors/interop-primary-v1` (new schema
    `interop-primary-vector-v1`, which adds the operation class) and 7
    GeoParquet correspondences in `vectors/geoparquet-primary-v1` (new schema
    `geoparquet-primary-vector-v1`). The two geometry fields of the main
    fixture are in EPSG:32632 and EPSG:4326, with the primary not first.
+   Another 13 provenance vectors in `vectors/primary-composition-v1` (new
+   schema `primary-composition-vector-v1`) cover join, append and union,
+   including ID remapping, removed primaries and inputs without a primary.
 
 ### Why a separate contract
 
@@ -102,6 +111,22 @@ checks of that class and before the CRS class; the missing operand is the
 operation-schema class; the GeoParquet writer's refusal is the support
 class. All are `schema` or `unsupported`, never `invalid_plan` (decision
 0014).
+
+### Owner resolutions
+
+The owner adopts all six choices as final:
+
+1. Joins with geometry from one input preserve its state by field provenance,
+   retaining a primary only if it survives and updating its ID by the mapping.
+2. Append and union retain a primary only when every input primary feeds the
+   same output field; numeric ID equality between inputs is insufficient.
+3. PRIM-004 is unchanged: omit the key for a single primary geometry, and emit
+   `none` when the sole remaining geometry is not primary.
+4. A missing primary required as operand is `schema`, operation-schema class.
+5. GeoParquet writing without a primary is `unsupported`.
+6. The name `plenora.primary_geometry` is confirmed, on the stated condition
+   that its guarantees hold only between components claiming this contract.
+   Carrying the key through a non-claiming component is not that guarantee.
 
 ## Alternatives
 
@@ -138,8 +163,8 @@ claiming components (section 9 of the specification).
   `vectors/arrow-data-v1` and `vectors/interop-v1` keeps its verdict under the
   new rules, which the gate checks for the first and the validator's
   tests for the second.
-- **Schemas, examples and profiles:** new specification, two new schemas,
-  34 vectors; an informative pointer in Arrow Geometry Semantics 1.0. No
+- **Schemas, examples and profiles:** new specification, three new schemas,
+  51 vectors; an informative pointer in Arrow Geometry Semantics 1.0. No
   existing schema, catalog, binding, vector or profile changes.
 - **Adoption impact**, for a component that claims the contract:
   - IO-tools: emit the key from `primary_column` on every Arrow surface, IPC

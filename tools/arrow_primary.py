@@ -178,3 +178,40 @@ def geoparquet_errors(vector: dict[str, Any], table: dict[str, Any]) -> list[str
     if table["schema_metadata"].get(KEY) != canonical_value(table):
         errors.append("the delivered key is not in the form PRIM-004 emits")
     return errors
+
+
+def composition_errors(vector: dict[str, Any]) -> list[str]:
+    """PRIM-006: derive primary state from geometry field provenance.
+
+    IDs are local to each input. Mapping entries describe surviving geometry
+    fields only; null primary is semantic absence, not an omitted wire key.
+    """
+    inputs = vector["inputs"]
+    for state in inputs:
+        if state["primary"] is not None and state["primary"] not in state["geometry_ids"]:
+            return ["input primary names no geometry field (PRIM-006)"]
+    mapping = {}
+    for edge in vector["mapping"]:
+        index, field = edge["input"], edge["field"]
+        if index >= len(inputs) or field not in inputs[index]["geometry_ids"]:
+            return ["mapping names no input geometry field (PRIM-006)"]
+        if (index, field) in mapping:
+            return ["mapping repeats an input geometry field (PRIM-006)"]
+        mapping[index, field] = edge["output"]
+    sources = {index for index, _ in mapping}
+    if vector["operation"] == "join":
+        if len(set(mapping.values())) != len(mapping):
+            return ["join maps distinct fields to one output (PRIM-006)"]
+        index = next(iter(sources)) if len(sources) == 1 else None
+        found = mapping.get((index, inputs[index]["primary"])) if index is not None else None
+    else:
+        targets = [mapping.get((index, state["primary"])) for index, state in enumerate(inputs)]
+        found = targets[0] if targets[0] is not None and len(set(targets)) == 1 else None
+    count = len(set(mapping.values()))
+    key = (NONE if found is None else None) if count == 1 else found
+    errors = []
+    if vector["expected_primary"] != found:
+        errors.append("expected primary differs from field provenance (PRIM-006)")
+    if vector["expected_key"] != key:
+        errors.append("expected key differs from canonical primary state (PRIM-004)")
+    return errors
