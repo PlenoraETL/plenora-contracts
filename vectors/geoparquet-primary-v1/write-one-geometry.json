@@ -1,0 +1,14 @@
+{
+  "$schema": "../../schemas/geoparquet-primary-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-geoparquet-primary-vector-v1",
+  "direction": "write",
+  "description": "One geometry field without the key is the primary, as before this contract.",
+  "table": "../arrow-data-v1/axis-lon-lat-epsg4326.json",
+  "geo": {
+    "primary_column": "geometry",
+    "columns": [
+      "geometry"
+    ]
+  }
+}

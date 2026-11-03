@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schemas/interop-primary-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-interop-primary-vector-v1",
+  "kind": "rejection",
+  "description": "The selection names the secondary, whose CRS no component knows: the operand's CRS decides (GEO-015).",
+  "input": "../arrow-primary-v1/primary-secondary-unknown-crs.json",
+  "chain": [
+    {
+      "component": "plenora-data-tools",
+      "operation": "data.run",
+      "version": 2,
+      "params": {
+        "plan": "geo.centroid",
+        "geometry": "1"
+      },
+      "transformations": []
+    }
+  ],
+  "expected_error": {
+    "class": "crs",
+    "category": "crs",
+    "phases": [
+      "validate"
+    ],
+    "remote_effects": [
+      "none"
+    ],
+    "retry": "never",
+    "exit_code": 3,
+    "rules": [
+      "GEO-015",
+      "PRIM-007",
+      "REJ-001"
+    ]
+  }
+}

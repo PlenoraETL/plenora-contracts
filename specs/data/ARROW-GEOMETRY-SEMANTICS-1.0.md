@@ -207,6 +207,11 @@ schema with several with `unsupported` before any effect; it MUST NOT drop a
 field, demote it to plain binary or choose one. A component with that limit
 SHOULD make it predictable from its discovery results.
 
+Informative: this contract names no primary geometry among several. The
+opt-in contract [Arrow Primary Geometry 1.0](ARROW-PRIMARY-GEOMETRY-1.0.md)
+(`plenora-arrow-primary-geometry-v1`) declares one with a schema key, for the
+components that claim both; it changes no rule of this document.
+
 ## 6. Identity and precision of produced geometry fields
 
 **GEO-013** — A component that produces a geometry field from a source that

@@ -1,0 +1,15 @@
+{
+  "$schema": "../../schemas/geoparquet-primary-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-geoparquet-primary-vector-v1",
+  "direction": "write",
+  "description": "One geometry field declared without a primary: the writer refuses, it never promotes it.",
+  "table": "../arrow-primary-v1/primary-none-one-geometry.json",
+  "expected_error": {
+    "category": "unsupported",
+    "rules": [
+      "PRIM-008",
+      "REJ-001"
+    ]
+  }
+}

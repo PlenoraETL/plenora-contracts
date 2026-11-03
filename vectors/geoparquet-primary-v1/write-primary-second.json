@@ -1,0 +1,15 @@
+{
+  "$schema": "../../schemas/geoparquet-primary-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-geoparquet-primary-vector-v1",
+  "direction": "write",
+  "description": "A writer names the primary in primary_column and lists both geometry fields, each with its own CRS.",
+  "table": "../arrow-primary-v1/primary-second-of-two.json",
+  "geo": {
+    "primary_column": "position",
+    "columns": [
+      "track",
+      "position"
+    ]
+  }
+}
