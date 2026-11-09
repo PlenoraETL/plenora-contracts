@@ -12,4 +12,4 @@ pip-audit==2.10.1
 # ignorate nel solo job 3.10 di supply-chain.yml, con hazard e rientro scritti
 # li'.
 filelock==4.0.12 ; python_version < "3.11"
-filelock==4.2.4 ; python_version >= "3.11"
+filelock==4.2.9 ; python_version >= "3.11"
