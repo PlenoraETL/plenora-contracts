@@ -45,7 +45,7 @@ The normative sources are:
 - [Arrow metadata vocabulary and vectors](specs/data/ARROW-VOCABULARY-1.0.md);
 - [conformance vector index](vectors/README.md), including decision 0022 cases;
 - [Arrow geometry semantics](specs/data/ARROW-GEOMETRY-SEMANTICS-1.0.md), opt-in for the components that claim it;
-- [geometry operation expectations](specs/data/GEOMETRY-OPERATIONS-1.0.md), opt-in for new geometric boundaries, with an [independent oracle plan](conformance/GEOMETRY-ORACLES-1.0.md);
+- [geometry operation expectations](specs/data/GEOMETRY-OPERATIONS-1.0.md), general standard-based primitives, opt-in for new geometric boundaries, with an [offline oracle plan](conformance/GEOMETRY-ORACLES-1.0.md) and a [non-normative consumer mapping guide](guida/geometria-consumatori.md);
 - [Arrow primary geometry](specs/data/ARROW-PRIMARY-GEOMETRY-1.0.md), opt-in for the components that claim Arrow geometry semantics;
 - [plan budget fragment](specs/data/PLAN-BUDGET-1.0.md), for components accepting plan documents;
 - [Data Plan 1.0](specs/data/DATA-PLAN-1.0.md), the plan accepted by `data.validate` and `data.run` version 2;
