@@ -81,6 +81,18 @@ grammar for existing adopters. A separately named ingress adapter may resolve
 new aliases before producing canonical Arrow; it must not reinterpret an
 already received v1 Arrow field.
 
+## Arithmetic memory (2026-11-17)
+
+The owner decided on 2026-11-17 how GOP-027 applies to exact arithmetic.
+Intermediate values of the DE-9IM classification can reach 145,173 bits, so
+fixed-width integers are impractical, and a general-purpose big-integer
+library allocates outside the control of the budget. Each such value is
+charged with its actual size right after creation and released on drop; the
+proven per-value maximum bounds the overshoot before the typed resource error.
+Rejected: fixed-width integers sized to the bound (about 18 KB per value);
+an in-house counted big integer (large effort and slower arithmetic for an
+overshoot already bounded by a constant).
+
 ## Verification and adoption
 
 The [oracle plan](../conformance/GEOMETRY-ORACLES-1.0.md) derives all engine
