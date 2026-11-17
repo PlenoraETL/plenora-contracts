@@ -322,6 +322,15 @@ shared backing storage once, output and serialization while live. Reserve
 before growth; release only when storage is no longer live. Borrowed input
 and host/allocator overhead are separately declared exclusions, not hidden
 inside a claimed RSS ceiling. Isolation remains a separate host protection.
+Exact arbitrary-precision arithmetic whose allocation the implementation does
+not control MAY be charged with the actual size of each value immediately
+after it is created, instead of before, and released when the value is
+dropped, provided that the implementation declares and proves a maximum size
+per value that does not depend on the number of input elements. The budget can
+then be exceeded by at most that per-value maximum before the call fails with
+the typed resource error; the maximum and its derivation are part of the
+documented limit. Charging an upper bound of the whole operation (a product of
+input sizes or an estimate per vertex) remains forbidden.
 Resource limits MUST NOT change geometry precision, remove nearest ties or
 deduplicate output rows to obtain success. Product; PLAN sections 4–5 and
 Runtime Binding 2.0 RT-024.
