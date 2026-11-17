@@ -14,6 +14,7 @@ e un catalogo dicessero cose diverse, ha ragione il catalogo.
 | [database](database.md) | leggere, scrivere e interrogare PostgreSQL/PostGIS, MySQL, SQL Server, Oracle, DB2 (13 operazioni) |
 | [storage](storage.md) | trasferire file su local, S3, Azure, GCS, FTP/FTPS, SFTP, SMB, WebDAV (7 operazioni) |
 | [rest](rest.md) | chiamare API HTTP: generare, arricchire, scaricare, caricare (5 operazioni) |
+| [Geometria nei consumatori](geometria-consumatori.md) | nota non normativa: traduzione delle API di servizio nelle primitive generali del motore |
 | [Farle parlare insieme](insieme.md) | le catene fra librerie: che cosa passa fra un hop e l'altro, e che cosa aspettarsi quando qualcosa rifiuta |
 
 Ogni capitolo di libreria ha la stessa forma: **le operazioni** (dal catalogo
