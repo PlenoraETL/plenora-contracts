@@ -93,6 +93,19 @@ Rejected: fixed-width integers sized to the bound (about 18 KB per value);
 an in-house counted big integer (large effort and slower arithmetic for an
 overshoot already bounded by a constant).
 
+## Constructed coordinates (2026-11-18)
+
+The owner decided on 2026-11-18 how exactly computed construction points
+are published (GOP-015A). Rejecting every node that binary64 cannot hold
+exactly would make most real line crossings fail, since a crossing such as
+(1/3, 1/3) has no exact binary64 value. Each constructed ordinate is
+rounded to the nearest binary64, ties to even, with a declared error of at
+most half an ulp, and the rounded result is verified; when rounding would
+break validity or the expected topology the operation fails with a typed
+error. Rejected: keeping the rejection of unrepresentable nodes; snap
+rounding on a grid (topologically robust by construction, but a larger and
+more complex algorithm to qualify than this verified rounding).
+
 ## Verification and adoption
 
 The [oracle plan](../conformance/GEOMETRY-ORACLES-1.0.md) derives all engine
