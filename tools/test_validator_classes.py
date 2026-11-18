@@ -371,7 +371,7 @@ class StrictJsonTests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         root = Path(directory.name)
         for entry in ROOT.iterdir():
-            if entry.name in {".git", "__pycache__"}:
+            if entry.name in {".git", "__pycache__", "target"}:
                 continue
             if entry.is_dir():
                 shutil.copytree(entry, root / entry.name, ignore=shutil.ignore_patterns("__pycache__"))

@@ -165,3 +165,49 @@ audits the locks and reruns the gates every week.
 Proprietary; see [LICENSE](LICENSE). The repository is visible, but no right
 to use, copy, modify or distribute its contents is granted except under a
 separate written agreement with Plenora ETL.
+
+## CI locale
+
+Il piano C2 deriva direttamente da tutti i workflow in `.github/workflows`,
+comprese matrici, filtri, condizioni, dipendenze, shell, directory, variabili
+ e servizi. Il confronto strutturale in `tools/test_ci_locale.py` controlla
+che nessun job o passo venga perso. L'interfaccia e la struttura seguono data;
+il parser YAML usa lo stesso pin `PyYAML==6.0.3`.
+
+```sh
+python -m pip install -r requirements-ci-locale.txt
+python tools/ci_locale.py --piano --profilo pr
+python tools/ci_locale.py --esegui --profilo pr
+```
+
+Usare un ambiente virtuale sotto `target/`, con i requisiti del repository.
+`--piano` non esegue i gate e non attribuisce PASS. `--job` seleziona un job
+per chiave o identificatore; gli altri rimangono NON ESEGUITO. `--offline`
+blocca i passi che richiedono rete. `qualifica` e `release` sono profili
+consultabili come piano, senza esecuzione o pubblicazione automatica.
+
+Ogni corsa scrive `target/ci-locale/<corsa>/ricevuta.json`, comandi e log:
+SHA iniziale/finale, stato delle modifiche locali, hash delle fonti, matrice,
+toolchain, ambiente applicato, servizi, comando completo, durata ed esito.
+PASS richiede un processo terminato con zero e senza dichiarazioni di skip;
+FAIL indica un processo fallito; un passo mancante, saltato o non riproducibile
+resta NON ESEGUITO. Exit code: 0 completo, 1 fallimento, 2 incompleto.
+
+La mappa dichiarativa delle action in `tools/ci_locale.py` riconosce revisioni
+esatte. Il checkout principale verifica HEAD e la storia richiesta. Checkout
+aggiuntivi devono essere gia presenti dentro il worktree, puliti, con
+repository, path e ref SHA di 40 cifre: il processo verifica origin e HEAD e
+registra lo SHA; non esegue clone, fetch o modifiche Git. Non sono dichiarati
+checkout aggiuntivi nei workflow correnti.
+
+Il confronto storico CI richiede fetch e verifica del remoto: localmente
+risulta NON ESEGUITO. Anche cache Actions, piattaforme diverse, versioni Python
+assenti, needs non riprodotti, servizi PostgreSQL/Docker e VM rimangono
+espliciti, senza equivalenza presunta. `--servizi-live` conserva l'interfaccia
+di famiglia ma non abilita servizi non riprodotti. I filtri restano nel piano;
+non si presume un evento remoto per certificare la selezione server.
+
+L'ambiente impone `CARGO_BUILD_JOBS=4`, `CARGO_INCREMENTAL=0` e
+`GIT_OPTIONAL_LOCKS=0`. Il runner non installa toolchain. Le sue controprove
+sono incluse nella discovery ordinaria; il budget `.coveragerc` continua a
+misurare i gate contrattuali, escludendo l'orchestrazione locale.
