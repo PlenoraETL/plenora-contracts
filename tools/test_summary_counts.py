@@ -54,7 +54,7 @@ class SummaryCountTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for entry in validator.ROOT.iterdir():
-                if entry.name in {".git", "__pycache__"}:
+                if entry.name in {".git", "__pycache__", "target"}:
                     continue
                 if entry.is_dir():
                     shutil.copytree(entry, root / entry.name, ignore=shutil.ignore_patterns("__pycache__"))

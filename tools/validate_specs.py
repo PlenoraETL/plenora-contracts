@@ -3525,7 +3525,13 @@ def validate_data_plan(
 
 def validate_markdown_links() -> list[str]:
     failures: list[str] = []
-    for document in ROOT.rglob("*.md"):
+    # Il venv, le ricevute e le fixture sotto target non sono documenti
+    # contrattuali; non attraversarli evita anche copie ricorsive dei test.
+    documents = list(ROOT.glob("*.md"))
+    for directory in ROOT.iterdir():
+        if directory.is_dir() and directory.name not in {"target", ".git", ".venv", "__pycache__"}:
+            documents.extend(directory.rglob("*.md"))
+    for document in documents:
         text = document.read_text(encoding="utf-8")
         for target in MARKDOWN_LINK.findall(text):
             if target.startswith(("http://", "https://", "#")):

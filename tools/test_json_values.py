@@ -325,7 +325,7 @@ class ValueContextTests(unittest.TestCase):
                     (ROOT / "schemas" / n).read_text(encoding="utf-8"))
         with tempfile.TemporaryDirectory() as directory:
             copy_root = Path(directory) / "repository"
-            shutil.copytree(ROOT, copy_root, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+            shutil.copytree(ROOT, copy_root, ignore=shutil.ignore_patterns(".git", "__pycache__", "target"))
             target = copy_root / "schemas" / name
             text = target.read_text(encoding="utf-8")
             respelled = regex.sub(r'"(minItems|minLength)": ([0-9]+)', r'"\1": \2.0', text)
