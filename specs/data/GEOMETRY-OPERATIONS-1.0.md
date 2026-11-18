@@ -211,6 +211,18 @@ topologically; coordinate/part order beyond the component dimension order is
 not promised. Invalid output dimensions are `invalid_configuration`.
 Product regularization, containers and explicit filtering; O1.
 
+**GOP-015A** — Constructed coordinates (intersection nodes of booleans, and
+points created by editing operations) are computed exactly and published as
+the nearest binary64 value per ordinate, ties to even; the declared error is at
+most half a unit in the last place per ordinate. Input vertices that are
+carried into the result are published unchanged. After rounding the result is
+verified against the properties the operation promises (validity of the output
+type and the expected topology, such as noding without new crossings and no
+collapsed or reversed rings); a result that rounding would make wrong fails
+with a typed error instead of being returned. Rounding is never used to absorb
+a resource limit and never changes how input coordinates are read. Owner
+decision of 2026-11-18; product rule, O1.
+
 ## 5. Editing subset
 
 **GOP-016** — `editing_xy_v1` is a product-defined planar domain, with
