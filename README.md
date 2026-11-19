@@ -134,16 +134,27 @@ the required behavior and verify it through its public boundary as described in
 
 The gates run in [spec-validation](.github/workflows/spec-validation.yml) on
 Linux and Windows with the oldest and newest supported Python (3.10 and 3.14).
+The supported execution platforms are Linux and Windows.
+The automatic jobs run the quick regression selection; exhaustive null and
+message-sentinel mutation campaigns run only on request as part of
+[spec-coverage](.github/workflows/spec-coverage.yml) (`workflow_dispatch`).
+That workflow measures the full suite (about 4.7 hours under coverage) against
+the full checked-out commit SHA and the ratified floor, without consulting a
+moving remote branch. PR immutability checks still compare against current main.
+
 Locally:
 
 ```sh
 python -m pip install --require-hashes -r requirements-validation.txt
 PLENORA_SCHEMA_BASE=<full commit SHA> python tools/check_schema_immutability.py
-python -m unittest discover -s tools -p 'test_*.py'
+python tools/run_gate_tests.py --quick
 python tools/check_comments.py
 python tools/check_docs.py
 python tools/validate_specs.py
 ```
+
+For the complete suite, including the exhaustive campaigns, run
+`python -m unittest discover -s tools -p 'test_*.py'` explicitly.
 
 The comment gate checks comments and Python docstrings in `tools/`, `examples/`,
 `templates/` and `.github/workflows/` for anonymous debt and process history.
@@ -158,7 +169,7 @@ rewritten to satisfy prose quality rules.
 `requirements-*.txt` are the complete hashed locks generated from them by the
 command in their header. Coverage of the gate logic has a budget in
 [.coveragerc](.coveragerc); [supply-chain](.github/workflows/supply-chain.yml)
-audits the locks and reruns the gates every week.
+audits the locks and reruns the quick gates every week.
 
 ## License
 
@@ -199,6 +210,10 @@ aggiuntivi devono essere gia presenti dentro il worktree, puliti, con
 repository, path e ref SHA di 40 cifre: il processo verifica origin e HEAD e
 registra lo SHA; non esegue clone, fetch o modifiche Git. Non sono dichiarati
 checkout aggiuntivi nei workflow correnti.
+
+Il job di copertura appartiene al profilo `qualifica`: e' solo manuale e
+include la discovery completa. Il profilo `pr` seleziona le regressioni rapide;
+le due campagne esaustive sono elencate in `tools/run_gate_tests.py`.
 
 Il confronto storico CI richiede fetch e verifica del remoto: localmente
 risulta NON ESEGUITO. Anche cache Actions, piattaforme diverse, versioni Python

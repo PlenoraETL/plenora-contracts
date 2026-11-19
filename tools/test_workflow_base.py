@@ -230,6 +230,22 @@ class FreshMainTests(unittest.TestCase):
         status, output = ci_gate(self.repo, self.floor, self.floor)
         self.assertEqual(status, 0, output)
 
+    def test_manual_snapshot_survives_main_advancing_but_rejects_local_mutation(self):
+        self.advance_main_behind_the_runner()
+        self.repo.run("checkout", "--quiet", "--detach", self.floor)
+        environment = {
+            "GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "workflow_dispatch",
+        }
+        with patch.object(immutability, "ROOT", self.repo.root), \
+                patch.object(immutability, "RATIFIED_BASE", self.floor), \
+                patch.dict(os.environ, environment), \
+                patch("sys.argv", ["check", "--measured-commit", self.floor]), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(immutability.main(), 0, output.getvalue())
+            self.repo.write("vectors/set/kept.json", {"value": 99})
+            self.assertEqual(immutability.main(), 1)
+            self.assertIn("vectors/set/kept.json", output.getvalue())
+
     def test_lightweight_tag_on_main(self):
         self.repo.run("tag", "v1.0.1")
         self.repo.run("checkout", "--quiet", "v1.0.1")
@@ -298,13 +314,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("PLENORA_SCHEMA_BASE:", text)
 
     def test_the_base_step_fetches_main_first(self):
-        for job in ("validate", "coverage"):
+        for job in ("validate",):
             (step,) = [s for s in self.steps_of(job) if s.startswith("name: Base of the comparison")]
             fetch = step.index("git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main")
             self.assertLess(fetch, step.index("python tools/ci_comparison_base.py"), job)
 
     def test_every_measuring_job_takes_the_base_from_the_script_first(self):
-        for job in ("validate", "coverage"):
+        for job in ("validate",):
             steps = self.steps_of(job)
             base = [
                 i for i, step in enumerate(steps)

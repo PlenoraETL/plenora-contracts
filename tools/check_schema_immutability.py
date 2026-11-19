@@ -565,7 +565,28 @@ def in_ci() -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default=os.environ.get("PLENORA_SCHEMA_BASE"))
+    parser.add_argument("--measured-commit", help="full HEAD SHA for a manual coverage snapshot")
     arguments = parser.parse_args()
+    if arguments.measured_commit is not None:
+        try:
+            revision = arguments.measured_commit
+            if in_ci() and os.environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch":
+                raise ValueError("a measured snapshot requires workflow_dispatch in CI")
+            head = git(ROOT, "rev-parse", "HEAD^{commit}").strip()
+            if revision != head or len(revision) != 40:
+                raise ValueError("measured commit must be the full checked-out HEAD SHA")
+            errors = []
+            for baseline in dict.fromkeys((RATIFIED_BASE, revision)):
+                errors.extend(check(ROOT, baseline))
+        except (ValueError, OSError, subprocess.CalledProcessError) as error:
+            print(f"published document snapshot check failed: {error}")
+            return 1
+        for error in errors:
+            print(error)
+        if errors:
+            return 1
+        print(f"published documents unchanged against measured commit {revision} and ratified floor")
+        return 0
     base = arguments.base
     if not base or base == "0" * 40:
         base = None
